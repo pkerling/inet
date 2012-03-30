@@ -29,8 +29,6 @@ Define_Module(RoutingTableRecorder);
 
 #define LL INT64_PRINTF_FORMAT  // for eventnumber_t
 
-Register_PerRunConfigOption(CFGID_ROUTINGLOG_FILE, "routinglog-file", CFG_FILENAME, "${resultdir}/${configname}-${runnumber}.rt", "Name of the routing log file to generate.");
-
 
 // We need this because we want to know which NotificationBoard the notification comes from
 // (INotifiable::receiveChangeNotification() doesn't have NotificationBoard* as arg).
@@ -46,7 +44,6 @@ public:
 
 RoutingTableRecorder::RoutingTableRecorder()
 {
-    routingLogFile = NULL;
 }
 
 RoutingTableRecorder::~RoutingTableRecorder()
@@ -87,20 +84,6 @@ void RoutingTableRecorder::hookListeners()
     }
 }
 
-void RoutingTableRecorder::ensureRoutingLogFileOpen()
-{
-    if (routingLogFile == NULL)
-    {
-        // hack to ensure that results/ folder is created
-        simulation.getSystemModule()->recordScalar("hackForCreateResultsFolder", 0);
-
-        std::string fname = ev.getConfig()->getAsFilename(CFGID_ROUTINGLOG_FILE);
-        routingLogFile = fopen(fname.c_str(), "w");
-        if (!routingLogFile)
-            throw cRuntimeError("Cannot open file %s", fname.c_str());
-    }
-}
-
 void RoutingTableRecorder::receiveChangeNotification(NotificationBoard *nb, int category, const cObject *details)
 {
     cModule *host = nb->getParentModule();
@@ -124,16 +107,10 @@ void RoutingTableRecorder::recordInterfaceChange(cModule *host, const InterfaceE
     }
 
     // time, moduleId, ifname, address
-    ensureRoutingLogFileOpen();
-    fprintf(routingLogFile, "%s  %"LL"d  %s  %d  %s %s\n",
-            tag,
-            simulation.getEventNumber(),
-            SIMTIME_STR(simTime()),
-            host->getId(),
-            ie->getName(),
-            (ie->ipv4Data()!=NULL ? ie->ipv4Data()->getIPAddress().str().c_str() : IPv4Address().str().c_str())
-            );
-    fflush(routingLogFile);
+    std::stringstream content;
+    content << tag << " " << host->getId() << " " << ie->getName() << " ";
+    content << (ie->ipv4Data()!=NULL ? ie->ipv4Data()->getIPAddress().str() : IPv4Address().str());
+    simulation.getEnvir()->customEventlogEntry("RT", content.str().c_str());
 }
 
 void RoutingTableRecorder::recordRouteChange(cModule *host, const IPv4Route *route, int category)
@@ -149,28 +126,14 @@ void RoutingTableRecorder::recordRouteChange(cModule *host, const IPv4Route *rou
     }
 
     // time, moduleId, routerID, dest, dest netmask, nexthop
-    ensureRoutingLogFileOpen();
-    fprintf(routingLogFile, "%s %"LL"d  %s  %d  %s  %s  %s  %s\n",
-            tag,
-            simulation.getEventNumber(),
-            SIMTIME_STR(simTime()),
-            host->getId(),
-            (rt ? rt->getRouterId().str().c_str() : "*"),
-            route->getDestination().str().c_str(),
-            route->getNetmask().str().c_str(),
-            route->getGateway().str().c_str()
-    );
-    fflush(routingLogFile);
+    std::stringstream content;
+    content << tag << " " << host->getId() << " " << (rt ? rt->getRouterId().str() : "*") << " ";
+    content << route->getDestination().str() << " " << route->getNetmask().str() << " ";
+    content << route->getGateway().str();
+    simulation.getEnvir()->customEventlogEntry("RT", content.str().c_str());
 }
 
-
 //TODO: routerID change
-//    // time, moduleId, routerID
-//    ensureRoutingLogFileOpen();
-//    fprintf(routingLogFile, "ID  %s  %d  %s\n",
-//            SIMTIME_STR(simTime()),
-//            getParentModule()->getId(), //XXX we assume routing table is direct child of the node compound module
-//            a.str().c_str()
-//            );
-//    fflush(routingLogFile);
-//}
+//    // moduleId, routerID
+//    content << getParentModule()->getId() << " "; //XXX we assume routing table is direct child of the node compound module
+//    content << a.str();
