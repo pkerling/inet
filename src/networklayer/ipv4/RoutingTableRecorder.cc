@@ -32,18 +32,23 @@ Define_Module(RoutingTableRecorder);
 
 // We need this because we want to know which NotificationBoard the notification comes from
 // (INotifiable::receiveChangeNotification() doesn't have NotificationBoard* as arg).
-class RoutingTableRecorderListener : public INotifiable
+class RoutingTableNotificationBoardListener : public INotifiable
 {
-private:
+  private:
     NotificationBoard *nb;
     RoutingTableRecorder *recorder;
-public:
-    RoutingTableRecorderListener(RoutingTableRecorder *recorder, NotificationBoard *nb) {this->recorder = recorder; this->nb = nb;}
-    virtual void receiveChangeNotification(int category, const cObject *details) {recorder->receiveChangeNotification(nb, category, details);}
+
+  public:
+    RoutingTableNotificationBoardListener(RoutingTableRecorder *recorder, NotificationBoard *nb) {this->recorder = recorder; this->nb = nb;}
+    virtual void receiveChangeNotification(int category, const cObject *details) {
+        recorder->receiveChangeNotification(nb, category, details);
+    }
 };
 
 RoutingTableRecorder::RoutingTableRecorder()
 {
+    this->interfaceKey = 0;
+    this->routeKey = 0;
 }
 
 RoutingTableRecorder::~RoutingTableRecorder()
@@ -64,73 +69,118 @@ void RoutingTableRecorder::handleMessage(cMessage *)
 void RoutingTableRecorder::hookListeners()
 {
     // hook existing notification boards (we won't cover dynamically created hosts/routers, but oh well)
-    for (int id = 0; id < simulation.getLastModuleId(); id++)
-    {
+    for (int id = 0; id < simulation.getLastModuleId(); id++) {
         NotificationBoard *nb = dynamic_cast<NotificationBoard *>(simulation.getModule(id));
-        if (nb)
-        {
-            INotifiable *listener = new RoutingTableRecorderListener(this, nb);
+        if (nb) {
+            INotifiable *listener = new RoutingTableNotificationBoardListener(this, nb);
             nb->subscribe(listener, NF_INTERFACE_CREATED);
             nb->subscribe(listener, NF_INTERFACE_DELETED);
             nb->subscribe(listener, NF_INTERFACE_CONFIG_CHANGED);
             nb->subscribe(listener, NF_INTERFACE_IPv4CONFIG_CHANGED);
             //nb->subscribe(listener, NF_INTERFACE_IPv6CONFIG_CHANGED);
             //nb->subscribe(listener, NF_INTERFACE_STATE_CHANGED);
-
             nb->subscribe(listener, NF_IPv4_ROUTE_ADDED);
             nb->subscribe(listener, NF_IPv4_ROUTE_DELETED);
             nb->subscribe(listener, NF_IPv4_ROUTE_CHANGED);
         }
     }
+    // hook on eventlog manager
+    cEnvir* envir = simulation.getEnvir();
+    cIndexedEventlogManager *eventlogManager = dynamic_cast<cIndexedEventlogManager *>(envir->getEventlogManager());
+    if (eventlogManager)
+        eventlogManager->addEventlogListener(this);
 }
 
 void RoutingTableRecorder::receiveChangeNotification(NotificationBoard *nb, int category, const cObject *details)
 {
     cModule *host = nb->getParentModule();
     if (category==NF_IPv4_ROUTE_ADDED || category==NF_IPv4_ROUTE_DELETED || category==NF_IPv4_ROUTE_CHANGED)
-        recordRouteChange(host, check_and_cast<const IPv4Route *>(details), category);
-    else
-        recordInterfaceChange(host, check_and_cast<const InterfaceEntry *>(details), category);
+        recordRoute(host, check_and_cast<IPv4Route *>(details), category);
+    else if (category==NF_INTERFACE_CREATED || category==NF_INTERFACE_DELETED || category==NF_INTERFACE_CONFIG_CHANGED || category==NF_INTERFACE_IPv4CONFIG_CHANGED)
+        recordInterface(host, check_and_cast<InterfaceEntry *>(details), category);
 }
 
-void RoutingTableRecorder::recordInterfaceChange(cModule *host, const InterfaceEntry *ie, int category)
+void RoutingTableRecorder::recordSnapshot()
+{
+    for (int id = 0; id < simulation.getLastModuleId(); id++) {
+        cModule* module = simulation.getModule(id);
+        IInterfaceTable *ift = dynamic_cast<IInterfaceTable *>(module);
+        if (ift) {
+            cModule *host = module->getParentModule();
+            for (int i = 0; i < ift->getNumInterfaces(); i++)
+                recordInterface(host, ift->getInterface(i), -1);
+        }
+    }
+    for (int id = 0; id < simulation.getLastModuleId(); id++) {
+        cModule* module = simulation.getModule(id);
+        IRoutingTable *rt = dynamic_cast<IRoutingTable *>(module);
+        if (rt) {
+            cModule *host = module->getParentModule();
+            for (int i = 0; i < rt->getNumRoutes(); i++)
+                recordRoute(host, rt->getRoute(i), -1);
+        }
+    }
+}
+
+void RoutingTableRecorder::recordInterface(cModule *host, InterfaceEntry *interface, int category)
 {
     // Note: ie->getInterfaceTable() may be NULL (entry already removed from its table)
-
-    const char *tag;
-    switch (category) {
-    case NF_INTERFACE_CREATED: tag = "+I"; break;
-    case NF_INTERFACE_DELETED: tag = "-I"; break;
-    case NF_INTERFACE_CONFIG_CHANGED: tag = "*I"; break;
-    case NF_INTERFACE_IPv4CONFIG_CHANGED: tag = "*I"; break;
-    default: throw cRuntimeError("Unexpected notification category %d", category);
-    }
-
-    // time, moduleId, ifname, address
+    cEnvir* envir = simulation.getEnvir();
+    // moduleId, ifname, address
     std::stringstream content;
-    content << tag << " " << host->getId() << " " << ie->getName() << " ";
-    content << (ie->ipv4Data()!=NULL ? ie->ipv4Data()->getIPAddress().str() : IPv4Address().str());
-    simulation.getEnvir()->customEventlogEntry("RT", content.str().c_str());
+    content << host->getId() << " " << interface->getName() << " ";
+    content << (interface->ipv4Data()!=NULL ? interface->ipv4Data()->getIPAddress().str() : IPv4Address().str());
+    switch (category) {
+        case NF_INTERFACE_CREATED:
+            envir->customCreatedEntry("IT", interfaceKey, content.str().c_str());
+            interfaceEntryToKey[interface] = interfaceKey;
+            interfaceKey++;
+            break;
+        case NF_INTERFACE_DELETED:
+            envir->customDeletedEntry("IT", interfaceEntryToKey[interface]);
+            interfaceEntryToKey.erase(interface);
+            break;
+        case NF_INTERFACE_CONFIG_CHANGED:
+        case NF_INTERFACE_IPv4CONFIG_CHANGED:
+            envir->customChangedEntry("IT", interfaceEntryToKey[interface], content.str().c_str());
+            break;
+        case -1:
+            envir->customFoundEntry("IT", interfaceEntryToKey[interface], content.str().c_str());
+            break;
+        default:
+            throw cRuntimeError("Unexpected notification category %d", category);
+    }
 }
 
-void RoutingTableRecorder::recordRouteChange(cModule *host, const IPv4Route *route, int category)
+
+void RoutingTableRecorder::recordRoute(cModule *host,  IPv4Route *route, int category)
 {
     IRoutingTable *rt = route->getRoutingTable(); // may be NULL! (route already removed from its routing table)
-
-    const char *tag;
-    switch (category) {
-    case NF_IPv4_ROUTE_ADDED: tag = "+R"; break;
-    case NF_IPv4_ROUTE_CHANGED: tag = "*R"; break;
-    case NF_IPv4_ROUTE_DELETED: tag = "-R"; break;
-    default: throw cRuntimeError("Unexpected notification category %d", category);
-    }
-
-    // time, moduleId, routerID, dest, dest netmask, nexthop
+    cEnvir* envir = simulation.getEnvir();
+    // moduleId, routerID, dest, dest netmask, nexthop
     std::stringstream content;
-    content << tag << " " << host->getId() << " " << (rt ? rt->getRouterId().str() : "*") << " ";
+    content << host->getId() << " " << (rt ? rt->getRouterId().str() : "*") << " ";
     content << route->getDestination().str() << " " << route->getNetmask().str() << " ";
     content << route->getGateway().str();
-    simulation.getEnvir()->customEventlogEntry("RT", content.str().c_str());
+    switch (category) {
+        case NF_IPv4_ROUTE_ADDED:
+            envir->customCreatedEntry("RT", routeKey, content.str().c_str());
+            routeToKey[route] = routeKey;
+            routeKey++;
+            break;
+        case NF_IPv4_ROUTE_DELETED:
+            envir->customDeletedEntry("RT", routeToKey[route]);
+            routeToKey.erase(route);
+            break;
+        case NF_IPv4_ROUTE_CHANGED:
+            envir->customChangedEntry("RT", routeToKey[route], content.str().c_str());
+            break;
+        case -1:
+            envir->customFoundEntry("RT", routeToKey[route], content.str().c_str());
+            break;
+        default:
+            throw cRuntimeError("Unexpected notification category %d", category);
+    }
 }
 
 //TODO: routerID change

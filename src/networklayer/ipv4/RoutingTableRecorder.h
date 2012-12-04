@@ -18,30 +18,58 @@
 #ifndef __ROUTINGTABLERECORDER_H
 #define __ROUTINGTABLERECORDER_H
 
+#include <map>
 #include "INETDefs.h"
 #include "IRoutingTable.h"
 #include "INotifiable.h"
 
 /**
- * Records routing table changes into a file.
+ * Records interface table and routing table changes into the eventlog.
   *
  * @see RoutingTable, IPv4Route
  */
-class INET_API RoutingTableRecorder : public cSimpleModule
+class INET_API RoutingTableRecorder : public cSimpleModule, public cIndexedEventlogManager::cEventlogListener
 {
-    friend class RoutingTableRecorderListener;
+    friend class RoutingTableNotificationBoardListener;
+
+  protected:
+    struct EventLogEntryReference
+    {
+        eventnumber_t eventNumber;
+        int entryIndex;
+
+        EventLogEntryReference()
+        {
+            this->eventNumber = -1;
+            this->entryIndex = -1;
+        }
+
+        EventLogEntryReference(eventnumber_t eventNumber, int entryIndex)
+        {
+            this->eventNumber = eventNumber;
+            this->entryIndex = entryIndex;
+        }
+    };
+
+    long interfaceKey;
+    long routeKey;
+    std::map<InterfaceEntry *, long> interfaceEntryToKey;
+    std::map<IPv4Route *, long> routeToKey;
+
   public:
     RoutingTableRecorder();
     virtual ~RoutingTableRecorder();
+
   protected:
     virtual int numInitStages() const  {return 1;}
     virtual void initialize(int stage);
     virtual void handleMessage(cMessage *);
     virtual void hookListeners();
     virtual void receiveChangeNotification(NotificationBoard *nb, int category, const cObject *details);
-    virtual void recordInterfaceChange(cModule *host, const InterfaceEntry *ie, int category);
-    virtual void recordRouteChange(cModule *host, const IPv4Route *route, int category);
+    virtual void recordSnapshot();
+    virtual void recordIndex() {}
+    virtual void recordInterface(cModule *host, InterfaceEntry *ie, int category);
+    virtual void recordRoute(cModule *host, IPv4Route *route, int category);
 };
 
 #endif
-
