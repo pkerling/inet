@@ -32,6 +32,9 @@
 
 Define_Module(IPv4);
 
+//TODO
+// a multicast cimek eseten hianyoznak bizonyos NetFilter hook-ok
+// a local interface-k hasznalata eseten szinten hianyozhatnak bizonyos NetFilter hook-ok
 
 void IPv4::initialize()
 {
@@ -53,6 +56,9 @@ void IPv4::initialize()
     fragbuf.init(icmpAccess.get());
 
     numMulticast = numLocalDeliver = numDropped = numUnroutable = numForwarded = 0;
+
+    // NetFilter:
+    hooks.clear();
 
     WATCH(numMulticast);
     WATCH(numLocalDeliver);
@@ -149,6 +155,15 @@ void IPv4::handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromI
         }
     }
 
+    // route packet
+    IPv4Address &destAddr = datagram->getDestAddress();
+
+    EV << "Received datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
+
+    if (datagramPreRoutingHook(datagram, fromIE) != IPv4::Hook::ACCEPT) {
+        return;
+    }
+
     // remove control info, but keep the one on the last fragment of DSR and MANET datagrams
     int protocol = datagram->getTransportProtocol();
     bool isManetDatagram = protocol == IP_PROT_MANET || protocol == IP_PROT_DSR;
@@ -156,9 +171,7 @@ void IPv4::handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromI
         delete datagram->removeControlInfo();
 
     // route packet
-    IPv4Address &destAddr = datagram->getDestAddress();
 
-    EV << "Received datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
 
     if (fromIE->isLoopback())
     {
@@ -213,7 +226,7 @@ void IPv4::handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromI
             delete datagram;
         }
         else
-            routeUnicastPacket(datagram, NULL/*destIE*/, IPv4Address::UNSPECIFIED_ADDRESS);
+            routeUnicastPacket(datagram, fromIE, NULL/*destIE*/, IPv4Address::UNSPECIFIED_ADDRESS);
     }
 }
 
@@ -301,7 +314,29 @@ void IPv4::handleMessageFromHL(cPacket *msg)
         multicastLoop = controlInfo->getMulticastLoop();
     }
 
-    delete controlInfo;
+    if (controlInfo)
+        datagram->setControlInfo(controlInfo);
+
+    datagramLocalOut(datagram, destIE);
+}
+
+void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
+{
+    //FIXME multicastLoop es nextHopAddress parameterek eltavolitasa???
+    IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
+    IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
+    bool multicastLoop = true;
+    if (controlInfo!=NULL)
+    {
+        nextHopAddress = controlInfo->getNextHopAddr();
+        multicastLoop = controlInfo->getMulticastLoop();
+    }
+
+    // TODO: should the check for ift->numInterfaces()!=0 be after this?
+    if (datagramLocalOutHook(datagram, destIE) != IPv4::Hook::ACCEPT) {
+        return;
+    }
+    delete datagram->removeControlInfo();
 
     // send
     IPv4Address &destAddr = datagram->getDestAddress();
@@ -352,7 +387,7 @@ void IPv4::handleMessageFromHL(cPacket *msg)
         else if (destAddr.isLimitedBroadcastAddress() || rt->isLocalBroadcastAddress(destAddr))
             routeLocalBroadcastPacket(datagram, destIE);
         else
-            routeUnicastPacket(datagram, destIE, nextHopAddress);
+            routeUnicastPacket(datagram, NULL, destIE, nextHopAddress);
     }
 }
 
@@ -394,7 +429,7 @@ InterfaceEntry *IPv4::determineOutgoingInterfaceForMulticastDatagram(IPv4Datagra
 }
 
 
-void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *destIE, IPv4Address destNextHopAddr)
+void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, IPv4Address destNextHopAddr)
 {
     IPv4Address destAddr = datagram->getDestAddress();
 
@@ -445,6 +480,10 @@ void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *destIE, IP
     }
     else // fragment and send
     {
+        if (fromIE != NULL) if (datagramForwardHook(datagram, fromIE, destIE, nextHopAddr) != IPv4::Hook::ACCEPT) {
+            return;
+        }
+
         EV << "output interface is " << destIE->getName() << ", next-hop address: " << nextHopAddr << "\n";
         numForwarded++;
         fragmentAndSend(datagram, destIE, nextHopAddr);
@@ -569,6 +608,10 @@ void IPv4::reassembleAndDeliver(IPv4Datagram *datagram)
         EV << "This fragment completes the datagram.\n";
     }
 
+    if (datagramLocalInHook(datagram, getSourceInterfaceFrom(datagram)) != IPv4::Hook::ACCEPT) {
+        return;
+    }
+
     // decapsulate and send on appropriate output gate
     int protocol = datagram->getTransportProtocol();
 
@@ -638,6 +681,11 @@ cPacket *IPv4::decapsulate(IPv4Datagram *datagram)
 
 void IPv4::fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
 {
+    //FIXME   vvv   where is the good place for datagramPostRoutingHook?
+    if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHopAddr) != IPv4::Hook::ACCEPT) {
+        return;
+    }
+
     // fill in source address
     if (datagram->getSrcAddress().isUnspecified())
         datagram->setSrcAddress(ie->ipv4Data()->getIPAddress());
@@ -655,6 +703,8 @@ void IPv4::fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Addre
         numDropped++;
         return;
     }
+
+    //FIXME    ^^^    where is the good place for datagramPostRoutingHook?
 
     int mtu = ie->getMTU();
 
@@ -791,6 +841,96 @@ void IPv4::sendDatagramToOutput(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4
         datagram->setControlInfo(routingDecision);
         send(datagram, queueOutGate);
     }
+}
+
+// NetFilter:
+
+void IPv4::registerHook(int priority, IPv4::Hook* hook) {
+    Enter_Method("registerHook()");
+    hooks.insert(std::pair<int, IPv4::Hook*>(priority, hook));
+}
+
+void IPv4::unregisterHook(int priority, IPv4::Hook* hook) {
+    Enter_Method("unregisterHook()");
+    for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
+        if ((iter->first == priority) && (iter->second == hook)) {
+            hooks.erase(iter);
+            return;
+        }
+    }
+}
+
+void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result verdict) {
+
+    Enter_Method("reinjectDatagram()");
+    for (std::list<QueuedDatagramForHook>::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
+        if (iter->datagram == datagram) {
+            IPv4Datagram* datagram = iter->datagram;
+            InterfaceEntry* outIE = iter->outIE;
+            QueuedDatagramForHook::Hook hook = iter->hook;
+            queuedDatagramsForHooks.erase(iter);
+            switch (hook) {
+                case QueuedDatagramForHook::LOCALOUT:
+                    if (verdict == IPv4::Hook::DROP) {
+                        delete datagram;
+                        return;
+                    } else {
+                        datagramLocalOut(datagram, outIE);
+                    }
+                    break;
+                default:
+                    error("Re-injection of datagram queued for this hook not implemented");
+                    break;
+            }
+            return;
+        }
+    }
+}
+
+IPv4::Hook::Result IPv4::datagramPreRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE) {
+    for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
+        IPv4::Hook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE, this);
+        if (r == IPv4::Hook::DROP) delete datagram;
+        if (r != IPv4::Hook::ACCEPT) return r;
+    }
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result IPv4::datagramLocalInHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE) {
+    for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
+        IPv4::Hook::Result r = iter->second->datagramLocalInHook(datagram, inIE, this);
+        if (r == IPv4::Hook::DROP) delete datagram;
+        if (r != IPv4::Hook::ACCEPT) return r;
+    }
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result IPv4::datagramForwardHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) {
+    for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
+        IPv4::Hook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr, this);
+        if (r == IPv4::Hook::DROP) delete datagram;
+        if (r != IPv4::Hook::ACCEPT) return r;
+    }
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result IPv4::datagramPostRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) {
+    for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
+        IPv4::Hook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr, this);
+        if (r == IPv4::Hook::DROP) delete datagram;
+        if (r != IPv4::Hook::ACCEPT) return r;
+    }
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE) {
+    for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
+        IPv4::Hook::Result r = iter->second->datagramLocalOutHook(datagram, outIE, this);
+        if (r == IPv4::Hook::QUEUE) { queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, outIE, QueuedDatagramForHook::LOCALOUT)); return r; }
+        if (r == IPv4::Hook::DROP) delete datagram;
+        if (r != IPv4::Hook::ACCEPT) return r;
+    }
+    return IPv4::Hook::ACCEPT;
 }
 
 #ifdef WITH_MANET
