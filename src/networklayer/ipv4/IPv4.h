@@ -62,27 +62,27 @@ class INET_API IPv4 : public QueueBase
         /**
         * called before a packet arriving from the network is routed
         */
-        virtual Result datagramPreRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const IPv4* ipLayer) { return ACCEPT; }
+        virtual Result datagramPreRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE) = 0;
 
         /**
         * called before a packet arriving from the network is delivered locally
         */
-        virtual Result datagramLocalInHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const IPv4* ipLayer) { return ACCEPT; }
+        virtual Result datagramLocalInHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE) = 0;
 
         /**
         * called before a packet arriving from the network is delivered via the network
         */
-        virtual Result datagramForwardHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, const IPv4* ipLayer) { return ACCEPT; }
+        virtual Result datagramForwardHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) = 0;
 
         /**
         * called before a packet is delivered via the network
         */
-        virtual Result datagramPostRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, const IPv4* ipLayer) { return ACCEPT; }
+        virtual Result datagramPostRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) = 0;
 
         /**
         * called before a packet arriving locally is delivered
         */
-        virtual Result datagramLocalOutHook(const IPv4Datagram* datagram, const InterfaceEntry* outIE, const IPv4* ipLayer) { return ACCEPT; }
+        virtual Result datagramLocalOutHook(const IPv4Datagram* datagram, const InterfaceEntry* outIE) = 0;
     };
 
     /**
