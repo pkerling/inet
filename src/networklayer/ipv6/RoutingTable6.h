@@ -27,6 +27,11 @@
 
 class IInterfaceTable;
 class InterfaceEntry;
+class IGenericRoutingTable;
+class IGenericRoute;
+class IPv6RouteAdapter;
+//TODO class IPv6MulticastRouteAdapter;
+class IPv6RoutingTableAdapter;
 
 /**
  * Represents a route in the route table. Routes with src=FROM_RA represent
@@ -52,6 +57,7 @@ class INET_API IPv6Route : public cObject
     IPv6Address _nextHop;  // unspecified means "direct"
     simtime_t _expiryTime; // if route is an advertised prefix: prefix lifetime
     int _metric;
+    IPv6RouteAdapter *adapter;
 
   public:
     /**
@@ -65,11 +71,16 @@ class INET_API IPv6Route : public cObject
         _interfaceID = -1;
         _expiryTime = 0;
         _metric = 0;
+        adapter = NULL;
     }
+
+    virtual ~IPv6Route() {delete adapter;}
 
     virtual std::string info() const;
     virtual std::string detailedInfo() const;
     static const char *routeSrcName(RouteSrc src);
+
+    virtual IGenericRoute *asGeneric();
 
     void setInterfaceId(int interfaceId)  {_interfaceID = interfaceId;}
     void setNextHop(const IPv6Address& nextHop)  {_nextHop = nextHop;}
@@ -105,6 +116,7 @@ class INET_API RoutingTable6 : public cSimpleModule, protected INotifiable
   protected:
     IInterfaceTable *ift; // cached pointer
     NotificationBoard *nb; // cached pointer
+    IPv6RoutingTableAdapter *adapter;
 
     bool isrouter;
 
@@ -183,6 +195,11 @@ class INET_API RoutingTable6 : public cSimpleModule, protected INotifiable
      */
     virtual InterfaceEntry *getInterfaceByAddress(const IPv6Address& address);
     //@}
+
+    /**
+     * TODO
+     */
+    virtual IGenericRoutingTable *asGeneric();
 
     /**
      * IP forwarding on/off

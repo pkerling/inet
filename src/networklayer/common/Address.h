@@ -35,7 +35,7 @@ class INET_API Address
         IPv6Address ipv6;
         MACAddress mac;
     public:
-        Address();
+        Address() {}
         Address(const IPv4Address& addr) {set(addr);}
         Address(const IPv6Address& addr) {set(addr);}
         Address(const MACAddress& addr) {set(addr);}
