@@ -886,7 +886,7 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result ver
     }
 }
 
-IPv4::Hook::Result IPv4::datagramPreRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE) {
+IPv4::Hook::Result IPv4::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE) {
     for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE);
         if (r == IPv4::Hook::DROP) delete datagram;
@@ -895,7 +895,7 @@ IPv4::Hook::Result IPv4::datagramPreRoutingHook(const IPv4Datagram* datagram, co
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4::datagramLocalInHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE) {
+IPv4::Hook::Result IPv4::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE) {
     for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramLocalInHook(datagram, inIE);
         if (r == IPv4::Hook::DROP) delete datagram;
@@ -904,7 +904,7 @@ IPv4::Hook::Result IPv4::datagramLocalInHook(const IPv4Datagram* datagram, const
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4::datagramForwardHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) {
+IPv4::Hook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) {
     for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
         if (r == IPv4::Hook::DROP) delete datagram;
@@ -913,7 +913,7 @@ IPv4::Hook::Result IPv4::datagramForwardHook(const IPv4Datagram* datagram, const
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4::datagramPostRoutingHook(const IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) {
+IPv4::Hook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) {
     for (std::multimap<int, IPv4::Hook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
         if (r == IPv4::Hook::DROP) delete datagram;
