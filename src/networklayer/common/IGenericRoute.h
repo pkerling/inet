@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2008 Andras Varga
+// Copyright (C) 2012 Andras Varga
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License
@@ -15,110 +15,73 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_IPv4ROUTE_H
-#define __INET_IPv4ROUTE_H
-
+#ifndef __INET_IGENERICROUTE_H
+#define __INET_IGENERICROUTE_H
 
 #include "INETDefs.h"
-
-#include "IPv4Address.h"
+#include "Address.h"
 
 class InterfaceEntry;
-class IRoutingTable;
+class IGenericRoutingTable;
 
 /**
- * Generic unicast route
+ * C++ interface for accessing unicast routing table entries of various protocols (IPv4, IPv6, etc)
+ * in a uniform way.
  *
- * @see IRoutingTable, RoutingTable
+ * @see IGenericRoutingTable, IPv4Route, IPv6Route
  */
-class INET_API IGenericRoute : public cObject
+//TODO the "Generic" can be dropped from the name, once IGenericRoutingTable is renamed to RoutingTable
+class INET_API IGenericRoute
 {
-  public:
-// ehelyett: cObject*
-//    /** Specifies where the route comes from */
-//    enum RouteSource
-//    {
-//        MANUAL,       ///< manually added static route
-//        IFACENETMASK, ///< comes from an interface's netmask
-//        RIP,          ///< managed by the given routing protocol
-//        OSPF,         ///< managed by the given routing protocol
-//        BGP,          ///< managed by the given routing protocol
-//        ZEBRA,        ///< managed by the Quagga/Zebra based model
-//        MANET,        ///< managed by manet, search exact address
-//        MANET2,       ///< managed by manet, search approximate address
-//    };
-
-//  private:
-//    IRoutingTable *rt;    ///< the routing table in which this route is inserted, or NULL
-//    IPv4Address dest;     ///< Destination
-//    IPv4Address netmask;  ///< Route mask
-//    IPv4Address gateway;  ///< Next hop
-//    InterfaceEntry *interfacePtr; ///< interface
-//    RouteSource source;   ///< manual, routing prot, etc.
-//    int metric;           ///< Metric ("cost" to reach the destination)
-
-//  public:
-//    enum {F_DESTINATION, F_NETMASK, F_GATEWAY, F_IFACE, F_TYPE, F_SOURCE, F_METRIC, F_LAST}; // field codes for changed()
-
-  private:
-    // copying not supported: following are private and also left undefined
-    IGenericRoute(const IGenericRoute& obj);
-    IGenericRoute& operator=(const IGenericRoute& obj);
-
-  protected:
-    void changed(int fieldCode);
-
-  public:
-//    IGenericRoute() : rt(NULL), interfacePtr(NULL), source(MANUAL), metric(0) {}
-//    virtual ~IGenericRoute() {}
+    public:
+//TODO maybe:
 //    virtual std::string info() const;
 //    virtual std::string detailedInfo() const;
 //
 //    bool operator==(const IGenericRoute& route) const { return equals(route); }
 //    bool operator!=(const IGenericRoute& route) const { return !equals(route); }
 //    bool equals(const IGenericRoute& route) const;
-//
-//    /** To be called by the routing table when this route is added or removed from it */
-//    virtual void setRoutingTable(IRoutingTable *rt) {this->rt = rt;}
-//    IRoutingTable *getRoutingTable() const {return rt;}
 
-    /** test validity of route entry, e.g. check expiry */
-    virtual bool isValid() const { return true; }  //XXX isExpired
+        virtual ~IGenericRoute() {}
 
-    virtual void setDestination(IPv4Address _dest)  { if (dest != _dest) {dest = _dest; changed(F_DESTINATION);} }
-    virtual void setNetmask(IPv4Address _netmask) /*XXX prefixLength */ { if (netmask != _netmask) {netmask = _netmask; changed(F_NETMASK);} }
-    virtual void setGateway(IPv4Address _gateway) /*XXX nextHopAddress */ { if (gateway != _gateway) {gateway = _gateway; changed(F_GATEWAY);} }
-    virtual void setInterface(InterfaceEntry *_interfacePtr)  { if (interfacePtr != _interfacePtr) {interfacePtr = _interfacePtr; changed(F_IFACE);} }
-    virtual void setSource(RouteSource _source) /*XXX cObject */ { if (source != _source) {source = _source; changed(F_SOURCE);} }
-    virtual void setMetric(int _metric) /*XXX double?*/ { if (metric != _metric) {metric = _metric; changed(F_METRIC);} }
+        /** The routing table in which this route is inserted, or NULL. */
+        virtual IGenericRoutingTable *getRoutingTable() const = 0;
 
-    /** Destination address prefix to match */
-    Address getDestination() const {return dest;}
+        virtual void setEnabled(bool enabled) = 0;
+        virtual void setDestination(const Address& dest) = 0;
+        virtual void setPrefixLength(int l) = 0;
+        virtual void setNextHop(const Address& nextHop) = 0;
+        virtual void setInterface(InterfaceEntry *ie) = 0;
+        virtual void setSource(cObject *source) = 0;
+        virtual void setMetric(int metric) = 0;  //XXX double?
 
-    /** Represents length of prefix to match */
-//    IPv4Address getNetmask() const {return netmask;}
-    int getPrefixLength() = 0;
+        /** Disabled entries are ignored by routing until the became enabled again. */
+        virtual bool isEnabled() const = 0;
 
-    /** Next hop address */
-    Address getNextHop() const {return gateway;}
+        /** Expired entries are ignored by routing, and may be periodically purged. */
+        virtual bool isExpired() const = 0;
 
-    /** Next hop interface */
-    InterfaceEntry *getInterface() const {return interfacePtr;}
+        /** Destination address prefix to match */
+        virtual Address getDestination() const = 0;
 
-//    /** Convenience method */
-//    const char *getInterfaceName() const;  //????
+        /** Represents length of prefix to match */
+        virtual int getPrefixLength() const = 0;
 
-    /** Source of route. MANUAL (read from file), from routing protocol, etc */
-    cObject *getSource() const {return source;}
+        /** Next hop address */
+        virtual Address getNextHop() const = 0;
 
-    /** "Cost" to reach the destination */
-    int getMetric() const {return metric;}
+        /** Next hop interface */
+        virtual InterfaceEntry *getInterface() const = 0;
+
+        /** Source of route */
+        virtual cObject *getSource() const = 0;
+
+        /** Cost to reach the destination */
+        virtual int getMetric() const = 0;
 };
 
 /**
- * IPv4 multicast route in IRoutingTable.
- * Multicast routing protocols may extend this class to store protocol
- * specific fields.
+ * Generic multicast route in an IGenericRoutingTable.
  *
  * Multicast datagrams are forwarded along the edges of a multicast tree.
  * The tree might depend on the multicast group and the source (origin) of
@@ -135,104 +98,65 @@ class INET_API IGenericRoute : public cObject
  * routing tree), then the datagram is forwarded only if there are listeners
  * of the multicast group on that link (TRPB routing).
  *
- * @see IRoutingTable, RoutingTable
+ * @see IGenericRoutingTable, IPv4MulticastRoute, IPv6MulticastRoute
  */
-class INET_API IGenericMulticastRoute : public cObject
+//TODO the "Generic" can be dropped from the name, once IGenericRoutingTable is renamed to RoutingTable
+//TODO decide whether IPv4Route should implement this or rather have a wrapper?
+class INET_API IGenericMulticastRoute
 {
-//  public:
-//    class ChildInterface
-//    {
-//      protected:
-//        InterfaceEntry *ie;
-//        bool _isLeaf;        // for TRPB support
-//      public:
-//        ChildInterface(InterfaceEntry *ie, bool isLeaf = false) : ie(ie), _isLeaf(isLeaf) {}
-//        virtual ~ChildInterface() {}
-//
-//        InterfaceEntry *getInterface() { return ie; }
-//        bool isLeaf() { return _isLeaf; }
-//    };
-//
-//    typedef std::vector<ChildInterface*> ChildInterfaceVector;
-//
-//    /** Specifies where the route comes from */
-//    enum RouteSource
-//    {
-//        MANUAL,       ///< manually added static route
-//        DVMRP,        ///< managed by DVMRP router
-//        PIM_SM,       ///< managed by PIM-SM router
-//    };
-//
-//  private:
-//    IRoutingTable *rt;             ///< the routing table in which this route is inserted, or NULL
-//    IPv4Address origin;            ///< Source network
-//    IPv4Address originNetmask;     ///< Source network mask
-//    IPv4Address group;             ///< Multicast group, if unspecified then matches any
-//    InterfaceEntry *parent;        ///< Parent interface
-//    ChildInterfaceVector children; ///< Child interfaces
-//    RouteSource source;            ///< manual, routing prot, etc.
-//    int metric;                    ///< Metric ("cost" to reach the source)
-
   public:
-    // field codes for changed()
-    enum {F_ORIGIN, F_ORIGINMASK, F_MULTICASTGROUP, F_PARENT, F_CHILDREN, F_SOURCE, F_METRIC, F_LAST};
-
-  protected:
-    void changed(int fieldCode);
-
-  private:
-    // copying not supported: following are private and also left undefined
-    IGenericMulticastRoute(const IGenericMulticastRoute& obj);
-    IGenericMulticastRoute& operator=(const IGenericMulticastRoute& obj);
-
-  public:
-//    IGenericMulticastRoute() : rt(NULL), parent(NULL), source(MANUAL), metric(0) {}
-//    virtual ~IGenericMulticastRoute();
+//TODO maybe:
 //    virtual std::string info() const;
 //    virtual std::string detailedInfo() const;
-//
-//    /** To be called by the routing table when this route is added or removed from it */
-//    virtual void setRoutingTable(IRoutingTable *rt) {this->rt = rt;}
-//    IRoutingTable *getRoutingTable() const {return rt;}
-//
-//    /** test validity of route entry, e.g. check expiry */
-//    virtual bool isValid() const { return true; }
 
-//    virtual bool matches(const Address &origin, const Address &group) const
-//    {
-//        return (this->group.isUnspecified() || this->group == group) &&
-//                IPv4Address::maskedAddrAreEqual(origin, this->origin, this->originNetmask);
-//    }
+        virtual ~IGenericMulticastRoute() {}
 
-    virtual void setOrigin(IPv4Address _origin)  { if (origin != _origin) {origin = _origin; changed(F_ORIGIN);} }
-    virtual void setOriginNetmask(IPv4Address _netmask) /*XXX prefixLength*/ { if (originNetmask != _netmask) {originNetmask = _netmask; changed(F_ORIGINMASK);} }
-    virtual void setMulticastGroup(IPv4Address _group)  { if (group != _group) {group = _group; changed(F_MULTICASTGROUP);} }
-    virtual void setParent(InterfaceEntry *_parent)  { if (parent != _parent) {parent = _parent; changed(F_PARENT);} }
-    virtual bool addChild(InterfaceEntry *ie, bool isLeaf);
-    virtual bool removeChild(InterfaceEntry *ie);
-    virtual void setSource(RouteSource _source) /*XXX cObject*/ { if (source != _source) {source = _source; changed(F_SOURCE);} }
-    virtual void setMetric(int _metric)  { if (metric != _metric) {metric = _metric; changed(F_METRIC);} }
+        /** The routing table in which this route is inserted, or NULL. */
+        virtual IGenericRoutingTable *getRoutingTable() const = 0;
 
-    /** Source address prefix to match */
-    Address getOrigin() const {return origin;}
+        virtual void setEnabled(bool enabled) = 0;
+        virtual void setOrigin(const Address& origin) = 0;
+        virtual void setPrefixLength(int len) = 0;
+        virtual void setMulticastGroup(const Address& group) = 0;
+        virtual void setParent(InterfaceEntry *ie) = 0;
+        virtual bool addChild(InterfaceEntry *ie, bool isLeaf) = 0;
+        virtual bool removeChild(InterfaceEntry *ie) = 0;
+        virtual void setSource(cObject *source) = 0;
+        virtual void setMetric(int metric) = 0;
 
-    /** Represents length of prefix to match */
-    Address getOriginNetmask() const {return originNetmask;}
+        /** Disabled entries are ignored by routing until the became enabled again. */
+        virtual bool isEnabled() const = 0;
 
-    /** Multicast group address */
-    Address getMulticastGroup() const {return group;}
+        /** Expired entries are ignored by routing, and may be periodically purged. */
+        virtual bool isExpired() const = 0;
 
-    /** Parent interface */
-    InterfaceEntry *getParent() const {return parent;}
+        /** Source address prefix to match */
+        virtual Address getOrigin() const = 0;
 
-    /** Child interfaces */
-    const ChildInterfaceVector &getChildren() const {return children;}
+        /** Prefix length to match */
+        virtual int getPrefixLength() const = 0;
 
-    /** Source of route. MANUAL (read from file), from routing protocol, etc */
-    RouteSource getSource() const {return source;}
+        /** Multicast group address */
+        virtual Address getMulticastGroup() const = 0;
 
-    /** "Cost" to reach the destination */
-    int getMetric() const {return metric;}
+        /** Parent interface */
+        virtual InterfaceEntry *getParent() const = 0;
+
+        /** Child interfaces */
+        virtual int getNumChildren() const = 0;
+
+        /** Returns the ith child interface */
+        virtual InterfaceEntry *getChild(int i) const = 0;
+
+        /** Returns true if the ith child interface is a leaf */
+        virtual bool getChildIsLeaf(int i) const = 0;
+
+        /** Source of route */
+        virtual cObject *getSource() const = 0;
+
+        /** Cost to reach the destination */
+        virtual int getMetric() const = 0;
 };
-#endif // __INET_IPv4ROUTE_H
+
+#endif
 

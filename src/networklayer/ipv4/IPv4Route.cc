@@ -24,7 +24,13 @@
 
 #include "InterfaceEntry.h"
 #include "IRoutingTable.h"
+#include "IPv4RouteAdapter.h"
 
+
+IPv4Route::~IPv4Route()
+{
+    delete adapter;
+}
 
 std::string IPv4Route::info() const
 {
@@ -75,8 +81,16 @@ void IPv4Route::changed(int fieldCode)
         rt->routeChanged(this, fieldCode);
 }
 
+IGenericRoute *IPv4Route::asGeneric()
+{
+    if (!adapter)
+        adapter = new IPv4RouteAdapter(this);
+    return adapter;
+}
+
 IPv4MulticastRoute::~IPv4MulticastRoute()
 {
+    delete adapter;
     for (ChildInterfaceVector::iterator it = children.begin(); it != children.end(); ++it)
         delete *it;
     children.clear();
@@ -115,7 +129,12 @@ std::string IPv4MulticastRoute::detailedInfo() const
     return info();
 }
 
-
+IGenericMulticastRoute *IPv4MulticastRoute::asGeneric()
+{
+    if (!adapter)
+        adapter = new IPv4MulticastRouteAdapter(this);
+    return adapter;
+}
 
 bool IPv4MulticastRoute::addChild(InterfaceEntry *ie, bool isLeaf)
 {
