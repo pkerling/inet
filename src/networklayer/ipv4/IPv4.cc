@@ -322,7 +322,6 @@ void IPv4::handleMessageFromHL(cPacket *msg)
 
 void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
 {
-    //FIXME multicastLoop es nextHopAddress parameterek eltavolitasa???
     IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
     IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
     bool multicastLoop = true;
