@@ -50,7 +50,7 @@ typedef std::set<ManetAddress> AddressGroup;
 /**
  * Base class for Manet Routing
  */
-class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, protected cListener
+class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, protected cListener, public IPv4::Hook
 {
   private:
     static simsignal_t mobilityStateChangedSignal;
@@ -405,6 +405,23 @@ class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, prot
     virtual bool isAp() const;
     //
     static bool getRouteFromGlobal(const ManetAddress &src, const ManetAddress &dest, std::vector<ManetAddress> &route);
+
+
+    // IPv4::Hook related members, functions:
+
+  protected:
+    IPv4 *ipLayer;
+    bool isReactive;
+  protected:
+    void initHook();
+    void finishHook();
+    //FIXME should add initialize()/finish() functions for this class and call initHook/finishHook from these
+  public:
+    virtual IPv4::Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
+    virtual IPv4::Hook::Result datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
+    virtual IPv4::Hook::Result datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr);
+    virtual IPv4::Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr);
+    virtual IPv4::Hook::Result datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry* outIE);
 };
 
 #define interface80211ptr getInterfaceWlanByAddress()

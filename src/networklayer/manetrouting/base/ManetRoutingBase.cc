@@ -1483,3 +1483,68 @@ bool ManetRoutingBase::getRouteFromGlobal(const ManetAddress &src, const ManetAd
     }
 }
 
+///////////////////////////////
+// IPv4::Hook related functions:
+///////////////////////////////
+void ManetRoutingBase::initHook()
+{
+    ipLayer = check_and_cast<IPv4*>(findModuleWhereverInNode("ip", this));
+    ipLayer->registerHook(0, this);
+    cProperties *props = getProperties();
+    isReactive = props && props->getAsBool("reactive");
+}
+
+void ManetRoutingBase::finishHook()
+{
+    ipLayer->unregisterHook(0, this);
+}
+
+
+IPv4::Hook::Result ManetRoutingBase::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
+{
+    EV << "HOOK " << getFullPath() << ": PREROUTING packet=" << datagram->getName()
+       << " inIE=" << (inIE ? inIE->getName() : "NULL")
+       << endl;
+
+//    if (isReactive)
+//        ipLayer->sendRouteUpdateMessageToManet(datagram);
+
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result ManetRoutingBase::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
+{
+    EV << "HOOK " << getFullPath() << ": LOCAL IN: packet=" << datagram->getName()
+       << " inIE=" << (inIE ? inIE->getName() : "NULL")
+       << endl;
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result ManetRoutingBase::datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry* outIE)
+{
+    EV << "HOOK " << getFullPath() << ": LOCAL OUT: packet=" << datagram->getName()
+       << " outIE=" << (outIE ? outIE->getName() : "NULL")
+       << endl;
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result ManetRoutingBase::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr)
+{
+    EV << "HOOK " << getFullPath() << ": FORWARD: packet=" << datagram->getName()
+       << " inIE=" << (inIE ? inIE->getName() : "NULL")
+       << " outIE=" << (outIE ? outIE->getName() : "NULL")
+       << " nextHop=" << nextHopAddr
+       << endl;
+    return IPv4::Hook::ACCEPT;
+}
+
+IPv4::Hook::Result ManetRoutingBase::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr)
+{
+    EV << "HOOK " << getFullPath() << ": POSTROUTING packet=" << datagram->getName()
+       << " inIE=" << (inIE ? inIE->getName() : "NULL")
+       << " outIE=" << (outIE ? outIE->getName() : "NULL")
+       << " nextHop=" << nextHopAddr
+       << endl;
+    return IPv4::Hook::ACCEPT;
+}
+
