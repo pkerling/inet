@@ -36,10 +36,6 @@
 #include "NotifierConsts.h"
 #include "ICMP.h"
 
-#ifdef WITH_80211MESH
-#include "ILocator.h"
-#endif
-
 #include "ARP.h"
 
 #include <vector>
@@ -122,10 +118,6 @@ class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, prot
     bool isGateway;     /// true if the node will work like gateway for address in the list
 
     std::vector<ManetProxyAddress> proxyAddress;
-
-#ifdef WITH_80211MESH
-    ILocator *locator;
-#endif
 
   protected:
     ~ManetRoutingBase();
