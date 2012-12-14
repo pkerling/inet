@@ -18,12 +18,14 @@
 #ifndef __INET_IP_H
 #define __INET_IP_H
 
+#include <omnetpp.h>
 #include "INETDefs.h"
-
+#include "IGenericNetworkProtocol.h"
 #include "ICMPAccess.h"
 #include "IPv4FragBuf.h"
 #include "ProtocolMap.h"
 #include "QueueBase.h"
+#include "IPv4Datagram.h"
 
 #ifdef WITH_MANET
 #include "ControlManetRouting_m.h"
@@ -33,7 +35,6 @@
 class ARPPacket;
 class ICMPMessage;
 class IInterfaceTable;
-class IPv4Datagram;
 class IRoutingTable;
 
 // ICMP type 2, code 4: fragmentation needed, but don't-fragment bit set
@@ -43,7 +44,7 @@ const int ICMP_FRAGMENTATION_ERROR_CODE = 4;
 /**
  * Implements the IPv4 protocol.
  */
-class INET_API IPv4 : public QueueBase
+class INET_API IPv4 : public QueueBase, public IGenericNetworkProtocol
 {
   public:
     /**
@@ -84,6 +85,18 @@ class INET_API IPv4 : public QueueBase
         * called before a packet arriving locally is delivered
         */
         virtual Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE) = 0;
+    };
+
+    class GenericHookAdapter : public Hook {
+        private:
+            IGenericNetworkProtocol::IHook *hook;
+        public:
+            GenericHookAdapter(IGenericNetworkProtocol::IHook *hook) { this->hook = hook; }
+            virtual Result datagramPreRoutingHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry) { return (Result)hook->datagramPreRoutingHook(datagram, inputInterfaceEntry);}
+            virtual Result datagramLocalInHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry) { return (Result)hook->datagramLocalInHook(datagram, inputInterfaceEntry); }
+            virtual Result datagramForwardHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry, InterfaceEntry * outputInterfaceEntry, IPv4Address & nextHopAddress) { return (Result)hook->datagramForwardHook(datagram, inputInterfaceEntry, outputInterfaceEntry, nextHopAddress); }
+            virtual Result datagramPostRoutingHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry, InterfaceEntry * outputInterfaceEntry, IPv4Address & nextHopAddress) { return (Result)hook->datagramPostRoutingHook(datagram, inputInterfaceEntry, outputInterfaceEntry, nextHopAddress); }
+            virtual Result datagramLocalOutHook(IPv4Datagram * datagram, InterfaceEntry * outputInterfaceEntry) { return (Result)hook->datagramLocalOutHook(datagram, outputInterfaceEntry); }
     };
 
     /**
@@ -313,6 +326,9 @@ class INET_API IPv4 : public QueueBase
      * re-injects a previously queued datagram
      */
     void reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result verdict);
+
+    virtual void registerHook(int priority, IGenericNetworkProtocol::IHook * hook) { registerHook(priority, new GenericHookAdapter(hook)); }
+    virtual void unregisterHook(int priority, IGenericNetworkProtocol::IHook * hook) { } // TODO: iterate
 };
 
 #endif
