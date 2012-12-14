@@ -213,7 +213,7 @@ void IPv4::preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE)
         {
             // broadcast datagram on the target subnet if we are a router
             if (broadcastIE && fromIE != broadcastIE && rt->isIPForwardingEnabled())
-                fragmentAndSend(datagram->dup(), broadcastIE, IPv4Address::ALLONES_ADDRESS);
+                fragmentPostRouting(datagram->dup(), broadcastIE, IPv4Address::ALLONES_ADDRESS);
 
             EV << "Broadcast received\n";
             reassembleAndDeliver(datagram);
@@ -351,13 +351,13 @@ void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
         {
             InterfaceEntry *loopbackIF = ift->getFirstLoopbackInterface();
             if (loopbackIF)
-                fragmentAndSend(datagram->dup(), loopbackIF, destAddr);
+                fragmentPostRouting(datagram->dup(), loopbackIF, destAddr);
         }
 
         if (destIE)
         {
             numMulticast++;
-            fragmentAndSend(datagram, destIE, destAddr);
+            fragmentPostRouting(datagram, destIE, destAddr);
         }
         else
         {
@@ -377,7 +377,7 @@ void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
 
             destIE = ift->getFirstLoopbackInterface();
             ASSERT(destIE);
-            fragmentAndSend(datagram, destIE, destAddr);
+            fragmentPostRouting(datagram, destIE, destAddr);
         }
         else if (destAddr.isLimitedBroadcastAddress() || rt->isLocalBroadcastAddress(destAddr))
             routeLocalBroadcastPacket(datagram, destIE);
@@ -481,7 +481,7 @@ void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, In
 
         EV << "output interface is " << destIE->getName() << ", next-hop address: " << nextHopAddr << "\n";
         numForwarded++;
-        fragmentAndSend(datagram, destIE, nextHopAddr);
+        fragmentPostRouting(datagram, destIE, nextHopAddr);
     }
 }
 
@@ -492,7 +492,7 @@ void IPv4::routeLocalBroadcastPacket(IPv4Datagram *datagram, InterfaceEntry *des
     // and mapped to the broadcast MAC address.
     if (destIE!=NULL)
     {
-        fragmentAndSend(datagram, destIE, IPv4Address::ALLONES_ADDRESS);
+        fragmentPostRouting(datagram, destIE, IPv4Address::ALLONES_ADDRESS);
     }
     else if (forceBroadcast)
     {
@@ -500,7 +500,7 @@ void IPv4::routeLocalBroadcastPacket(IPv4Datagram *datagram, InterfaceEntry *des
         for (int i = 0; i<ift->getNumInterfaces(); i++)
         {
             InterfaceEntry *ie = ift->getInterface(i);
-            fragmentAndSend(datagram->dup(), ie, IPv4Address::ALLONES_ADDRESS);
+            fragmentPostRouting(datagram->dup(), ie, IPv4Address::ALLONES_ADDRESS);
         }
         delete datagram;
     }
@@ -565,7 +565,7 @@ void IPv4::forwardMulticastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE
                 else
                 {
                     EV << "Forwarding to " << destIE->getName() << "\n";
-                    fragmentAndSend(datagram->dup(), destIE, destAddr);
+                    fragmentPostRouting(datagram->dup(), destIE, destAddr);
                 }
             }
         }
@@ -664,13 +664,18 @@ cPacket *IPv4::decapsulate(IPv4Datagram *datagram)
     return packet;
 }
 
-void IPv4::fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
+void IPv4::fragmentPostRouting(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
 {
     //FIXME   vvv   where is the good place for datagramPostRoutingHook?
     if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHopAddr) != IPv4::Hook::ACCEPT) {
         return;
     }
 
+    fragmentAndSend(datagram, ie, nextHopAddr);
+}
+
+void IPv4::fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
+{
     // fill in source address
     if (datagram->getSrcAddress().isUnspecified())
         datagram->setSrcAddress(ie->ipv4Data()->getIPAddress());

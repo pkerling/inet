@@ -225,6 +225,11 @@ class INET_API IPv4 : public QueueBase
     virtual cPacket *decapsulate(IPv4Datagram *datagram);
 
     /**
+     * Call PostRouting Hook and continue with fragmentAndSend() if accepted
+     */
+    virtual void fragmentPostRouting(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr);
+
+    /**
      * Fragment packet if needed, then send it to the selected interface using
      * sendDatagramToOutput().
      */
