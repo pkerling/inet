@@ -10,6 +10,7 @@
 
 DYMO_NAMESPACE_BEGIN
 
+// TODO: use generic MANET port
 #define DYMO_UDP_PORT 269
 
 typedef uint32_t DYMOSequenceNumber;

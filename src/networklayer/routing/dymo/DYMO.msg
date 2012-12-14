@@ -57,7 +57,7 @@ packet RteMsg extends DYMOPacket {
     double metric;
     DYMOMetricType metricType;
     DYMOSequenceNumber sequenceNumber;
-    AddressBlock origNode;
+    AddressBlock originatorNode;
     AddressBlock targetNode;
 }
 

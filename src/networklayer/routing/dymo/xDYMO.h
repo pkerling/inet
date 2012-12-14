@@ -8,11 +8,16 @@
 #include <vector>
 #include <map>
 #include <omnetpp.h>
+#include "InterfaceTableAccess.h"
 #include "UDPSocket.h"
+#include "IGenericNetworkProtocol.h"
 #include "IGenericRoutingTable.h"
 #include "DYMOdefs.h"
 #include "DYMORouteData.h"
 #include "DYMO_m.h"
+
+// TODO: KLUDGE: kill these
+#include "RoutingTable.h"
 
 DYMO_NAMESPACE_BEGIN
 
@@ -27,10 +32,11 @@ DYMO_NAMESPACE_BEGIN
  *  - 13.1. Expanding Rings Multicast
  *  - 13.2. Intermediate RREP
  */
-class INET_API xDYMO : public cSimpleModule {
+class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHook {
 private:
     // context parameters
     const char *routingTableModuleName;
+    const char *networkProtocolModuleName;
 
     // dymo parameters from RFC
     double activeInterval;
@@ -49,17 +55,19 @@ private:
     int maxHopLimit;
 
     // context
+    IInterfaceTable *interfaceTable;
     IGenericRoutingTable * routingTable;
+    IGenericNetworkProtocol * networkProtocol;
 
     // internal
     DYMOSequenceNumber sequenceNumber;
-    std::multimap<Uint128, cPacket *> addressToDelayedPackets;
-    std::map<Uint128, RREQTimer *> addressToRREQTimer;
+    std::multimap<Address, IGenericDatagram *> targetAddressToDelayedPackets;
+    std::map<Address, RREQTimer *> targetAddressToRREQTimer;
     UDPSocket socket;
 
 public:
     xDYMO();
-    virtual ~xDYMO() { }
+    virtual ~xDYMO();
 
     // module interface
     int numInitStages() const  { return 1; }
@@ -68,33 +76,29 @@ public:
 
 private:
     // route discovery
-    void startRouteDiscovery(Address & target);
-    void completeRouteDiscovery(Address & target);
-    void cancelRouteDiscovery(Address & target);
-    bool hasOngoingRouteDiscovery(Address & target);
+    void startRouteDiscovery(const Address & target);
+    void completeRouteDiscovery(const Address & target);
+    void cancelRouteDiscovery(const Address & target);
+    bool hasOngoingRouteDiscovery(const Address & target);
 
     // handling IP datagrams
-    void delayDatagram(cPacket * packet);
-    void reinjectDatagram(cPacket * packet);
-    void dropDatagram(cPacket * packet);
-
-    // handling UDP packets
-    void sendUDPPacket(UDPPacket * packet);
-    void processUDPPacket(UDPPacket * packet);
+    void delayDatagram(IGenericDatagram * datagram);
+    void reinjectDatagram(IGenericDatagram * datagram);
+    void dropDatagram(IGenericDatagram * datagram);
 
     // handling RREQ wait RREP timer
-    RREQWaitRREPTimer * createRREQWaitRREPTimer(Address & target, int retryCount);
+    RREQWaitRREPTimer * createRREQWaitRREPTimer(const Address & target, int retryCount);
     void sendRREQWaitRREPTimer(RREQWaitRREPTimer * message);
     void processRREQWaitRREPTimer(RREQWaitRREPTimer * message);
 
     // handling RREQ backoff timer
-    RREQBackoffTimer * createRREQBackoffTimer(Address & target, int retryCount);
+    RREQBackoffTimer * createRREQBackoffTimer(const Address & target, int retryCount);
     void sendRREQBackoffTimer(RREQBackoffTimer * message);
     void processRREQBackoffTimer(RREQBackoffTimer * message);
     simtime_t computeRREQBackoffTime(int retryCount);
 
     // handling RREQ holddown timer
-    RREQHolddownTimer * createRREQHolddownTimer(Address & target);
+    RREQHolddownTimer * createRREQHolddownTimer(const Address & target);
     void sendRREQHolddownTimer(RREQHolddownTimer * message);
     void processRREQHolddownTimer(RREQHolddownTimer * message);
 
@@ -107,7 +111,7 @@ private:
     void processRteMsg(RteMsg * packet);
 
     // handling RREQ packets
-    RREQ * createRREQ(Address & target, int retryCount);
+    RREQ * createRREQ(const Address & target, int retryCount);
     void sendRREQ(RREQ * packet);
     void processRREQ(RREQ * packet);
 
@@ -123,14 +127,19 @@ private:
     void processRERR(RERR * packet);
 
     // handling routes
-    IGenericRoute * createRoute();
+    IGenericRoute * createRoute(RteMsg * packet);
     void processRoutes(RteMsg * packet);
     void updateRoute(RteMsg * packet, IGenericRoute * route);
     bool isLoopFree(RteMsg * packet, IGenericRoute * route);
     void expungeRoutes();
 
-    // netfilter interface
-    void netfilterCallback(cPacket * packet, InterfaceEntry * fromInterface, InterfaceEntry * toInterface, Address & nextHop);
+    // hook into network protocol
+    virtual Result datagramPreRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
+    virtual Result datagramLocalInHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { return ACCEPT; }
+    virtual Result datagramForwardHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
+    virtual Result datagramPostRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
+    virtual Result datagramLocalOutHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramLocalOutHook"); return ensureRouteForDatagram(datagram); }
+    Result ensureRouteForDatagram(IGenericDatagram * datagram);
 
     // utilities
     void incrementSequenceNumber();

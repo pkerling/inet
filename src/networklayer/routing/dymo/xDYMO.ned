@@ -21,6 +21,7 @@ simple xDYMO
 
         // context parameters
         string routingTableModuleName = default("routingTable");
+        string networkProtocolModuleName = default("ip");
         
         // 1. DYMO parameter group
         // string CLIENT_ADDRESSES = default("");
