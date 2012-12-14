@@ -63,27 +63,27 @@ class INET_API IPv4 : public QueueBase
         /**
         * called before a packet arriving from the network is routed
         */
-        virtual Result datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE) = 0;
+        virtual Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE) = 0;
 
         /**
         * called before a packet arriving from the network is delivered locally
         */
-        virtual Result datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE) = 0;
+        virtual Result datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE) = 0;
 
         /**
         * called before a packet arriving from the network is delivered via the network
         */
-        virtual Result datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) = 0;
+        virtual Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) = 0;
 
         /**
         * called before a packet is delivered via the network
         */
-        virtual Result datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr) = 0;
+        virtual Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) = 0;
 
         /**
         * called before a packet arriving locally is delivered
         */
-        virtual Result datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry* outIE) = 0;
+        virtual Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE) = 0;
     };
 
     /**
@@ -99,10 +99,11 @@ class INET_API IPv4 : public QueueBase
           LOCALOUT
         };
 
-        QueuedDatagramForHook(IPv4Datagram* datagram, InterfaceEntry* outIE, Hook hook) : datagram(datagram), outIE(outIE), hook(hook) {}
+        QueuedDatagramForHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Hook hook) : datagram(datagram), inIE(inIE), outIE(outIE), hook(hook) {}
         virtual ~QueuedDatagramForHook() {}
 
         IPv4Datagram* datagram;
+        InterfaceEntry* inIE;
         InterfaceEntry* outIE;
         const Hook hook;
     };
@@ -275,22 +276,22 @@ class INET_API IPv4 : public QueueBase
     /**
      * called before a packet arriving from the network is routed
      */
-    Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
+    Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
 
     /**
      * called before a packet arriving from the network is delivered locally
      */
-    Hook::Result datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
+    Hook::Result datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
 
     /**
      * called before a packet arriving from the network is delivered via the network
      */
-    Hook::Result datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr);
+    Hook::Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr);
 
     /**
      * called before a packet is delivered via the network
      */
-    Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr);
+    Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr);
 
     /**
      * called before a packet arriving locally is delivered
