@@ -25,6 +25,8 @@
 #include "IPv4Address.h"
 #include "IPv4Route.h"  // not strictly required, but most clients will need it anyway
 
+class IGenericRoutingTable;
+
 /**
  * A C++ interface to abstract the functionality of IRoutingTable.
  * Referring to IRoutingTable via this interface makes it possible to
@@ -52,6 +54,11 @@ class INET_API IRoutingTable
      * Returns the host or router this routing table lives in.
      */
     virtual cModule *getHostModule() = 0;
+
+    /**
+     * TODO
+     */
+    virtual IGenericRoutingTable *asGeneric() = 0;
 
     /** @name Interfaces */
     //@{

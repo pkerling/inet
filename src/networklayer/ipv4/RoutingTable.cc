@@ -31,6 +31,7 @@
 #include "NotificationBoard.h"
 #include "NotifierConsts.h"
 #include "RoutingTableParser.h"
+#include "IPv4RoutingTableAdapter.h"
 
 
 Define_Module(RoutingTable);
@@ -52,10 +53,12 @@ RoutingTable::RoutingTable()
 {
     ift = NULL;
     nb = NULL;
+    adapter = NULL;
 }
 
 RoutingTable::~RoutingTable()
 {
+    delete adapter;
     for (unsigned int i=0; i<routes.size(); i++)
         delete routes[i];
     for (unsigned int i=0; i<multicastRoutes.size(); i++)
@@ -207,6 +210,13 @@ void RoutingTable::receiveChangeNotification(int category, const cObject *detail
 cModule *RoutingTable::getHostModule()
 {
     return findContainingNode(this);
+}
+
+IGenericRoutingTable *RoutingTable::asGeneric()
+{
+    if (!adapter)
+        adapter = new IPv4RoutingTableAdapter(this);
+    return adapter;
 }
 
 void RoutingTable::deleteInterfaceRoutes(InterfaceEntry *entry)

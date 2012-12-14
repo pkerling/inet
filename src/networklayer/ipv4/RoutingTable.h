@@ -39,6 +39,7 @@
 class IInterfaceTable;
 class NotificationBoard;
 class RoutingTableParser;
+class IGenericRoutingTable;
 
 
 /**
@@ -76,6 +77,7 @@ class INET_API RoutingTable: public cSimpleModule, public IRoutingTable, protect
   protected:
     IInterfaceTable *ift; // cached pointer
     NotificationBoard *nb; // cached pointer
+    IGenericRoutingTable *adapter;
 
     IPv4Address routerId;
     bool IPForward;
@@ -169,6 +171,11 @@ class INET_API RoutingTable: public cSimpleModule, public IRoutingTable, protect
      * Returns the host or router this routing table lives in.
      */
     virtual cModule *getHostModule();
+
+    /**
+     * TODO
+     */
+    virtual IGenericRoutingTable *asGeneric();
 
     /** @name Interfaces */
     //@{

@@ -25,8 +25,9 @@
 
 #include "IPv6InterfaceData.h"
 #include "InterfaceTableAccess.h"
-
 #include "IPv6TunnelingAccess.h"
+#include "IPv6RoutingTableAdapter.h"
+#include "IPv6RouteAdapter.h"
 
 Define_Module(RoutingTable6);
 
@@ -59,6 +60,13 @@ const char *IPv6Route::routeSrcName(RouteSrc src)
     }
 }
 
+IGenericRoute *IPv6Route::asGeneric()
+{
+    if (!adapter)
+        adapter = new IPv6RouteAdapter(this);
+    return adapter;
+}
+
 //----
 
 std::ostream& operator<<(std::ostream& os, const IPv6Route& e)
@@ -75,10 +83,12 @@ std::ostream& operator<<(std::ostream& os, const RoutingTable6::DestCacheEntry& 
 
 RoutingTable6::RoutingTable6()
 {
+    adapter = NULL;
 }
 
 RoutingTable6::~RoutingTable6()
 {
+    delete adapter;
     for (unsigned int i=0; i<routeList.size(); i++)
         delete routeList[i];
 }
@@ -410,6 +420,13 @@ void RoutingTable6::configureTunnelFromXML(cXMLElement* cfg)
         EV << "New tunnel: " << "entry=" << entry << ",exit=" << exit << ",trigger=" << trigger << endl;
         tunneling->createTunnel(IPv6Tunneling::NORMAL, entry, exit, trigger);
     }
+}
+
+IGenericRoutingTable *RoutingTable6::asGeneric()
+{
+    if (!adapter)
+        adapter = new IPv6RoutingTableAdapter(this);
+    return adapter;
 }
 
 InterfaceEntry *RoutingTable6::getInterfaceByAddress(const IPv6Address& addr)
