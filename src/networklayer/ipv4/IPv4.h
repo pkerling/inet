@@ -235,13 +235,6 @@ class INET_API IPv4 : public QueueBase
 #ifdef WITH_MANET
   public:
     /**
-     * Sends a MANET_ROUTE_UPDATE packet to Manet. The datagram is
-     * not transmitted, only its source and destination address is used.
-     * About DSR datagrams no update message is sent.
-     */
-    virtual void sendRouteUpdateMessageToManet(IPv4Datagram *datagram);
-
-    /**
      * Sends a MANET_ROUTE_NOROUTE packet to Manet. The packet
      * will encapsulate the given datagram, so this method takes
      * ownership.

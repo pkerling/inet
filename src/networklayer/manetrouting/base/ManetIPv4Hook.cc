@@ -48,7 +48,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram,
        << endl;
 
     if (isReactive && !inIE->isLoopback() && !datagram->getDestAddress().isMulticast())
-        ipLayer->sendRouteUpdateMessageToManet(datagram);
+        sendRouteUpdateMessageToManet(datagram);
 
     return IPv4::Hook::ACCEPT;
 }
@@ -75,7 +75,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, I
        << endl;
 
     if (isReactive)
-        ipLayer->sendRouteUpdateMessageToManet(datagram);
+        sendRouteUpdateMessageToManet(datagram);
 
     return IPv4::Hook::ACCEPT;
 }
@@ -98,5 +98,41 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram
        << " nextHop=" << nextHopAddr
        << endl;
     return IPv4::Hook::ACCEPT;
+}
+
+// Helper functions:
+
+void ManetIPv4Hook::sendRouteUpdateMessageToManet(IPv4Datagram *datagram)
+{
+    if (datagram->getTransportProtocol() != IP_PROT_DSR) // Dsr don't use update code, the Dsr datagram is the update.
+    {
+        ControlManetRouting *control = new ControlManetRouting();
+        control->setOptionCode(MANET_ROUTE_UPDATE);
+        control->setSrcAddress(ManetAddress(datagram->getSrcAddress()));
+        control->setDestAddress(ManetAddress(datagram->getDestAddress()));
+        sendToManet(control);
+    }
+}
+
+void ManetIPv4Hook::sendNoRouteMessageToManet(IPv4Datagram *datagram)
+{
+    if (datagram->getTransportProtocol()==IP_PROT_DSR)
+    {
+        sendToManet(datagram);
+    }
+    else
+    {
+        ControlManetRouting *control = new ControlManetRouting();
+        control->setOptionCode(MANET_ROUTE_NOROUTE);
+        control->setSrcAddress(ManetAddress(datagram->getSrcAddress()));
+        control->setDestAddress(ManetAddress(datagram->getDestAddress()));
+        control->encapsulate(datagram);
+        sendToManet(control);
+    }
+}
+
+void ManetIPv4Hook::sendToManet(cPacket *packet)
+{
+    ipLayer->sendToManet(packet);
 }
 

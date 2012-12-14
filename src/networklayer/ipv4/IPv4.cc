@@ -944,19 +944,9 @@ IPv4::Hook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceE
     return IPv4::Hook::ACCEPT;
 }
 
-#ifdef WITH_MANET
-void IPv4::sendRouteUpdateMessageToManet(IPv4Datagram *datagram)
-{
-    if (datagram->getTransportProtocol() != IP_PROT_DSR) // Dsr don't use update code, the Dsr datagram is the update.
-    {
-        ControlManetRouting *control = new ControlManetRouting();
-        control->setOptionCode(MANET_ROUTE_UPDATE);
-        control->setSrcAddress(ManetAddress(datagram->getSrcAddress()));
-        control->setDestAddress(ManetAddress(datagram->getDestAddress()));
-        sendToManet(control);
-    }
-}
 
+
+#ifdef WITH_MANET
 void IPv4::sendNoRouteMessageToManet(IPv4Datagram *datagram)
 {
     if (datagram->getTransportProtocol()==IP_PROT_DSR)

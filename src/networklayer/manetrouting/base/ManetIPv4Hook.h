@@ -30,14 +30,40 @@
 class INET_API ManetIPv4Hook : public IPv4::Hook
 {
   protected:
-    cModule* module;
-    IPv4 *ipLayer;
-    bool isReactive;
+    cModule* module;    // Manet module
+    IPv4 *ipLayer;      // IPv4 module
+    bool isReactive;    // true if it's a reactive routing
+
   public:
     ManetIPv4Hook() : module(NULL), ipLayer(NULL), isReactive(false) {}
+
   protected:
     void initHook(cModule* module);
     void finishHook();
+
+  protected:
+    // Helper functions
+    /**
+     * Sends a MANET_ROUTE_UPDATE packet to Manet. The datagram is
+     * not transmitted, only its source and destination address is used.
+     * About DSR datagrams no update message is sent.
+     */
+    virtual void sendRouteUpdateMessageToManet(IPv4Datagram *datagram);
+
+    /**
+     * Sends a MANET_ROUTE_NOROUTE packet to Manet. The packet
+     * will encapsulate the given datagram, so this method takes
+     * ownership.
+     * DSR datagrams are transmitted as they are, i.e. without
+     * encapsulation. (?)
+     */
+    virtual void sendNoRouteMessageToManet(IPv4Datagram *datagram);
+
+    /**
+     * Sends a packet to the Manet module.
+     */
+    virtual void sendToManet(cPacket *packet);
+
   public:
     virtual IPv4::Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
     virtual IPv4::Hook::Result datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
