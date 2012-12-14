@@ -851,22 +851,24 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result ver
     for (std::list<QueuedDatagramForHook>::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
             IPv4Datagram* datagram = iter->datagram;
-            InterfaceEntry* outIE = iter->outIE;
-            QueuedDatagramForHook::Hook hook = iter->hook;
-            queuedDatagramsForHooks.erase(iter);
-            switch (hook) {
+            if (verdict == IPv4::Hook::DROP) {
+                delete datagram;
+                return;
+            }
+
+            switch (iter->hook) {
                 case QueuedDatagramForHook::LOCALOUT:
-                    if (verdict == IPv4::Hook::DROP) {
-                        delete datagram;
-                        return;
-                    } else {
-                        datagramLocalOut(datagram, outIE);
-                    }
+                    datagramLocalOut(datagram, iter->outIE);
+                    break;
+                case QueuedDatagramForHook::PREROUTING:
+                    preroutingFinish(datagram, iter->inIE);
                     break;
                 default:
                     error("Re-injection of datagram queued for this hook not implemented");
                     break;
             }
+
+            queuedDatagramsForHooks.erase(iter);
             return;
         }
     }
