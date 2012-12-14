@@ -166,6 +166,9 @@ class INET_API IPv4 : public QueueBase
      */
     virtual void handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromIE);
 
+    // called after PREROUTING Hook (used for reinject, too)
+    virtual void preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE);
+
     /**
      * Handle messages (typically packets to be send in IPv4) from transport or ICMP.
      * Invokes encapsulate(), then routePacket().

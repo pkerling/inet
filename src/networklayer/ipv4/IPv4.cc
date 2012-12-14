@@ -155,14 +155,17 @@ void IPv4::handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromI
         }
     }
 
-    // route packet
-    IPv4Address &destAddr = datagram->getDestAddress();
-
-    EV << "Received datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
+    EV << "Received datagram `" << datagram->getName() << "' with dest=" << datagram->getDestAddress() << "\n";
 
     if (datagramPreRoutingHook(datagram, fromIE) != IPv4::Hook::ACCEPT) {
         return;
     }
+    preroutingFinish(datagram, fromIE);
+}
+
+void IPv4::preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE)
+{
+    IPv4Address &destAddr = datagram->getDestAddress();
 
     // remove control info, but keep the one on the last fragment of DSR and MANET datagrams
     int protocol = datagram->getTransportProtocol();
