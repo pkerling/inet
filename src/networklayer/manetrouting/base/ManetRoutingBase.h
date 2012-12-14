@@ -33,12 +33,10 @@
 #include "IInterfaceTable.h"
 #include "IPvXAddress.h"
 #include "ManetAddress.h"
+#include "ManetIPv4Hook.h"
 #include "NotifierConsts.h"
 #include "ICMP.h"
-
-#ifdef WITH_80211MESH
-#include "ILocator.h"
-#endif
+#include "IPv4.h"
 
 #include "ARP.h"
 
@@ -54,7 +52,7 @@ typedef std::set<ManetAddress> AddressGroup;
 /**
  * Base class for Manet Routing
  */
-class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, protected cListener
+class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, protected cListener, public ManetIPv4Hook
 {
   private:
     static simsignal_t mobilityStateChangedSignal;
@@ -122,10 +120,6 @@ class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, prot
     bool isGateway;     /// true if the node will work like gateway for address in the list
 
     std::vector<ManetProxyAddress> proxyAddress;
-
-#ifdef WITH_80211MESH
-    ILocator *locator;
-#endif
 
   protected:
     ~ManetRoutingBase();
