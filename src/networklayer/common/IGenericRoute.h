@@ -78,6 +78,8 @@ class INET_API IGenericRoute
 
         /** Cost to reach the destination */
         virtual int getMetric() const = 0;
+
+        virtual cObject *getProtocolData() const = 0;
 };
 
 /**
