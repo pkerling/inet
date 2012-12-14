@@ -198,10 +198,6 @@ void IPv4::handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromI
     }
     else
     {
-#ifdef WITH_MANET
-        if (manetRouting)
-            sendRouteUpdateMessageToManet(datagram);
-#endif
         InterfaceEntry *broadcastIE = NULL;
 
         // check for local delivery; we must accept also packets coming from the interfaces that
@@ -317,6 +313,10 @@ void IPv4::handleMessageFromHL(cPacket *msg)
     if (controlInfo)
         datagram->setControlInfo(controlInfo);
 
+    if (datagramLocalOutHook(datagram, destIE) != IPv4::Hook::ACCEPT) {
+        return;
+    }
+
     datagramLocalOut(datagram, destIE);
 }
 
@@ -325,16 +325,13 @@ void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
     IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
     IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
     bool multicastLoop = true;
+
     if (controlInfo!=NULL)
     {
         nextHopAddress = controlInfo->getNextHopAddr();
         multicastLoop = controlInfo->getMulticastLoop();
     }
 
-    // TODO: should the check for ift->numInterfaces()!=0 be after this?
-    if (datagramLocalOutHook(datagram, destIE) != IPv4::Hook::ACCEPT) {
-        return;
-    }
     delete datagram->removeControlInfo();
 
     // send
@@ -368,10 +365,6 @@ void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
     }
     else // unicast and broadcast
     {
-#ifdef WITH_MANET
-        if (manetRouting)
-            sendRouteUpdateMessageToManet(datagram);
-#endif
         // check for local delivery
         if (rt->isLocalAddress(destAddr))
         {
@@ -624,16 +617,6 @@ void IPv4::reassembleAndDeliver(IPv4Datagram *datagram)
     {
         // tunnelled IP packets are handled separately
         send(decapsulate(datagram), "preRoutingOut");  //FIXME There is no "preRoutingOut" gate in the IPv4 module.
-    }
-    else if (protocol==IP_PROT_DSR)
-    {
-#ifdef WITH_MANET
-        // If the protocol is Dsr Send directely the datagram to manet routing
-        if (manetRouting)
-            sendToManet(datagram);
-#else
-        throw cRuntimeError("DSR protocol packet received, but MANET routing support is not available.");
-#endif
     }
     else
     {

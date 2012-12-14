@@ -317,6 +317,9 @@ void DSRUU::initialize(int stage)
         lc_timer.setOwer(this);
         ack_timer.setOwer(this);
         etx_timer.setOwer(this);
+
+        initHook(this);
+
         is_init = true;
     }
 
