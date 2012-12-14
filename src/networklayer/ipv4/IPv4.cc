@@ -868,6 +868,9 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result ver
                 case QueuedDatagramForHook::PREROUTING:
                     preroutingFinish(datagram, iter->inIE);
                     break;
+                case QueuedDatagramForHook::POSTROUTING:
+                    fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
+                    break;
                 default:
                     error("Re-injection of datagram queued for this hook not implemented");
                     break;
@@ -886,7 +889,7 @@ IPv4::Hook::Result IPv4::datagramPreRoutingHook(IPv4Datagram* datagram, Interfac
         {
             case IPv4::Hook::ACCEPT: break;   // continue iteration
             case IPv4::Hook::DROP:   delete datagram; return r;
-            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, QueuedDatagramForHook::PREROUTING)); return r;
+            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::PREROUTING)); return r;
             case IPv4::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -901,7 +904,7 @@ IPv4::Hook::Result IPv4::datagramLocalInHook(IPv4Datagram* datagram, InterfaceEn
         {
             case IPv4::Hook::ACCEPT: break;   // continue iteration
             case IPv4::Hook::DROP:   delete datagram; return r;
-            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, QueuedDatagramForHook::LOCALIN)); return r;
+            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALIN)); return r;
             case IPv4::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -916,7 +919,7 @@ IPv4::Hook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, InterfaceEn
         {
             case IPv4::Hook::ACCEPT: break;   // continue iteration
             case IPv4::Hook::DROP:   delete datagram; return r;
-            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, QueuedDatagramForHook::FORWARD)); return r;
+            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, QueuedDatagramForHook::FORWARD)); return r;
             case IPv4::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -931,7 +934,7 @@ IPv4::Hook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, Interfa
         {
             case IPv4::Hook::ACCEPT: break;   // continue iteration
             case IPv4::Hook::DROP:   delete datagram; return r;
-            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, QueuedDatagramForHook::POSTROUTING)); return r;
+            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, QueuedDatagramForHook::POSTROUTING)); return r;
             case IPv4::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -946,7 +949,7 @@ IPv4::Hook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceE
         {
             case IPv4::Hook::ACCEPT: break;   // continue iteration
             case IPv4::Hook::DROP:   delete datagram; return r;
-            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, QueuedDatagramForHook::LOCALOUT)); return r;
+            case IPv4::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALOUT)); return r;
             case IPv4::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }

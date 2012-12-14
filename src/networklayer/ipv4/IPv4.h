@@ -99,12 +99,14 @@ class INET_API IPv4 : public QueueBase
           LOCALOUT
         };
 
-        QueuedDatagramForHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Hook hook) : datagram(datagram), inIE(inIE), outIE(outIE), hook(hook) {}
+        QueuedDatagramForHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, const IPv4Address& nextHopAddr, Hook hook) :
+                datagram(datagram), inIE(inIE), outIE(outIE), nextHopAddr(nextHopAddr), hook(hook) {}
         virtual ~QueuedDatagramForHook() {}
 
         IPv4Datagram* datagram;
         InterfaceEntry* inIE;
         InterfaceEntry* outIE;
+        IPv4Address nextHopAddr;
         const Hook hook;
     };
 
