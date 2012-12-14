@@ -19,6 +19,7 @@
 #define __INET_ADDRESS_H
 
 #include "INETDefs.h"
+#include "uint128.h"
 
 #include "IPv4Address.h"
 #include "IPv6Address.h"
@@ -49,8 +50,11 @@ class INET_API Address
         MACAddress toMAC() const {return mac;};  // IEU-48
 
         //TODO add more functions: getType(), prefix matching, etc
-
+        bool isUnspecified() const { return ipv4.isUnspecified(); }
+        bool isMulticast() const { return ipv4.isMulticast(); }
+        bool isBroadcast() const { return ipv4.isLimitedBroadcastAddress(); }
+        bool operator<(const Address& address) const { return ipv4 < address.ipv4; }
+        bool operator==(const Address& address) const { return ipv4 == address.ipv4; }
 };
 
 #endif
-
