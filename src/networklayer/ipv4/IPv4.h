@@ -54,7 +54,8 @@ class INET_API IPv4 : public QueueBase
         enum Result {
             ACCEPT, /**< allow datagram to pass to next hook */
             DROP, /**< do not allow datagram to pass to next hook, delete it */
-            QUEUE /**< queue datagram for later re-injection */
+            QUEUE, /**< queue datagram for later re-injection */
+            STOLEN /**< do not allow datagram to pass to next hook, but do not delete it */
         };
 
         virtual ~Hook() {};
