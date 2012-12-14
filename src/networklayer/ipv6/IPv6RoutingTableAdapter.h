@@ -61,6 +61,7 @@ class INET_API IPv6RoutingTableAdapter : public IGenericRoutingTable
         virtual IGenericMulticastRoute *removeMulticastRoute(IGenericMulticastRoute *entry) {/*TODO rt->removeMulticastRoute(fromGeneric(entry));*/ return entry;}
         virtual bool deleteMulticastRoute(IGenericMulticastRoute *entry) {return false; /*TODO: rt->deleteMulticastRoute(fromGeneric(entry));*/}
         virtual void purgeExpiredRoutes() {/*TODO rt->purge();*/}  //XXX inconsistent names
+        virtual IGenericRoute *createRoute() { return (new IPv6Route(IPv6Address(), 0, IPv6Route::STATIC))->asGeneric(); }
 };
 
 #endif

@@ -60,6 +60,7 @@ class INET_API IPv4RoutingTableAdapter : public IGenericRoutingTable
         virtual IGenericMulticastRoute *removeMulticastRoute(IGenericMulticastRoute *entry) {rt->removeMulticastRoute(fromGeneric(entry)); return entry;}
         virtual bool deleteMulticastRoute(IGenericMulticastRoute *entry) {return rt->deleteMulticastRoute(fromGeneric(entry));}
         virtual void purgeExpiredRoutes() {rt->purge();}  //XXX inconsistent names
+        virtual IGenericRoute *createRoute() { return (new IPv4Route())->asGeneric(); }
 };
 
 #endif

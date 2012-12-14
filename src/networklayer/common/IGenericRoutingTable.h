@@ -188,6 +188,8 @@ class INET_API IGenericRoutingTable
          */
         virtual void purgeExpiredRoutes() = 0;
         //@}
+
+        virtual IGenericRoute *createRoute() = 0;
 };
 
 #endif
