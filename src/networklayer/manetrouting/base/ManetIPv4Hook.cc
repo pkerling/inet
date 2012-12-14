@@ -41,7 +41,7 @@ void ManetIPv4Hook::finishHook()
 }
 
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE)
 {
     EV << "HOOK: PREROUTING packet=" << datagram->getName()
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
@@ -53,7 +53,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram,
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE)
 {
     EV << "HOOK " << module->getFullPath() << ": LOCAL IN: packet=" << datagram->getName()
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
@@ -68,7 +68,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, co
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry* outIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE)
 {
     EV << "HOOK " << module->getFullPath() << ": LOCAL OUT: packet=" << datagram->getName()
        << " outIE=" << (outIE ? outIE->getName() : "NULL")
@@ -80,7 +80,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, c
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr)
+IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
 {
     EV << "HOOK " << module->getFullPath() << ": FORWARD: packet=" << datagram->getName()
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
@@ -90,7 +90,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, co
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr)
+IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
 {
     EV << "HOOK " << module->getFullPath() << ": POSTROUTING packet=" << datagram->getName()
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
