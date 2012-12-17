@@ -223,6 +223,9 @@ class INET_API IPv4 : public QueueBase
      */
     virtual void reassembleAndDeliver(IPv4Datagram *datagram);
 
+    // called after LOCAL_IN Hook (used for reinject, too)
+    virtual void reassembleAndDeliverFinish(IPv4Datagram *datagram);
+
     /**
      * Decapsulate and return encapsulated packet after attaching IPv4ControlInfo.
      */

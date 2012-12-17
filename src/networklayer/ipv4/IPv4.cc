@@ -607,6 +607,11 @@ void IPv4::reassembleAndDeliver(IPv4Datagram *datagram)
         return;
     }
 
+    reassembleAndDeliverFinish(datagram);
+}
+
+void IPv4::reassembleAndDeliverFinish(IPv4Datagram *datagram)
+{
     // decapsulate and send on appropriate output gate
     int protocol = datagram->getTransportProtocol();
 
@@ -869,6 +874,8 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result ver
                         fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
                         break;
                     case QueuedDatagramForHook::LOCALIN:
+                        reassembleAndDeliverFinish(datagram);
+                        break;
                     case QueuedDatagramForHook::FORWARD:
                         throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
                         break;
