@@ -137,8 +137,10 @@ class INET_API IPv4 : public QueueBase
     int numForwarded;
 
     // hooks
-    std::multimap<int, Hook*> hooks;
-    std::list<QueuedDatagramForHook> queuedDatagramsForHooks;
+    typedef std::multimap<int, Hook*> HookList;
+    HookList hooks;
+    typedef std::list<QueuedDatagramForHook> DatagramQueueForHooks;
+    DatagramQueueForHooks queuedDatagramsForHooks;
 
   protected:
     // utility: look up interface from getArrivalGate()
