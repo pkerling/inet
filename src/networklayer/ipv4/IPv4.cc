@@ -460,18 +460,9 @@ void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, In
 
     if (!destIE) // no route found
     {
-#ifdef WITH_MANET
-            if (manetRouting)
-               sendNoRouteMessageToManet(datagram);
-            else
-            {
-#endif
-                EV << "unroutable, sending ICMP_DESTINATION_UNREACHABLE\n";
-                numUnroutable++;
-                icmpAccess.get()->sendErrorMessage(datagram, ICMP_DESTINATION_UNREACHABLE, 0);
-#ifdef WITH_MANET
-            }
-#endif
+        EV << "unroutable, sending ICMP_DESTINATION_UNREACHABLE\n";
+        numUnroutable++;
+        icmpAccess.get()->sendErrorMessage(datagram, ICMP_DESTINATION_UNREACHABLE, 0);
     }
     else // fragment and send
     {

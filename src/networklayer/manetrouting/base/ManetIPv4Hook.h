@@ -32,6 +32,7 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
   protected:
     cModule* module;    // Manet module
     IPv4 *ipLayer;      // IPv4 module
+    IRoutingTable *rt;  // routing table
     bool isReactive;    // true if it's a reactive routing
 
   public:
@@ -63,6 +64,11 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
      * Sends a packet to the Manet module.
      */
     virtual void sendToManet(cPacket *packet);
+
+    /**
+     *
+     */
+    virtual bool checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry* outIE);
 
   public:
     virtual IPv4::Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE);

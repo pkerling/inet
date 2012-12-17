@@ -24,6 +24,7 @@
 
 #include "InterfaceEntry.h"
 #include "IPv4Datagram.h"
+#include "IRoutingTable.h"
 
 
 void ManetIPv4Hook::initHook(cModule* _module)
@@ -33,6 +34,7 @@ void ManetIPv4Hook::initHook(cModule* _module)
     ipLayer->registerHook(0, this);
     cProperties *props = module->getProperties();
     isReactive = props && props->getAsBool("reactive");
+    rt = RoutingTableAccess().get();
 }
 
 void ManetIPv4Hook::finishHook()
@@ -47,8 +49,18 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram,
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
        << endl;
 
-    if (isReactive && !inIE->isLoopback() && !datagram->getDestAddress().isMulticast())
-        sendRouteUpdateMessageToManet(datagram);
+    if (isReactive)
+    {
+        if (!inIE->isLoopback() && !datagram->getDestAddress().isMulticast())
+            sendRouteUpdateMessageToManet(datagram);
+
+        if (checkPacketUnroutable(datagram, NULL))
+        {
+            delete datagram->removeControlInfo();
+            sendNoRouteMessageToManet(datagram);
+            return IPv4::Hook::STOLEN;
+        }
+    }
 
     return IPv4::Hook::ACCEPT;
 }
@@ -59,10 +71,13 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
        << endl;
 
-    if (isReactive && (datagram->getTransportProtocol() == IP_PROT_DSR))
+    if (isReactive)
     {
-        ipLayer->sendToManet(datagram);
-        return IPv4::Hook::STOLEN;
+        if (datagram->getTransportProtocol() == IP_PROT_DSR)
+        {
+            ipLayer->sendToManet(datagram);
+            return IPv4::Hook::STOLEN;
+        }
     }
 
     return IPv4::Hook::ACCEPT;
@@ -75,8 +90,16 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, I
        << endl;
 
     if (isReactive)
+    {
         sendRouteUpdateMessageToManet(datagram);
 
+        if (checkPacketUnroutable(datagram, outIE))
+        {
+            delete datagram->removeControlInfo();
+            sendNoRouteMessageToManet(datagram);
+            return IPv4::Hook::STOLEN;
+        }
+    }
     return IPv4::Hook::ACCEPT;
 }
 
@@ -134,5 +157,19 @@ void ManetIPv4Hook::sendNoRouteMessageToManet(IPv4Datagram *datagram)
 void ManetIPv4Hook::sendToManet(cPacket *packet)
 {
     ipLayer->sendToManet(packet);
+}
+
+bool ManetIPv4Hook::checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry* outIE)
+{
+    if (outIE != NULL)
+        return false;
+
+    IPv4Address &destAddr = datagram->getDestAddress();
+
+    if (destAddr.isMulticast() || destAddr.isLimitedBroadcastAddress())
+        return false;
+    if (rt->isLocalAddress(destAddr) || rt->isLocalBroadcastAddress(destAddr))
+        return false;
+    return (rt->findBestMatchingRoute(destAddr) == NULL);
 }
 
