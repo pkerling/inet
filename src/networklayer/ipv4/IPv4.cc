@@ -857,22 +857,25 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result ver
             IPv4Datagram* datagram = iter->datagram;
             if (verdict == IPv4::Hook::DROP) {
                 delete datagram;
-                return;
-            }
-
-            switch (iter->hook) {
-                case QueuedDatagramForHook::LOCALOUT:
-                    datagramLocalOut(datagram, iter->outIE);
-                    break;
-                case QueuedDatagramForHook::PREROUTING:
-                    preroutingFinish(datagram, iter->inIE);
-                    break;
-                case QueuedDatagramForHook::POSTROUTING:
-                    fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
-                    break;
-                default:
-                    error("Re-injection of datagram queued for this hook not implemented");
-                    break;
+            } else {
+                switch (iter->hook) {
+                    case QueuedDatagramForHook::LOCALOUT:
+                        datagramLocalOut(datagram, iter->outIE);
+                        break;
+                    case QueuedDatagramForHook::PREROUTING:
+                        preroutingFinish(datagram, iter->inIE);
+                        break;
+                    case QueuedDatagramForHook::POSTROUTING:
+                        fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
+                        break;
+                    case QueuedDatagramForHook::LOCALIN:
+                    case QueuedDatagramForHook::FORWARD:
+                        throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
+                        break;
+                    default:
+                        throw cRuntimeError("Unknown hook ID: %d", (int)(iter->hook));
+                        break;
+                }
             }
 
             queuedDatagramsForHooks.erase(iter);
