@@ -32,7 +32,7 @@
 
 Define_Module(IPv4);
 
-//TODO
+//TODO TRANSLATE
 // a multicast cimek eseten hianyoznak bizonyos NetFilter hook-ok
 // a local interface-k hasznalata eseten szinten hianyozhatnak bizonyos NetFilter hook-ok
 

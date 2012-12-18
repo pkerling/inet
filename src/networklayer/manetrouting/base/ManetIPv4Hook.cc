@@ -32,7 +32,6 @@ void ManetIPv4Hook::initHook(cModule* _module)
 {
     module = _module;
     ipLayer = check_and_cast<IPv4*>(findModuleWhereverInNode("ip", module));
-    ipLayer->registerHook(0, this);
     cProperties *props = module->getProperties();
     isReactive = props && props->getAsBool("reactive");
     rt = RoutingTableAccess().get();
@@ -40,6 +39,7 @@ void ManetIPv4Hook::initHook(cModule* _module)
     ProtocolMapping mapping;
     mapping.parseProtocolMapping(ipLayer->par("protocolMapping"));
     gateIndex = mapping.getOutputGateForProtocol(IP_PROT_MANET);
+    ipLayer->registerHook(0, this);
 }
 
 void ManetIPv4Hook::finishHook()
@@ -50,10 +50,6 @@ void ManetIPv4Hook::finishHook()
 
 IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE)
 {
-    EV << "HOOK: PREROUTING packet=" << datagram->getName()
-       << " inIE=" << (inIE ? inIE->getName() : "NULL")
-       << endl;
-
     if (isReactive)
     {
         if (!inIE->isLoopback() && !datagram->getDestAddress().isMulticast())
@@ -90,10 +86,6 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
 
 IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE)
 {
-    EV << "HOOK " << module->getFullPath() << ": LOCAL OUT: packet=" << datagram->getName()
-       << " outIE=" << (outIE ? outIE->getName() : "NULL")
-       << endl;
-
     if (isReactive)
     {
         sendRouteUpdateMessageToManet(datagram);
@@ -110,21 +102,11 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, I
 
 IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
 {
-    EV << "HOOK " << module->getFullPath() << ": FORWARD: packet=" << datagram->getName()
-       << " inIE=" << (inIE ? inIE->getName() : "NULL")
-       << " outIE=" << (outIE ? outIE->getName() : "NULL")
-       << " nextHop=" << nextHopAddr
-       << endl;
     return IPv4::Hook::ACCEPT;
 }
 
 IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
 {
-    EV << "HOOK " << module->getFullPath() << ": POSTROUTING packet=" << datagram->getName()
-       << " inIE=" << (inIE ? inIE->getName() : "NULL")
-       << " outIE=" << (outIE ? outIE->getName() : "NULL")
-       << " nextHop=" << nextHopAddr
-       << endl;
     return IPv4::Hook::ACCEPT;
 }
 

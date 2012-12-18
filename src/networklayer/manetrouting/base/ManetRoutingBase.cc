@@ -794,7 +794,7 @@ void ManetRoutingBase::omnet_clean_rte()
 }
 
 //
-// generic receiveChangeNotification, the protocols must implemet processLinkBreak and processPromiscuous only
+// generic receiveChangeNotification, the protocols must implement processLinkBreak and processPromiscuous only
 //
 void ManetRoutingBase::receiveChangeNotification(int category, const cObject *details)
 {
