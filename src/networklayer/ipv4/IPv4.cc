@@ -65,32 +65,6 @@ void IPv4::initialize()
     WATCH(numDropped);
     WATCH(numUnroutable);
     WATCH(numForwarded);
-
-    // by default no MANET routing
-    manetRouting = false;
-
-#ifdef WITH_MANET
-    // test for the presence of MANET routing
-    // check if there is a protocol -> gate mapping
-    int gateindex = mapping.getOutputGateForProtocol(IP_PROT_MANET);
-    if (gateSize("transportOut")-1<gateindex)
-        return;
-
-    // check if that gate is connected at all
-    cGate *manetgate = gate("transportOut", gateindex)->getPathEndGate();
-    if (manetgate==NULL)
-        return;
-
-    cModule *destmod = manetgate->getOwnerModule();
-    if (destmod==NULL)
-        return;
-
-    // manet routing will be turned on ONLY for routing protocols which has the @reactive property set
-    // this prevents performance loss with other protocols that use pro active routing and do not need
-    // assistance from the IPv4 component
-    cProperties *props = destmod->getProperties();
-    manetRouting = props && props->getAsBool("reactive");
-#endif
 }
 
 void IPv4::updateDisplayString()
@@ -167,14 +141,10 @@ void IPv4::preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE)
 {
     IPv4Address &destAddr = datagram->getDestAddress();
 
-    // remove control info, but keep the one on the last fragment of DSR and MANET datagrams
-    int protocol = datagram->getTransportProtocol();
-    bool isManetDatagram = protocol == IP_PROT_MANET || protocol == IP_PROT_DSR;
-    if (!isManetDatagram || datagram->getMoreFragments())
-        delete datagram->removeControlInfo();
+    // remove control info
+    delete datagram->removeControlInfo();
 
     // route packet
-
 
     if (fromIE->isLoopback())
     {
@@ -436,7 +406,7 @@ void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, In
     {
         EV << "using manually specified output interface " << destIE->getName() << "\n";
         // and nextHopAddr remains unspecified
-        if (manetRouting && !destNextHopAddr.isUnspecified())
+        if (!destNextHopAddr.isUnspecified())
            nextHopAddr = destNextHopAddr;  // Manet DSR routing explicit route
         // special case ICMP reply
         else if (destIE->isBroadcast())
@@ -662,7 +632,6 @@ cPacket *IPv4::decapsulate(IPv4Datagram *datagram)
 
 void IPv4::fragmentPostRouting(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
 {
-    //FIXME   vvv   where is the good place for datagramPostRoutingHook?
     if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHopAddr) != IPv4::Hook::ACCEPT) {
         return;
     }
@@ -689,8 +658,6 @@ void IPv4::fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Addre
         numDropped++;
         return;
     }
-
-    //FIXME    ^^^    where is the good place for datagramPostRoutingHook?
 
     int mtu = ie->getMTU();
 
@@ -956,32 +923,4 @@ IPv4::Hook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceE
     }
     return IPv4::Hook::ACCEPT;
 }
-
-
-
-#ifdef WITH_MANET
-void IPv4::sendNoRouteMessageToManet(IPv4Datagram *datagram)
-{
-    if (datagram->getTransportProtocol()==IP_PROT_DSR)
-    {
-        sendToManet(datagram);
-    }
-    else
-    {
-        ControlManetRouting *control = new ControlManetRouting();
-        control->setOptionCode(MANET_ROUTE_NOROUTE);
-        control->setSrcAddress(ManetAddress(datagram->getSrcAddress()));
-        control->setDestAddress(ManetAddress(datagram->getDestAddress()));
-        control->encapsulate(datagram);
-        sendToManet(control);
-    }
-}
-
-void IPv4::sendToManet(cPacket *packet)
-{
-    ASSERT(manetRouting);
-    int gateindex = mapping.getOutputGateForProtocol(IP_PROT_MANET);
-    send(packet, "transportOut", gateindex);
-}
-#endif
 

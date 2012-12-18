@@ -22,6 +22,7 @@
 
 #include "ManetIPv4Hook.h"
 
+#include "ControlManetRouting_m.h"
 #include "InterfaceEntry.h"
 #include "IPv4Datagram.h"
 #include "IRoutingTable.h"
@@ -35,6 +36,10 @@ void ManetIPv4Hook::initHook(cModule* _module)
     cProperties *props = module->getProperties();
     isReactive = props && props->getAsBool("reactive");
     rt = RoutingTableAccess().get();
+
+    ProtocolMapping mapping;
+    mapping.parseProtocolMapping(ipLayer->par("protocolMapping"));
+    gateIndex = mapping.getOutputGateForProtocol(IP_PROT_MANET);
 }
 
 void ManetIPv4Hook::finishHook()
@@ -75,7 +80,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
     {
         if (datagram->getTransportProtocol() == IP_PROT_DSR)
         {
-            ipLayer->sendToManet(datagram);
+            sendToManet(datagram);
             return IPv4::Hook::STOLEN;
         }
     }
@@ -156,7 +161,7 @@ void ManetIPv4Hook::sendNoRouteMessageToManet(IPv4Datagram *datagram)
 
 void ManetIPv4Hook::sendToManet(cPacket *packet)
 {
-    ipLayer->sendToManet(packet);
+    ipLayer->send(packet, "transportOut", gateIndex);
 }
 
 bool ManetIPv4Hook::checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry* outIE)

@@ -25,10 +25,6 @@
 #include "ProtocolMap.h"
 #include "QueueBase.h"
 
-#ifdef WITH_MANET
-#include "ControlManetRouting_m.h"
-#endif
-
 
 class ARPPacket;
 class ICMPMessage;
@@ -115,7 +111,6 @@ class INET_API IPv4 : public QueueBase
     IInterfaceTable *ift;
     ICMPAccess icmpAccess;
     cGate *queueOutGate; // the most frequently used output gate
-    bool manetRouting;
 
     // config
     int defaultTimeToLive;
@@ -247,25 +242,8 @@ class INET_API IPv4 : public QueueBase
      */
     virtual void sendDatagramToOutput(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr);
 
-#ifdef WITH_MANET
   public:
-    /**
-     * Sends a MANET_ROUTE_NOROUTE packet to Manet. The packet
-     * will encapsulate the given datagram, so this method takes
-     * ownership.
-     * DSR datagrams are transmitted as they are, i.e. without
-     * encapsulation. (?)
-     */
-    virtual void sendNoRouteMessageToManet(IPv4Datagram *datagram);
-
-    /**
-     * Sends a packet to the Manet module.
-     */
-    virtual void sendToManet(cPacket *packet);
-#endif
-
-  public:
-    IPv4() {}
+    IPv4() { rt = NULL; ift = NULL; queueOutGate = NULL; }
 
   protected:
     /**
