@@ -329,6 +329,7 @@ class INET_API IPv4 : public QueueBase, public IGenericNetworkProtocol
 
     virtual void registerHook(int priority, IGenericNetworkProtocol::IHook * hook) { registerHook(priority, new GenericHookAdapter(hook)); }
     virtual void unregisterHook(int priority, IGenericNetworkProtocol::IHook * hook) { } // TODO: iterate
+    void reinjectDatagram(const IGenericDatagram * datagram, IGenericNetworkProtocol::IHook::Result verdict) { reinjectDatagram(dynamic_cast<const IPv4Datagram *>(datagram), (Hook::Result)verdict); }
 };
 
 #endif

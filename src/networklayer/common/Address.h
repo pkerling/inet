@@ -50,11 +50,17 @@ class INET_API Address
         MACAddress toMAC() const {return mac;};  // IEU-48
 
         //TODO add more functions: getType(), prefix matching, etc
+        int getPrefixLength() const { return ipv4.getNetmaskLength(); }
         bool isUnspecified() const { return ipv4.isUnspecified(); }
         bool isMulticast() const { return ipv4.isMulticast(); }
         bool isBroadcast() const { return ipv4.isLimitedBroadcastAddress(); }
         bool operator<(const Address& address) const { return ipv4 < address.ipv4; }
         bool operator==(const Address& address) const { return ipv4 == address.ipv4; }
 };
+
+inline std::ostream& operator<<(std::ostream& os, const Address& address)
+{
+    return os << address.toIPv4().str();
+}
 
 #endif

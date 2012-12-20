@@ -10,7 +10,7 @@
 #include "IGenericDatagram.h"
 
 class IGenericNetworkProtocol {
-public:
+  public:
     class IHook {
       public:
         enum Result {
@@ -28,9 +28,10 @@ public:
         virtual Result datagramLocalOutHook(IGenericDatagram * datagram, const InterfaceEntry * outputInterfaceEntry) = 0;
     };
 
+    virtual ~IGenericNetworkProtocol() { }
     virtual void registerHook(int priority, IHook * hook) = 0;
     virtual void unregisterHook(int priority, IHook * hook) = 0;
+    virtual void reinjectDatagram(const IGenericDatagram * datagram, IHook::Result verdict) = 0;
 };
-
 
 #endif /* IGENERICNETWORKPROTOCOL_H_ */
