@@ -48,7 +48,8 @@ class INET_API IPv4RouteAdapter : public IGenericRoute
         virtual InterfaceEntry *getInterface() const {return e->getInterface();}
         virtual cObject *getSource() const {return NULL; /*TODO: e->getSource();*/}
         virtual int getMetric() const {return e->getMetric();}
-        virtual cObject *getProtocolData() const { return NULL; } // TODO:
+        virtual cObject *getProtocolData() const { return e->getProtocolData(); }
+        virtual void setProtocolData(cObject *protocolData) { e->setProtocolData(protocolData); }
 };
 
 /**

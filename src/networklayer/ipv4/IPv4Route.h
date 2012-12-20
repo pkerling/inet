@@ -58,6 +58,7 @@ class INET_API IPv4Route : public cObject
     InterfaceEntry *interfacePtr; ///< interface
     RouteSource source;   ///< manual, routing prot, etc.
     int metric;           ///< Metric ("cost" to reach the destination)
+    cObject *protocolData; ///< Routing Protocol specific data
     IGenericRoute *adapter;
 
   public:
@@ -72,7 +73,7 @@ class INET_API IPv4Route : public cObject
     void changed(int fieldCode);
 
   public:
-    IPv4Route() : rt(NULL), interfacePtr(NULL), source(MANUAL), metric(0), adapter(NULL) {}
+    IPv4Route() : rt(NULL), interfacePtr(NULL), source(MANUAL), metric(0), adapter(NULL), protocolData(NULL) {}
     virtual ~IPv4Route();
     virtual std::string info() const;
     virtual std::string detailedInfo() const;
@@ -117,6 +118,9 @@ class INET_API IPv4Route : public cObject
 
     /** "Cost" to reach the destination */
     int getMetric() const {return metric;}
+
+    cObject *getProtocolData() const { return protocolData; }
+    void setProtocolData(cObject *protocolData) { this->protocolData = protocolData; }
 };
 
 /**

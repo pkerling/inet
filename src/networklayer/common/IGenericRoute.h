@@ -80,6 +80,7 @@ class INET_API IGenericRoute
         virtual int getMetric() const = 0;
 
         virtual cObject *getProtocolData() const = 0;
+        virtual void setProtocolData(cObject *protocolData) = 0;
 };
 
 /**

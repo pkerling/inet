@@ -49,6 +49,7 @@ class INET_API IPv6RouteAdapter : public IGenericRoute
         virtual cObject *getSource() const {return NULL; /*TODO: e->getSource();*/}
         virtual int getMetric() const {return e->getMetric();}
         virtual cObject *getProtocolData() const { return NULL; } // TODO:
+        virtual void setProtocolData(cObject *protocolData) { } // TODO:
 };
 
 //TODO: currently there is no IPv6MulticastRoute class
