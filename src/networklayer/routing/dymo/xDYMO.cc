@@ -3,12 +3,17 @@
 //
 
 #include "UDPPacket.h"
+#include "IPv4ControlInfo.h"
+#include "IPv4Datagram.h"
+#include "IPv4InterfaceData.h"
 #include "UDPControlInfo.h"
 #include "xDYMO.h"
 
 DYMO_NAMESPACE_BEGIN
 
 Define_Module(DYMO::xDYMO);
+
+#define DYMO_EV EV << "DYMO at " << routingTable->getRouterId() << " "
 
 //
 // construction
@@ -17,11 +22,13 @@ Define_Module(DYMO::xDYMO);
 xDYMO::xDYMO() {
     routingTable = NULL;
     networkProtocol = NULL;
+    expungeTimer = NULL;
 }
 
 xDYMO::~xDYMO() {
     for (std::map<Address, RREQTimer *>::iterator it = targetAddressToRREQTimer.begin(); it != targetAddressToRREQTimer.end(); it++)
         cancelAndDelete(it->second);
+    cancelAndDelete(expungeTimer);
 }
 
 //
@@ -33,7 +40,8 @@ void xDYMO::initialize(int stage) {
         // context parameters
         routingTableModuleName = par("routingTableModuleName");
         networkProtocolModuleName = par("networkProtocolModuleName");
-        // dymo parameters from RFC
+        // DYMO parameters from RFC
+        useMulticastRREP = par("useMulticastRREP");
         activeInterval = par("activeInterval");
         maxIdleTime = par("maxIdleTime");
         maxSequenceNumberLifetime = par("maxSequenceNumberLifetime");
@@ -41,40 +49,65 @@ void xDYMO::initialize(int stage) {
         rreqHolddownTime = par("rreqHolddownTime");
         maxHopCount = par("maxHopCount");
         discoveryAttemptsMax = par("discoveryAttemptsMax");
+        appendInformation = par("appendInformation");
         bufferSizePackets = par("bufferSizePackets");
         bufferSizeBytes = par("bufferSizeBytes");
-        // dymo extension parameters
+        // DYMO extension parameters
+        maxJitter = par("maxJitter");
         sendIntermediateRREP = par("sendIntermediateRREP");
         minHopLimit = par("minHopLimit");
         maxHopLimit = par("maxHopLimit");
         // context
         interfaceTable = InterfaceTableAccess().get(this);
+        // TODO: KLUDGE: simplify this when RoutingTable implements IGenericRoutingTable
         routingTable = check_and_cast<RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
         networkProtocol = check_and_cast<IGenericNetworkProtocol *>(findModuleWhereverInNode(networkProtocolModuleName, this));
         // internal
         sequenceNumber = 1;
-        socket.setOutputGate(gate("udpOut"));
-        socket.bind(DYMO_UDP_PORT);
-        socket.setMulticastLoop(false);
-        socket.joinMulticastGroup(IPv4Address::LL_MANET_ROUTERS, interfaceTable->getInterfaceByName("wlan0")->getInterfaceId());
+        expungeTimer = new cMessage("ExpungeTimer");
+    }
+    else if (stage == 4) {
+        // join multicast groups
+        for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
+            InterfaceEntry * interfaceEntry = interfaceTable->getInterface(i);
+            if (interfaceEntry->isMulticast()) {
+                IPv4InterfaceData * ipv4InterfaceData = interfaceTable->getInterface(i)->ipv4Data();
+                if (ipv4InterfaceData)
+                    ipv4InterfaceData->joinMulticastGroup(IPv4Address::LL_MANET_ROUTERS);
+            }
+        }
         // hook to network protocol
         networkProtocol->registerHook(0, this);
     }
 }
 
 void xDYMO::handleMessage(cMessage * message) {
-    if (message->isSelfMessage()) {
-        if (dynamic_cast<RREQWaitRREPTimer *>(message))
-            processRREQWaitRREPTimer((RREQWaitRREPTimer *)message);
-        else if (dynamic_cast<RREQBackoffTimer *>(message))
-            processRREQBackoffTimer((RREQBackoffTimer *)message);
-        else if (dynamic_cast<RREQHolddownTimer *>(message))
-            processRREQHolddownTimer((RREQHolddownTimer *)message);
-        else
-            throw cRuntimeError("Unknown message");
-    }
-    else if (dynamic_cast<DYMOPacket *>(message))
-        processDYMOPacket((DYMOPacket *)message);
+    if (message->isSelfMessage())
+        processSelfMessage(message);
+    else
+        processMessage(message);
+}
+
+//
+// handling messages
+//
+
+void xDYMO::processSelfMessage(cMessage * message) {
+    if (message == expungeTimer)
+        processExpungeTimer();
+    else if (dynamic_cast<RREQWaitRREPTimer *>(message))
+        processRREQWaitRREPTimer((RREQWaitRREPTimer *)message);
+    else if (dynamic_cast<RREQBackoffTimer *>(message))
+        processRREQBackoffTimer((RREQBackoffTimer *)message);
+    else if (dynamic_cast<RREQHolddownTimer *>(message))
+        processRREQHolddownTimer((RREQHolddownTimer *)message);
+    else
+        throw cRuntimeError("Unknown self message");
+}
+
+void xDYMO::processMessage(cMessage * message) {
+    if (dynamic_cast<UDPPacket *>(message))
+        processUDPPacket((UDPPacket *)message);
     else
         throw cRuntimeError("Unknown message");
 }
@@ -84,29 +117,40 @@ void xDYMO::handleMessage(cMessage * message) {
 //
 
 void xDYMO::startRouteDiscovery(const Address & target) {
+    DYMO_EV << "Starting route discovery: originator = " << routingTable->getRouterId() << ", target = " << target << endl;
     ASSERT(!hasOngoingRouteDiscovery(target));
     sendRREQ(createRREQ(target, 0));
-    sendRREQWaitRREPTimer(createRREQWaitRREPTimer(target, 0));
+    scheduleRREQWaitRREPTimer(createRREQWaitRREPTimer(target, 0));
 }
 
 void xDYMO::completeRouteDiscovery(const Address & target) {
+    DYMO_EV << "Completing route discovery: originator = " << routingTable->getRouterId() << ", target = " << target << endl;
     ASSERT(hasOngoingRouteDiscovery(target));
     std::multimap<Address, IGenericDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
     std::multimap<Address, IGenericDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
     for (std::multimap<Address, IGenericDatagram *>::iterator it = lt; it != ut; it++)
         reinjectDatagram(it->second);
-    targetAddressToDelayedPackets.erase(lt, ut);
-    cancelAndDelete(targetAddressToRREQTimer[target]); // TODO:
+    eraseRouteDiscovery(target);
 }
 
 void xDYMO::cancelRouteDiscovery(const Address & target) {
+    DYMO_EV << "Canceling route discovery: originator = " << routingTable->getRouterId() << ", target = " << target << endl;
     ASSERT(hasOngoingRouteDiscovery(target));
     std::multimap<Address, IGenericDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
     std::multimap<Address, IGenericDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
     for (std::multimap<Address, IGenericDatagram *>::iterator it = lt; it != ut; it++)
         dropDatagram(it->second);
+    eraseRouteDiscovery(target);
+}
+
+void xDYMO::eraseRouteDiscovery(const Address & target) {
+    ASSERT(hasOngoingRouteDiscovery(target));
+    std::multimap<Address, IGenericDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
+    std::multimap<Address, IGenericDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
     targetAddressToDelayedPackets.erase(lt, ut);
-    cancelAndDelete(targetAddressToRREQTimer[target]); // TODO:
+    std::map<Address, RREQTimer *>::iterator tt = targetAddressToRREQTimer.find(target);
+    targetAddressToRREQTimer.erase(tt);
+    cancelAndDelete(tt->second);
 }
 
 bool xDYMO::hasOngoingRouteDiscovery(const Address & target) {
@@ -118,17 +162,19 @@ bool xDYMO::hasOngoingRouteDiscovery(const Address & target) {
 //
 
 void xDYMO::delayDatagram(IGenericDatagram * datagram) {
+    DYMO_EV << "Queuing datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
     const Address & target = datagram->getDestinationAddress();
     targetAddressToDelayedPackets.insert(std::pair<Address, IGenericDatagram *>(target, datagram));
 }
 
 void xDYMO::reinjectDatagram(IGenericDatagram * datagram) {
-    // TODO:
+    DYMO_EV << "Sending queued datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
+    networkProtocol->reinjectDatagram(const_cast<const IGenericDatagram *>(datagram), IHook::ACCEPT);
 }
 
 void xDYMO::dropDatagram(IGenericDatagram * datagram) {
-    // TODO: send ICMP destination unreachable error
-    delete datagram;
+    DYMO_EV << "Dropping queued datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
+    networkProtocol->reinjectDatagram(const_cast<const IGenericDatagram *>(datagram), IHook::DROP);
 }
 
 //
@@ -142,19 +188,21 @@ RREQWaitRREPTimer * xDYMO::createRREQWaitRREPTimer(const Address & target, int r
     return message;
 }
 
-void xDYMO::sendRREQWaitRREPTimer(RREQWaitRREPTimer * message) {
+void xDYMO::scheduleRREQWaitRREPTimer(RREQWaitRREPTimer * message) {
+    DYMO_EV << "Scheduling RREQ wait RREP timer" << endl;
     targetAddressToRREQTimer[message->getTarget()] = message;
     scheduleAt(simTime() + routeRREQWaitTime, message);
 }
 
 void xDYMO::processRREQWaitRREPTimer(RREQWaitRREPTimer * message) {
+    DYMO_EV << "Processing RREQ wait RREP timer" << endl;
     const Address & target = message->getTarget();
     if (message->getRetryCount() == discoveryAttemptsMax - 1) {
         cancelRouteDiscovery(target);
-        sendRREQHolddownTimer(createRREQHolddownTimer(target));
+        scheduleRREQHolddownTimer(createRREQHolddownTimer(target));
     }
     else
-        sendRREQBackoffTimer(createRREQBackoffTimer(target, message->getRetryCount()));
+        scheduleRREQBackoffTimer(createRREQBackoffTimer(target, message->getRetryCount()));
     delete message;
 }
 
@@ -169,16 +217,18 @@ RREQBackoffTimer * xDYMO::createRREQBackoffTimer(const Address & target, int ret
     return message;
 }
 
-void xDYMO::sendRREQBackoffTimer(RREQBackoffTimer * message) {
+void xDYMO::scheduleRREQBackoffTimer(RREQBackoffTimer * message) {
+    DYMO_EV << "Scheduling RREQ backoff timer" << endl;
     targetAddressToRREQTimer[message->getTarget()] = message;
     scheduleAt(simTime() + computeRREQBackoffTime(message->getRetryCount()), message);
 }
 
 void xDYMO::processRREQBackoffTimer(RREQBackoffTimer * message) {
+    DYMO_EV << "Processing RREQ backoff timer" << endl;
     int retryCount = message->getRetryCount() + 1;
     const Address & target = message->getTarget();
     sendRREQ(createRREQ(target, retryCount));
-    sendRREQWaitRREPTimer(createRREQWaitRREPTimer(target, retryCount));
+    scheduleRREQWaitRREPTimer(createRREQWaitRREPTimer(target, retryCount));
     delete message;
 }
 
@@ -196,23 +246,59 @@ RREQHolddownTimer * xDYMO::createRREQHolddownTimer(const Address & target) {
     return message;
 }
 
-void xDYMO::sendRREQHolddownTimer(RREQHolddownTimer * message) {
+void xDYMO::scheduleRREQHolddownTimer(RREQHolddownTimer * message) {
+    DYMO_EV << "Scheduling RREQ holddown timer" << endl;
     targetAddressToRREQTimer[message->getTarget()] = message;
     scheduleAt(simTime() + rreqHolddownTime, message);
 }
 
 void xDYMO::processRREQHolddownTimer(RREQHolddownTimer * message) {
+    DYMO_EV << "Processing RREQ holddown timer" << endl;
     std::map<Address, RREQTimer *>::iterator it = targetAddressToRREQTimer.find(message->getTarget());
     targetAddressToRREQTimer.erase(it);
+    // TODO: start route discovery if packets are waiting, or shall we drop unroutable packets during holddown?
     delete message;
 }
+
+//
+// handling UDP packets
+//
+
+void xDYMO::sendUDPPacket(UDPPacket * packet) {
+    sendDelayed(packet, uniform(0, maxJitter), "ipOut");
+}
+
+void xDYMO::processUDPPacket(UDPPacket * packet) {
+    cPacket * encapsulatedPacket = packet->decapsulate();
+    if (dynamic_cast<DYMOPacket *>(encapsulatedPacket)) {
+        DYMOPacket * dymoPacket = (DYMOPacket *)encapsulatedPacket;
+        IPv4ControlInfo * controlInfo = check_and_cast<IPv4ControlInfo *>(packet->removeControlInfo());
+        dymoPacket->setControlInfo(controlInfo);
+        processDYMOPacket(dymoPacket);
+    }
+    else
+        throw cRuntimeError("Unknown UDP packet");
+    delete packet;
+}
+
 
 //
 // handling DYMO packets
 //
 
-void xDYMO::sendDYMOPacket(DYMOPacket * packet) {
-    socket.sendTo(packet, IPv4Address::LL_MANET_ROUTERS, DYMO_UDP_PORT);
+void xDYMO::sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const IPv4Address & destination) {
+    IPv4ControlInfo * ipControlInfo = new IPv4ControlInfo();
+    ipControlInfo->setDestAddr(destination);
+    ipControlInfo->setProtocol(IP_PROT_MANET);
+    ipControlInfo->setSrcAddr(routingTable->getRouterId().toIPv4());
+    if (interfaceEntry)
+        ipControlInfo->setInterfaceId(interfaceEntry->getInterfaceId());
+    UDPPacket * udpPacket = new UDPPacket(packet->getName());
+    udpPacket->encapsulate(packet);
+    udpPacket->setSourcePort(DYMO_UDP_PORT);
+    udpPacket->setDestinationPort(DYMO_UDP_PORT);
+    udpPacket->setControlInfo(ipControlInfo);
+    sendUDPPacket(udpPacket);
 }
 
 void xDYMO::processDYMOPacket(DYMOPacket * packet) {
@@ -232,9 +318,12 @@ void xDYMO::processDYMOPacket(DYMOPacket * packet) {
 
 bool xDYMO::permissibleRteMsg(RteMsg * packet) {
     // 7.5. Handling a Received RteMsg
+    AddressBlock & originatorNode = packet->getOriginatorNode();
+    AddressBlock & targetNode = packet->getTargetNode();
     // 1. HandlingRtr MUST handle AODVv2 messages only from adjacent
     //    routers as specified in Section 5.4. AODVv2 messages from other
     //    sources MUST be disregarded.
+    // TODO: implement
     // 2. If the RteMsg.<msg-hop-limit> is equal to 0, then the message is disregarded.
     if (packet->getHopLimit() == 0)
         return false;
@@ -246,52 +335,64 @@ bool xDYMO::permissibleRteMsg(RteMsg * packet) {
     //    required information: TargNode.Addr, OrigNode.Addr,
     //    RteMsg_Gen.Metric and RteMsg_Gen.SeqNum.  If the required
     //    information does not exist, the message is disregarded.
+    // TODO: implement
     // 5. HandlingRtr checks that OrigNode.Addr and TargNode.Addr are valid
     //    routable unicast addresses.  If not, the message is disregarded.
+    const Address & originatorAddress = originatorNode.getAddress();
+    const Address & targetAddress = targetNode.getAddress();
+    if (originatorAddress.isUnspecified() || originatorAddress.isMulticast() || originatorAddress.isBroadcast() ||
+        targetAddress.isUnspecified() || targetAddress.isMulticast() || targetAddress.isBroadcast())
+        return false;
     // 6. HandlingRtr checks that the Metric Type associated with
     //    OrigNode.Metric and TargNode.Metric is known, and that Cost(L)
     //    can be computed.  If not, the message is disregarded.
     //     *  DISCUSSION: alternatively, can change the AddrBlk metric to
     //        use HopCount, measured from<msg-hop-limit>.
+    if (originatorNode.getMetricType() != HOP_COUNT || targetNode.getMetricType() != HOP_COUNT)
+        return false;
     // 7. If MAX_METRIC[RteMsg.MetricType] <= (RteMsg_Gen.Metric +
     //    Cost(L)), where 'L' is the incoming link, the RteMsg is
     //    disregarded.
+    // TODO: implement
     return true;
 }
 
 void xDYMO::processRteMsg(RteMsg * packet) {
-    if (permissibleRteMsg(packet)) {
-        // 7.5. Handling a Received RteMsg
-        // 1. HandlingRtr MUST process the routing information contained in the
-        //    RteMsg as speciied in Section 6.1.
-        processRoutes(packet);
-        // 2. HandlingRtr MAY process AddedNode routing information (if
-        //    present) as specified in Section 13.7.1 Otherwise, if AddedNode
-        //    information is not processed, it MUST be deleted.
-        // 3. By sending the updated RteMsg, HandlingRtr advertises that it
-        //    will route for addresses contained in the outgoing RteMsg based
-        //    on the information enclosed.  HandlingRtr MAY choose not to send
-        //    the RteMsg, though not resending this RteMsg could decrease
-        //    connectivity in the network or result in a nonoptimal path.  The
-        //    circumstances under which HandlingRtr might choose to not re-
-        //    transmit a RteMsg are not specified in this document.  Some
-        //    examples might include the following:
-        //    * HandlingRtr is already heavily loaded and does not want to
-        //      advertise routing for the contained addresses
-        //    * HandlingRtr recently transmitted identical routing information
-        //      (e.g. in a RteMsg advertising the same metric)
-        //    * HandlingRtr is low on energy and has to reduce energy expended
-        //      for sending protocol messages or packet forwarding
-        //    Unless HandlingRtr is prepared to send an updated RteMsg, it
-        //    halts processing.  Otherwise, processing continues as follows.
-        // 4. HandlingRtr MUST decrement RteMsg.<msg-hop-limit>.  If
-        //    RteMsg.<msg-hop-limit> is then zero (0), no further action is taken.
-        packet->setHopLimit(packet->getHopLimit() - 1);
-        // 5. HandlingRtr MUST increment RteMsg.<msg-hop-count>.
-        packet->setHopCount(packet->getHopCount() + 1);
-    }
-    else
-        delete packet;
+    // 7.5. Handling a Received RteMsg
+    // 1. HandlingRtr MUST process the routing information contained in the
+    //    RteMsg as speciied in Section 6.1.
+    if (dynamic_cast<RREQ *>(packet))
+        updateRoutes(packet, packet->getOriginatorNode());
+    else if (dynamic_cast<RREP *>(packet))
+        updateRoutes(packet, packet->getTargetNode());
+    // 2. HandlingRtr MAY process AddedNode routing information (if
+    //    present) as specified in Section 13.7.1 Otherwise, if AddedNode
+    //    information is not processed, it MUST be deleted.
+    int count = packet->getAddedNodeArraySize();
+    for (int i = 0; i < count; i++)
+        updateRoutes(packet, packet->getAddedNode(i));
+    // 3. By sending the updated RteMsg, HandlingRtr advertises that it
+    //    will route for addresses contained in the outgoing RteMsg based
+    //    on the information enclosed.  HandlingRtr MAY choose not to send
+    //    the RteMsg, though not resending this RteMsg could decrease
+    //    connectivity in the network or result in a nonoptimal path.  The
+    //    circumstances under which HandlingRtr might choose to not re-
+    //    transmit a RteMsg are not specified in this document.  Some
+    //    examples might include the following:
+    //    * HandlingRtr is already heavily loaded and does not want to
+    //      advertise routing for the contained addresses
+    //    * HandlingRtr recently transmitted identical routing information
+    //      (e.g. in a RteMsg advertising the same metric)
+    //    * HandlingRtr is low on energy and has to reduce energy expended
+    //      for sending protocol messages or packet forwarding
+    //    Unless HandlingRtr is prepared to send an updated RteMsg, it
+    //    halts processing.  Otherwise, processing continues as follows.
+    // TODO: why is this here?
+    // 4. HandlingRtr MUST decrement RteMsg.<msg-hop-limit>.  If
+    //    RteMsg.<msg-hop-limit> is then zero (0), no further action is taken.
+    packet->setHopLimit(packet->getHopLimit() - 1);
+    // 5. HandlingRtr MUST increment RteMsg.<msg-hop-count>.
+    packet->setHopCount(packet->getHopCount() + 1);
 }
 
 //
@@ -323,20 +424,25 @@ RREQ * xDYMO::createRREQ(const Address & target, int retryCount) {
     //       incur additional enlargement.
     // 5. RREQ_Gen adds the TargNode.Addr to the RREQ.
     targetNode.setAddress(target);
+    targetNode.setPrefixLength(target.getPrefixLength());
     // 6. If a previous value of the TargNode's SeqNum is known RREQ_Gen SHOULD
     //    include TargNode.SeqNum in all but the last RREQ attempt.
     if (retryCount < discoveryAttemptsMax - 1)
-        targetNode.setSequenceNumber(-1); // TODO:
+        // TODO: implement
+        targetNode.setSequenceNumber(-1);
     // 7. RREQ_Gen adds OrigNode.Addr, its prefix, and the RREQ_Gen.SeqNum
     //    (OwnSeqNum) to the RREQ.
-    Address address; // TODO:
-    int prefixLength = 0; // TODO:
-    originatorNode.setAddress(address);
-    originatorNode.setPrefixLength(prefixLength);
+    // TODO: implement
+    const Address & originator = routingTable->getRouterId();
+    originatorNode.setAddress(originator);
+    originatorNode.setPrefixLength(originator.getPrefixLength());
     originatorNode.setSequenceNumber(sequenceNumber);
     // 8. If OrigNode.Metric is included it is set to the cost of the route
     //    between OrigNode and RREQ_Gen.
-
+    // TODO: implement
+    originatorNode.setMetric(0);
+    originatorNode.setMetricType(HOP_COUNT);
+    targetNode.setMetricType(HOP_COUNT);
     // expanding ring search
     int hopLimit = minHopLimit + (maxHopLimit - minHopLimit) * retryCount / discoveryAttemptsMax;
     packet->setHopLimit(hopLimit);
@@ -344,48 +450,78 @@ RREQ * xDYMO::createRREQ(const Address & target, int retryCount) {
 }
 
 void xDYMO::sendRREQ(RREQ * packet) {
-    // 7.5.1. Additional Handling for Outgoing RREQ
-    // o If the upstream router is in the Blacklist, and Current_Time <
-    //   BlacklistRmTime, then HandlingRtr MUST NOT transmit any outgoing
-    //   RREQ, and processing is complete.
-    // o Otherwise, if the upstream router is in the Blacklist, and
-    //   Current_Time >= BlacklistRmTime, then the upstream router SHOULD
-    //   be removed from the Blacklist, and message processing continued.
-    // o If TargNode is a client of HandlingRtr, then a RREP is generated
-    //   by the HandlingRtr (i.e., TargRtr) and unicast to the upstream
-    //   router towards the RREQ OrigNode, as specified in Section 7.4.
-    //   Afterwards, TargRtr processing for the RREQ is complete.
-    // o If HandlingRtr is not the TargetNode, then the outgoing RREQ (as
-    //   altered by the procedure defined above) SHOULD be sent to the IP
-    //   multicast address LL-MANET-Routers [RFC5498].  If the RREQ is
-    //   unicast, the IP.DestinationAddress is set to the NextHopAddress.
-    sendDYMOPacket(packet);
+    const Address & target = packet->getTargetNode().getAddress();
+    const Address & originator = packet->getOriginatorNode().getAddress();
+    // TODO: compute proper length
+    packet->setBitLength(0);
+    DYMO_EV << "Sending RREQ: originator = " << originator << ", target = " << target << endl;
+    sendDYMOPacket(packet, NULL, IPv4Address::LL_MANET_ROUTERS);
 }
 
 void xDYMO::processRREQ(RREQ * packet) {
-    processRteMsg(packet);
+    const Address & target = packet->getTargetNode().getAddress();
+    const Address & originator = packet->getOriginatorNode().getAddress();
+    DYMO_EV << "Processing RREQ: originator = " << originator << ", target = " << target << endl;
+    if (permissibleRteMsg(packet)) {
+        processRteMsg(packet);
+        // 7.5.1. Additional Handling for Outgoing RREQ
+        // o If the upstream router is in the Blacklist, and Current_Time <
+        //   BlacklistRmTime, then HandlingRtr MUST NOT transmit any outgoing
+        //   RREQ, and processing is complete.
+        // TODO: implement
+        // o Otherwise, if the upstream router is in the Blacklist, and
+        //   Current_Time >= BlacklistRmTime, then the upstream router SHOULD
+        //   be removed from the Blacklist, and message processing continued.
+        // TODO: implement
+        if (isClientAddress(target)) {
+            // o If TargNode is a client of HandlingRtr, then a RREP is generated
+            //   by the HandlingRtr (i.e., TargRtr) and unicast to the upstream
+            //   router towards the RREQ OrigNode, as specified in Section 7.4.
+            //   Afterwards, TargRtr processing for the RREQ is complete.
+            DYMO_EV << "Received RREQ for client: originator = " << originator << ", target = " << target << endl;
+            if (useMulticastRREP)
+                sendRREP(createRREP(packet, NULL));
+            else {
+                IGenericRoute * route = routingTable->findBestMatchingRoute(originator);
+                RREP * rrep = createRREP(packet, route);
+                sendRREP(rrep, route);
+            }
+        }
+        else {
+            // o If HandlingRtr is not the TargetNode, then the outgoing RREQ (as
+            //   altered by the procedure defined above) SHOULD be sent to the IP
+            //   multicast address LL-MANET-Routers [RFC5498].  If the RREQ is
+            //   unicast, the IP.DestinationAddress is set to the NextHopAddress.
+            DYMO_EV << "Forwarding RREQ: originator = " << originator << ", target = " << target << endl;
+            sendRREQ(packet->dup());
+        }
+    }
+    else
+        DYMO_EV << "Dropping non-permissible RREQ" << endl;
+    delete packet;
 }
 
 //
 // handling RREP packets
 //
 
-RREP * xDYMO::createRREP(RREQ * rreq) {
+RREP * xDYMO::createRREP(RteMsg * packet, IGenericRoute * route) {
+    DYMORouteData * routeData = (DYMORouteData *)route->getProtocolData();
     RREP * rrep = new RREP("RREP");
     AddressBlock & originatorNode = rrep->getOriginatorNode();
     AddressBlock & targetNode = rrep->getTargetNode();
     // 1. RREP_Gen first uses the routing information to update its route
-    //    table entry for OrigNode if necessary as specified in
-    //    Section 6.2.
+    //    table entry for OrigNode if necessary as specified in Section 6.2.
+    // TODO: why is this here?
     // 2. RREP_Gen MUST increment its OwnSeqNum by one (1) according to
     //    the rules specified in Section 5.5.
     incrementSequenceNumber();
     // 3. RREP.AddrBlk[OrigNode] := RREQ.AddrBlk[OrigNode]
-    originatorNode = AddressBlock(rreq->getOriginatorNode());
+    originatorNode = AddressBlock(packet->getOriginatorNode());
     // 4. RREP.AddrBlk[TargNode] := RREQ.AddrBlk[TargNode]
-    targetNode = AddressBlock(rreq->getTargetNode());
+    targetNode = AddressBlock(packet->getTargetNode());
     // 5. RREP.SeqNumTLV[OrigNode] := RREQ.SeqNumTLV[OrigNode]
-    originatorNode.setSequenceNumber(rreq->getOriginatorNode().getSequenceNumber());
+    originatorNode.setSequenceNumber(packet->getOriginatorNode().getSequenceNumber());
     // 6. RREP.SeqNumTLV[TargNode] := OwnSeqNum
     targetNode.setSequenceNumber(sequenceNumber);
     // 7. If Route[TargNode].PfxLen/8 is equal to the number of bytes in
@@ -394,28 +530,66 @@ RREP * xDYMO::createRREP(RREQ * rreq) {
     //    RREP.PfxLen[TargNode] := RREQ.PfxLen[TargNode] according to the
     //    rules of RFC 5444 AddrBlk encoding.
     // 8. RREP.MetricType[TargNode] := Route[TargNode].MetricType
+    targetNode.setMetricType(routeData->getMetricType());
     // 9. RREP.Metric[TargNode] := Route[TargNode].Metric
-    rrep->setMetric(-1); // TODO
+    targetNode.setMetric(route->getMetric());
     // 10. <msg-hop-limit> SHOULD be set to RteMsg.<msg-hop-count>.
-    rrep->setHopLimit(rreq->getHopCount());
+    rrep->setHopLimit(packet->getHopCount());
     // 11. IP.DestinationAddr := Route[OrigNode].NextHop
+    // TODO: implement
     return rrep;
 }
 
 void xDYMO::sendRREP(RREP * packet) {
-    // 7.5.2. Additional Handling for Outgoing RREP
-    // o If HandlingRtr is not OrigRtr then the outgoing RREP is sent to
-    //   the Route.NextHopAddress for the RREP.AddrBlk[OrigNode].  If no
-    //   forwarding route exists to OrigNode, then a RERR SHOULD be
-    //   transmitted to RREP.AddrBlk[TargNode].  See Table 1 for notational
-    //   conventions; OrigRtr, OrigNode, and TargNode are routers named in
-    //   the context of OrigRtr, that is, the router originating the RREQ
-    //   to which the RREP is responding.
-    sendDYMOPacket(packet);
+    const Address & target = packet->getTargetNode().getAddress();
+    const Address & originator = packet->getOriginatorNode().getAddress();
+    // TODO: compute proper length
+    packet->setBitLength(0);
+    DYMO_EV << "Sending RREP: originator = " << originator << ", target = " << target << endl;
+    sendDYMOPacket(packet, NULL, IPv4Address::LL_MANET_ROUTERS);
+}
+
+void xDYMO::sendRREP(RREP * packet, IGenericRoute * route) {
+    const Address & target = packet->getTargetNode().getAddress();
+    const Address & originator = packet->getOriginatorNode().getAddress();
+    // TODO: compute proper length
+    packet->setBitLength(0);
+    DYMO_EV << "Sending RREP: originator = " << originator << ", target = " << target << endl;
+    sendDYMOPacket(packet, route->getInterface(), route->getNextHop().toIPv4());
 }
 
 void xDYMO::processRREP(RREP * packet) {
-    processRteMsg(packet);
+    const Address & target = packet->getTargetNode().getAddress();
+    const Address & originator = packet->getOriginatorNode().getAddress();
+    DYMO_EV << "Processing RREP: originator = " << originator << ", target = " << target << endl;
+    if (permissibleRteMsg(packet)) {
+        processRteMsg(packet);
+        // 7.5.2. Additional Handling for Outgoing RREP
+        if (isClientAddress(originator)) {
+            DYMO_EV << "Received RREP for client: originator = " << originator << ", target = " << target << endl;
+            completeRouteDiscovery(target);
+        }
+        else {
+            // o If HandlingRtr is not OrigRtr then the outgoing RREP is sent to
+            //   the Route.NextHopAddress for the RREP.AddrBlk[OrigNode].  If no
+            //   forwarding route exists to OrigNode, then a RERR SHOULD be
+            //   transmitted to RREP.AddrBlk[TargNode].  See Table 1 for notational
+            //   conventions; OrigRtr, OrigNode, and TargNode are routers named in
+            //   the context of OrigRtr, that is, the router originating the RREQ
+            //   to which the RREP is responding.
+            DYMO_EV << "Forwarding RREP: originator = " << originator << ", target = " << target << endl;
+            if (useMulticastRREP)
+                sendRREP(createRREP(packet, NULL));
+            else {
+                IGenericRoute * route = routingTable->findBestMatchingRoute(packet->getOriginatorNode().getAddress());
+                RREP *rrep = createRREP(packet, route);
+                sendRREP(rrep, route);
+            }
+        }
+    }
+    else
+        DYMO_EV << "Dropping non-permissible RREQ" << endl;
+    delete packet;
 }
 
 //
@@ -475,7 +649,10 @@ RERR * xDYMO::createRERRForBrokenLink() {
 }
 
 void xDYMO::sendRERR(RERR * packet) {
-    sendDYMOPacket(packet);
+    // TODO: compute proper length
+    packet->setBitLength(0);
+    DYMO_EV << "Sending RRER" << endl;
+    sendDYMOPacket(packet, NULL, IPv4Address::LL_MANET_ROUTERS);
 }
 
 void xDYMO::processRERR(RERR * packet) {
@@ -515,27 +692,36 @@ void xDYMO::processRERR(RERR * packet) {
     //   a Route to PktSource.Addr, then HandlingRtr MUST send the outgoing
     //   RERR to Route[PktSource.Addr].NextHop.
     // o Otherwise, the outgoing RERR MUST be sent to LL-MANET-Routers.
+    delete packet;
 }
 
 //
 // handling routes
 //
 
-void xDYMO::processRoutes(RteMsg * packet) {
+void xDYMO::updateRoutes(RteMsg * packet, AddressBlock & addressBlock) {
     // 6.1. Evaluating Incoming Routing Information
-    Address & target = packet->getTargetNode().getAddress();
-    // find out the matching route by destination address and metric type and source (this pointer, not address)
+    // HandRtr searches its route table to see if there is a route table
+    // entry with the same MetricType of the RteMsg, matching RteMsg.Addr.
     IGenericRoute * route = NULL;
     for (int i = 0; i < routingTable->getNumRoutes(); i++) {
         IGenericRoute * routeCandidate = routingTable->getRoute(i);
         DYMORouteData *routeDataCandidate = dynamic_cast<DYMORouteData *>(routeCandidate->getProtocolData());
-        if (routeDataCandidate && routeCandidate->getDestination() == target) { // TODO: && route->getSource() == this
+        // TODO: add check for route->getSource() == this
+        if (routeDataCandidate && routeCandidate->getDestination() == addressBlock.getAddress() && routeDataCandidate->getMetricType() == addressBlock.getMetricType()) {
             route = routeCandidate;
             break;
         }
     }
-    if (!route)
-        routingTable->addRoute(createRoute(packet));
+    // If not, HandRtr creates a route table entry for RteMsg.Addr as described
+    // in Section 6.2. Otherwise, HandRtr compares the incoming routing information
+    /// in RteMsg against the already stored routing information in the route table
+    // entry (Route) for RteMsg.Addr, as described below.
+    if (!route) {
+        IGenericRoute * route = createRoute(packet, addressBlock);
+        DYMO_EV << "Adding new route " << route << endl;
+        routingTable->addRoute(route);
+    }
     else {
         DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
         // Offers improvement if
@@ -543,62 +729,89 @@ void xDYMO::processRoutes(RteMsg * packet) {
         // {(RteMsg.SeqNum == Route.SeqNum) AND
         // [(RteMsg.Metric < Route.Metric) OR
         // ((Route.Broken == TRUE) && LoopFree (RteMsg, Route))]}    if
-        if ((packet->getSequenceNumber() > routeData->getSequenceNumber()) ||
-            (packet->getSequenceNumber() == routeData->getSequenceNumber() && packet->getMetric() < route->getMetric()) ||
+        if ((addressBlock.getSequenceNumber() > routeData->getSequenceNumber()) ||
+            (addressBlock.getSequenceNumber() == routeData->getSequenceNumber() && addressBlock.getMetric() < route->getMetric()) ||
             (routeData->getBroken() && isLoopFree(packet, route)))
         {
             // it's more recent, or it's not stale and is shorter, or it can safely repair a broken route
-            updateRoute(packet, route);
+            routingTable->removeRoute(route);
+            DYMO_EV << "Updating existing route from " << route;
+            updateRoute(packet, addressBlock, route);
+            DYMO_EV << " to " << route << endl;
+            routingTable->addRoute(route);
         }
     }
 }
 
-IGenericRoute * xDYMO::createRoute(RteMsg * packet) {
-    Address & target = packet->getTargetNode().getAddress();
-    UDPDataIndication *udpData = check_and_cast<UDPDataIndication *>(packet->getControlInfo());
-    IGenericRoute *route = routingTable->createRoute();
-    route->setDestination(target);
-    route->setPrefixLength(32); // TODO:
-    route->setNextHop(target); // TODO:
-    InterfaceEntry *interfaceEntry = interfaceTable->getInterfaceById(udpData->getInterfaceId());
-    if (interfaceEntry)
-        route->setInterface(interfaceEntry);
+IGenericRoute * xDYMO::createRoute(RteMsg * packet, AddressBlock & addressBlock) {
+    IGenericRoute * route = routingTable->createRoute();
+    route->setProtocolData(new DYMORouteData());
+    updateRoute(packet, addressBlock, route);
     return route;
 }
 
-void xDYMO::updateRoute(RteMsg * packet, IGenericRoute * route) {
+void xDYMO::updateRoute(RteMsg * packet, AddressBlock & addressBlock, IGenericRoute * route) {
     // 6.2. Applying Route Updates To Route Table Entries
-    UDPDataIndication *udpData = check_and_cast<UDPDataIndication *>(packet->getControlInfo());
+    IPv4ControlInfo *ipv4ControlInfo = check_and_cast<IPv4ControlInfo *>(packet->getControlInfo());
     DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
     // Route.Address := RteMsg.Addr
+    route->setDestination(addressBlock.getAddress());
     // If (RteMsg.PfxLen != 0), then Route.PfxLen := RteMsg.PfxLen
+    route->setPrefixLength(addressBlock.getPrefixLength());
     // Route.SeqNum := RteMsg.SeqNum
-    routeData->setSequenceNumber(packet->getSequenceNumber());
+    routeData->setSequenceNumber(addressBlock.getSequenceNumber());
     // Route.NextHopAddress := IP.SourceAddress (i.e., an address of the node from which the RteMsg was received)
-    // TODO: route->setNextHop(udpData->getSrcAddr());
+    // TODO: make it independent of IPv4
+    route->setNextHop(Address(ipv4ControlInfo->getSrcAddr()));
     // Route.NextHopInterface is set to the interface on which RteMsg was received
-    InterfaceEntry *interfaceEntry = interfaceTable->getInterfaceById(udpData->getInterfaceId());
+    InterfaceEntry *interfaceEntry = interfaceTable->getInterfaceById(ipv4ControlInfo->getInterfaceId());
     if (interfaceEntry)
         route->setInterface(interfaceEntry);
     // Route.Broken flag := FALSE
     routeData->setBroken(false);
     // If RteMsg.MetricType is included, then Route.MetricType := RteMsg.MetricType.  Otherwise, Route.MetricType := DEFAULT_METRIC_TYPE.
     // Route.MetricType := RteMsg.MetricType
-    routeData->setMetricType(packet->getMetricType()); // TODO:
+    // TODO: implement
+    routeData->setMetricType(addressBlock.getMetricType());
     // Route.Metric := RteMsg.Metric
-    route->setMetric(packet->getMetric());
+    route->setMetric(addressBlock.getMetric());
     // Route.LastUsed := Current_Time
     routeData->setLastUsed(simTime());
     // If RteMsg.VALIDITY_TIME is not included, then Route.ExpirationTime := MAXTIME, otherwise Route.ExpirationTime := Current_Time + RteMsg.VALIDITY_TIME
-    routeData->setExpirationTime(0); // TODO:
+    simtime_t validityTime = addressBlock.getValidityTime();
+    if (validityTime == 0)
+        routeData->setExpirationTime(0);
+    else {
+        routeData->setExpirationTime(simTime() + validityTime);
+        scheduleExpungeTimer();
+    }
 }
 
 bool xDYMO::isLoopFree(RteMsg * packet, IGenericRoute * route) {
-    // TODO:
+    // TODO: implement
     return true;
 }
 
+//
+// handling expunge timer
+//
+
+void xDYMO::processExpungeTimer() {
+    expungeRoutes();
+    scheduleExpungeTimer();
+}
+
+void xDYMO::scheduleExpungeTimer() {
+    simtime_t expungeTime = getNextExpungeTime();
+    if (expungeTime >= simTime()) {
+        if (expungeTimer->isScheduled())
+            cancelEvent(expungeTimer);
+        scheduleAt(getNextExpungeTime(), expungeTimer);
+    }
+}
+
 void xDYMO::expungeRoutes() {
+    DYMO_EV << "Expunging routes from routing table: router = " << routingTable->getRouterId() << endl;
     // 6.3. Route Table Entry Timeouts
     for (int i = 0; i < routingTable->getNumRoutes(); i++) {
         IGenericRoute * route = routingTable->getRoute(i);
@@ -613,6 +826,7 @@ void xDYMO::expungeRoutes() {
                 (simTime() - routeData->getLastUsed() >= maxSequenceNumberLifetime) ||
                 (routeData->getExpirationTime() > 0 && simTime() >= routeData->getExpirationTime()))
             {
+                DYMO_EV << "Expunging route " << route << endl;
                 routingTable->removeRoute(route);
                 i--;
             }
@@ -620,36 +834,18 @@ void xDYMO::expungeRoutes() {
     }
 }
 
-//
-// netfilter interface
-//
-
-IGenericNetworkProtocol::IHook::Result xDYMO::ensureRouteForDatagram(IGenericDatagram * datagram) {
-    expungeRoutes();
-    const Address & destination = datagram->getDestinationAddress();
-    if (destination.isMulticast() || destination.isBroadcast())
-        return ACCEPT;
-    else {
-        const Address & nextHopAddress = routingTable->getNextHopForDestination(destination);
-        if (!nextHopAddress.isUnspecified())
-            return ACCEPT;
-        else {
-            delayDatagram(datagram);
-            if (!hasOngoingRouteDiscovery(destination))
-                startRouteDiscovery(destination);
-            return QUEUE;
+simtime_t xDYMO::getNextExpungeTime() {
+    simtime_t nextExpirationTime = 0;
+    for (int i = 0; i < routingTable->getNumRoutes(); i++) {
+        IGenericRoute * route = routingTable->getRoute(i);
+        if (route->getSource() == this) {
+            DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
+            const simtime_t & expirationTime = routeData->getExpirationTime();
+            if (expirationTime != 0 && expirationTime < nextExpirationTime)
+                nextExpirationTime = expirationTime;
         }
     }
-}
-
-//
-// utilities
-//
-
-void xDYMO::incrementSequenceNumber() {
-    sequenceNumber++;
-    if (sequenceNumber == 0)
-        sequenceNumber = 1;
+    return nextExpirationTime;
 }
 
 DYMORouteState xDYMO::getRouteState(DYMORouteData * routeData) {
@@ -668,6 +864,72 @@ DYMORouteState xDYMO::getRouteState(DYMORouteData * routeData) {
         return IDLE;
     else
         return EXPIRED;
+}
+
+//
+// client address
+//
+
+bool xDYMO::isClientAddress(const Address & address) {
+    if (routingTable->isLocalAddress(address))
+        return true;
+    else {
+        for (std::vector<std::pair<Address, int> >::iterator it = clientNetworks.begin(); it != clientNetworks.end(); it++)
+            // TODO: handle prefix length too
+            if (it->first == address)
+                return true;
+        return false;
+    }
+}
+
+//
+// sequence number
+//
+
+void xDYMO::incrementSequenceNumber() {
+    // 5.5.  AODVv2 Sequence Numbers
+    // Most of the time, OwnSeqNum is incremented by simply adding one (1).
+    // But to increment OwnSeqNum when it has the value of the largest possible
+    // number representable as a 16-bit unsigned integer (i.e., 65,535), it MUST
+    // be set to one (1). In other words, the sequence number after 65,535 is 1.
+    sequenceNumber++;
+    if (sequenceNumber == 0)
+        sequenceNumber = 1;
+}
+
+//
+// hook into generic network protocol
+//
+
+bool xDYMO::isDYMODatagram(IGenericDatagram * datagram) {
+    IPv4Datagram * ipv4Datagram = dynamic_cast<IPv4Datagram *>(datagram);
+    IPv4ControlInfo * ipv4ControlInfo = ipv4Datagram ? dynamic_cast<IPv4ControlInfo *>(ipv4Datagram->getControlInfo()) : NULL;
+    return ipv4ControlInfo && ipv4ControlInfo->getProtocol() == IP_PROT_MANET;
+}
+
+IGenericNetworkProtocol::IHook::Result xDYMO::ensureRouteForDatagram(IGenericDatagram * datagram) {
+    const Address & destination = datagram->getDestinationAddress();
+    if (destination.isMulticast() || destination.isBroadcast() || routingTable->isLocalAddress(destination) || isDYMODatagram(datagram))
+        return ACCEPT;
+    else {
+        DYMO_EV << "Finding route: source = " << routingTable->getRouterId() << ", destination = " << destination << endl;
+        IGenericRoute * route = routingTable->findBestMatchingRoute(destination);
+        DYMORouteData * routeData = dynamic_cast<DYMORouteData *>(route->getProtocolData());
+        const Address & nextHop = route->getNextHop();
+        if (!nextHop.isUnspecified() && (!routeData || !routeData->getBroken())) {
+            DYMO_EV << "Route found: source = " << routingTable->getRouterId() << ", destination = " << destination << endl;
+            return ACCEPT;
+        }
+        else {
+            DYMO_EV << "Missing route: source = " << routingTable->getRouterId() << ", destination = " << destination << endl;
+            delayDatagram(datagram);
+            if (!hasOngoingRouteDiscovery(destination))
+                startRouteDiscovery(destination);
+            else
+                DYMO_EV << "Ongoing route discovery: originator = " << routingTable->getRouterId() << ", target = " << destination << endl;
+            return QUEUE;
+        }
+    }
 }
 
 DYMO_NAMESPACE_END

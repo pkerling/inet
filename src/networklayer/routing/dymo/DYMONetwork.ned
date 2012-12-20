@@ -16,15 +16,15 @@ module AdhocHost extends WirelessHost
 {
     parameters:
         @display("i=device/cellphone");
-        hasUdp = true;
+        IPForward = true;
         wlan[*].mgmtType = default("Ieee80211MgmtAdhoc");
     submodules:
         dymo: xDYMO {
-            @display("p=427,141");
+            @display("p=527,287");
         }
     connections:
-        dymo.udpOut --> udp.appIn++;
-        dymo.udpIn <-- udp.appOut++;
+        dymo.ipOut --> networkLayer.manetIn;
+        dymo.ipIn <-- networkLayer.manetOut;
 }
 
 //

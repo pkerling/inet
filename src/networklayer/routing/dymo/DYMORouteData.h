@@ -15,14 +15,14 @@ DYMO_NAMESPACE_BEGIN
  * DYMO specific extra route data attached to routes in the routing table.
  */
 class INET_API DYMORouteData : public cObject {
-private:
+  private:
     bool isBroken;
     DYMOSequenceNumber sequenceNumber;
     simtime_t lastUsed;
     simtime_t expirationTime;
     DYMOMetricType metricType;
 
-public:
+  public:
     DYMORouteData();
     virtual ~DYMORouteData() { }
 

@@ -22,6 +22,9 @@ namespace DYMO;
 class AddressBlock {
     Address address;
     int prefixLength;
+    simtime_t validityTime;
+    double metric;
+    DYMOMetricType metricType;
     DYMOSequenceNumber sequenceNumber;
 }
 
@@ -54,11 +57,9 @@ packet DYMOPacket {
 packet RteMsg extends DYMOPacket {
     int hopCount;
     int hopLimit;
-    double metric;
-    DYMOMetricType metricType;
-    DYMOSequenceNumber sequenceNumber;
     AddressBlock originatorNode;
     AddressBlock targetNode;
+    AddressBlock addedNode[];
 }
 
 packet RREQ extends RteMsg {

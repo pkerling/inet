@@ -25,7 +25,7 @@ simple xDYMO
         
         // 1. DYMO parameter group
         // string CLIENT_ADDRESSES = default("");
-        // bool USE_MULTICAST_RREP = default(false);
+        bool useMulticastRREP = default(false); // USE_MULTICAST_RREP
         // string DEFAULT_METRIC_TYPE = default("HOP_COUNT");
         // string AODVv2_INTERFACES = default("*");
 
@@ -45,17 +45,18 @@ simple xDYMO
 		// int MTU;
 		
 		// 4. DYMO parameter group
-		// bool APPEND_INFORMATION;
+		bool appendInformation = default(true); //APPEND_INFORMATION;
         int bufferSizePackets = default(-1); // BUFFER_SIZE_PACKETS
         int bufferSizeBytes @unit("B") = default(-1B); //  BUFFER_SIZE_BYTES
         // double CONTROL_TRAFFIC_LIMIT
 
 		// DYMO extension parameters
+		double maxJitter @unit("s") = default(10ms);
 		bool sendIntermediateRREP = default(true);
         int minHopLimit = default(5);
         int maxHopLimit = default(10);
     
     gates:
-        input udpIn @labels(UDPControlInfo/up);
-        output udpOut @labels(UDPControlInfo/down);
+        input ipIn;
+        output ipOut;
 }
