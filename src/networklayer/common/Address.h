@@ -50,7 +50,7 @@ class INET_API Address
         MACAddress toMAC() const {return mac;};  // IEU-48
 
         //TODO add more functions: getType(), prefix matching, etc
-        int getPrefixLength() const { return ipv4.getNetmaskLength(); }
+        int getPrefixLength() const { return ipv4.getNetmaskLength(); }  //FIXME not good, remove!!!!!! IT DOES NOT DO WHAT YOU EXPECT
         bool isUnspecified() const { return ipv4.isUnspecified(); }
         bool isMulticast() const { return ipv4.isMulticast(); }
         bool isBroadcast() const { return ipv4.isLimitedBroadcastAddress(); }
