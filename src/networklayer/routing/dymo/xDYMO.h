@@ -8,6 +8,7 @@
 #include <vector>
 #include <map>
 #include <omnetpp.h>
+#include "INotifiable.h"
 #include "InterfaceTableAccess.h"
 #include "IGenericNetworkProtocol.h"
 #include "IGenericRoutingTable.h"
@@ -15,7 +16,7 @@
 #include "DYMORouteData.h"
 #include "DYMO_m.h"
 
-// TODO: KLUDGE: kill this when RoutingTable implements IGenericRoutingTable
+// KLUDGE: kill this when RoutingTable implements IGenericRoutingTable
 #include "RoutingTable.h"
 
 DYMO_NAMESPACE_BEGIN
@@ -36,13 +37,14 @@ DYMO_NAMESPACE_BEGIN
  *  - 13.6. Message Aggregation
  *    RFC5148 add jitter to broadcasts
  */
-class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHook {
+class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGenericNetworkProtocol::IHook {
   private:
     // context parameters
-    const char *routingTableModuleName;
-    const char *networkProtocolModuleName;
+    const char * routingTableModuleName;
+    const char * networkProtocolModuleName;
 
     // DYMO parameters from RFC
+    const char * clientAddresses;
     bool useMulticastRREP;
     double activeInterval;
     double maxIdleTime;
@@ -57,23 +59,23 @@ class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHo
 
     // DYMO extension parameters
     simtime_t maxJitter;
-    // TODO: implement
     bool sendIntermediateRREP;
     int minHopLimit;
     int maxHopLimit;
 
     // context
-    IInterfaceTable *interfaceTable;
+    NotificationBoard * notificationBoard;
+    IInterfaceTable * interfaceTable;
     IGenericRoutingTable * routingTable;
     IGenericNetworkProtocol * networkProtocol;
 
     // internal
+    cMessage * expungeTimer;
     DYMOSequenceNumber sequenceNumber;
-    cMessage *expungeTimer;
+    std::map<Address, DYMOSequenceNumber> targetToSequenceNumber;
     std::vector<std::pair<Address, int> > clientNetworks; // 5.3.  Router Clients and Client Networks
     std::multimap<Address, IGenericDatagram *> targetAddressToDelayedPackets;
     std::map<Address, RREQTimer *> targetAddressToRREQTimer;
-//    UDPSocket socket; // TODO: use raw socket? how on earth could we use a UDP port and a non-UDP IP protocol number?
 
   public:
     xDYMO();
@@ -91,15 +93,22 @@ class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHo
 
     // route discovery
     void startRouteDiscovery(const Address & target);
+    void retryRouteDiscovery(const Address & target, int retryCount);
     void completeRouteDiscovery(const Address & target);
     void cancelRouteDiscovery(const Address & target);
-    void eraseRouteDiscovery(const Address & target);
     bool hasOngoingRouteDiscovery(const Address & target);
 
     // handling IP datagrams
     void delayDatagram(IGenericDatagram * datagram);
-    void reinjectDatagram(IGenericDatagram * datagram);
-    void dropDatagram(IGenericDatagram * datagram);
+    void reinjectDelayedDatagram(IGenericDatagram * datagram);
+    void dropDelayedDatagram(IGenericDatagram * datagram);
+    void eraseDelayedDatagrams(const Address & target);
+    bool hasDelayedDatagrams(const Address & target);
+
+    // handling RREQ timers
+    void cancelRREQTimer(const Address & target);
+    void deleteRREQTimer(const Address & target);
+    void eraseRREQTimer(const Address & target);
 
     // handling RREQ wait RREP timer
     RREQWaitRREPTimer * createRREQWaitRREPTimer(const Address & target, int retryCount);
@@ -118,39 +127,42 @@ class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHo
     void processRREQHolddownTimer(RREQHolddownTimer * message);
 
     // handling UDP packets
-    void sendUDPPacket(UDPPacket * packet);
+    void sendUDPPacket(UDPPacket * packet, double delay);
     void processUDPPacket(UDPPacket * packet);
 
     // handling DYMO packets
-    void sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const IPv4Address & destination);
+    void sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const IPv4Address & nextHop, double delay);
     void processDYMOPacket(DYMOPacket * packet);
 
     // handling RteMsg packets
-    bool permissibleRteMsg(RteMsg * packet);
-    void processRteMsg(RteMsg * packet);
+    bool permissibleRteMsg(RteMsg * rteMsg);
+    void processRteMsg(RteMsg * rteMsg);
 
     // handling RREQ packets
     RREQ * createRREQ(const Address & target, int retryCount);
-    void sendRREQ(RREQ * packet);
-    void processRREQ(RREQ * packet);
+    void sendRREQ(RREQ * rreq);
+    void processRREQ(RREQ * rreq);
 
     // handling RREP packets
-    RREP * createRREP(RteMsg * packet, IGenericRoute * route);
-    void sendRREP(RREP * packet);
-    void sendRREP(RREP * packet, IGenericRoute * route);
-    void processRREP(RREP * packet);
+    RREP * createRREP(RteMsg * rteMsg);
+    RREP * createRREP(RteMsg * rteMsg, IGenericRoute * route);
+    void sendRREP(RREP * rrep);
+    void sendRREP(RREP * rrep, IGenericRoute * route);
+    void processRREP(RREP * rrep);
 
     // handling RERR packets
-    RERR * createRERRForUndeliverablePacket();
-    RERR * createRERRForBrokenLink();
-    void sendRERR(RERR * packet);
-    void processRERR(RERR * packet);
+    RERR * createRERR(std::vector<Address> & addresses);
+    void sendRERR(RERR * rerr);
+    void sendRERRForUndeliverablePacket(const Address & destination);
+    void sendRERRForBrokenLink(InterfaceEntry * interfaceEntry, const Address & nextHop);
+    void processRERR(RERR * rerr);
 
     // handling routes
-    IGenericRoute * createRoute(RteMsg * packet, AddressBlock & addressBlock);
-    void updateRoutes(RteMsg * packet, AddressBlock & addressBlock);
-    void updateRoute(RteMsg * packet, AddressBlock & addressBlock, IGenericRoute * route);
-    bool isLoopFree(RteMsg * packet, IGenericRoute * route);
+    IGenericRoute * createRoute(RteMsg * rteMsg, AddressBlock & addressBlock);
+    void updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock);
+    void updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IGenericRoute * route);
+    int getLinkCost(InterfaceEntry * interfaceEntry, DYMOMetricType metricType);
+    bool isLoopFree(RteMsg * rteMsg, IGenericRoute * route);
 
     // handling expunge timer
     void processExpungeTimer();
@@ -160,12 +172,17 @@ class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHo
     DYMORouteState getRouteState(DYMORouteData * routeData);
 
     // client address
+    const Address getSelfAddress();
     bool isClientAddress(const Address & address);
+
+    // added node
+    void addSelfNode(RteMsg * rteMsg);
+    void addNode(RteMsg * rteMsg, AddressBlock & addressBlock);
 
     // sequence number
     void incrementSequenceNumber();
 
-    // hook into generic network protocol
+    // generic network protocol
     virtual Result datagramPreRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
     virtual Result datagramLocalInHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { return ACCEPT; }
     virtual Result datagramForwardHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
@@ -174,7 +191,8 @@ class INET_API xDYMO : public cSimpleModule, public IGenericNetworkProtocol::IHo
     bool isDYMODatagram(IGenericDatagram * datagram);
     Result ensureRouteForDatagram(IGenericDatagram * datagram);
 
-    // TODO: add link failure listener
+    // notifications
+    virtual void receiveChangeNotification(int category, const cObject * details);
 };
 
 DYMO_NAMESPACE_END

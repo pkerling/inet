@@ -24,7 +24,7 @@ simple xDYMO
         string networkProtocolModuleName = default("ip");
         
         // 1. DYMO parameter group
-        // string CLIENT_ADDRESSES = default("");
+        string clientAddresses = default(""); // CLIENT_ADDRESSES
         bool useMulticastRREP = default(false); // USE_MULTICAST_RREP
         // string DEFAULT_METRIC_TYPE = default("HOP_COUNT");
         // string AODVv2_INTERFACES = default("*");

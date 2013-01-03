@@ -52,11 +52,11 @@ message RREQHolddownTimer extends RREQTimer {
 //
 
 packet DYMOPacket {
+    int hopLimit;
 }
 
 packet RteMsg extends DYMOPacket {
     int hopCount;
-    int hopLimit;
     AddressBlock originatorNode;
     AddressBlock targetNode;
     AddressBlock addedNode[];
@@ -72,4 +72,5 @@ packet RREP_ACK extends DYMOPacket {
 }
 
 packet RERR extends DYMOPacket {
+    AddressBlock unreachableNode[];
 }
