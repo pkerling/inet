@@ -90,6 +90,7 @@ class INET_API GenericRoute : public cObject, public IGenericRoute
         virtual cObject *getProtocolData() const {return protocolData;}
 };
 
+#if 0 /*FIXME TODO!!!! */
 /**
  * TODO
  */
@@ -121,8 +122,8 @@ class INET_API GenericMulticastRoute : public cObject, public IGenericMulticastR
         virtual void setPrefixLength(int len) {this->prefixLength = len;}
         virtual void setMulticastGroup(const Address& group) {this->multicastGroup = group;}
         virtual void setParent(InterfaceEntry *ie) {this->parent = ie;}
-        virtual bool addChild(InterfaceEntry *ie, bool isLeaf) {this->X = X;} //TODO
-        virtual bool removeChild(InterfaceEntry *ie) {this->X = X;} //TODO
+        virtual bool addChild(InterfaceEntry *ie, bool isLeaf);
+        virtual bool removeChild(InterfaceEntry *ie);
         virtual void setSource(cObject *source) {this->source = source;}
         virtual void setMetric(int metric) {this->metric = metric;}
 
@@ -162,6 +163,7 @@ class INET_API GenericMulticastRoute : public cObject, public IGenericMulticastR
         /** Cost to reach the destination */
         virtual int getMetric() const {return metric;}
 };
+#endif /*0*/
 
 #endif
 

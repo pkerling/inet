@@ -34,6 +34,8 @@ bool GenericRoute::equals(const IGenericRoute& route) const
 
 //---
 
+#if 0 /*FIXME TODO!!!! */
+
 std::string GenericMulticastRoute::info() const
 {
     return ""; //TODO
@@ -43,3 +45,19 @@ std::string GenericMulticastRoute::detailedInfo() const
 {
     return ""; //TODO
 }
+
+bool GenericMulticastRoute::addChild(InterfaceEntry *ie, bool isLeaf)
+{
+    //TODO:
+    children.push_back(Child());
+    Child& child = children.back();
+    child.ie = ie;
+    child.isLeaf = isLeaf;
+}
+
+bool GenericMulticastRoute::removeChild(InterfaceEntry *ie)
+{
+    //TODO:
+}
+
+#endif /*0*/
