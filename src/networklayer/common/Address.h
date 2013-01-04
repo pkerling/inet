@@ -56,11 +56,19 @@ class INET_API Address
         bool isBroadcast() const { return ipv4.isLimitedBroadcastAddress(); }
         bool operator<(const Address& address) const { return ipv4 < address.ipv4; }
         bool operator==(const Address& address) const { return ipv4 == address.ipv4; }
+        bool operator!=(const Address& address) const { return ipv4 != address.ipv4; }
+
+        bool matches(const Address& other, int prefixLength) const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Address& address)
 {
     return os << address.toIPv4().str();
+}
+
+inline bool Address::matches(const Address& other, int prefixLength) const
+{
+    return IPv4Address::maskedAddrAreEqual(ipv4, other.ipv4, IPv4Address::makeNetmask(prefixLength)); //FIXME !!!!!
 }
 
 #endif

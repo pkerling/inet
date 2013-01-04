@@ -55,21 +55,9 @@ class INET_API IGenericRoutingTable
         virtual bool isLocalAddress(const Address& dest) const = 0;  //XXX maybe into InterfaceTable?
 
         /**
-         * Checks if the address is a local network broadcast address, i.e. one of the
-         * broadcast addresses derived from the interface addresses and netmasks.
-         */
-        virtual bool isLocalBroadcastAddress(const Address& dest) const = 0; //XXX maybe into InterfaceTable?
-
-        /**
          * Returns an interface given by its address. Returns NULL if not found.
          */
         virtual InterfaceEntry *getInterfaceByAddress(const Address& address) const = 0;   //XXX should be find..., see next one
-
-        /**
-         * Returns the interface entry having the specified address
-         * as its local broadcast address.
-         */
-        virtual InterfaceEntry *findInterfaceByLocalBroadcastAddress(const Address& dest) const = 0;
         //@}
 
         /** @name Routing functions (query the route table) */

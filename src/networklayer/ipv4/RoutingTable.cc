@@ -85,6 +85,7 @@ void RoutingTable::initialize(int stage)
         WATCH_PTRVECTOR(routes);
         WATCH_PTRVECTOR(multicastRoutes);
         WATCH(IPForward);
+        WATCH(multicastForward);
         WATCH(routerId);
     }
     else if (stage==1)
@@ -667,7 +668,7 @@ IPv4Route *RoutingTable::removeRoute(IPv4Route *entry)
     return entry;
 }
 
-bool RoutingTable::deleteRoute(IPv4Route *entry)
+bool RoutingTable::deleteRoute(IPv4Route *entry)  //TODO this is almost duplicate of removeRoute()
 {
     Enter_Method("deleteRoute(...)");
 

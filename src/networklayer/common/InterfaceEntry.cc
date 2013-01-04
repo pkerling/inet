@@ -27,6 +27,8 @@
 
 #include "IInterfaceTable.h"
 
+#include "GenericNetworkProtocolInterfaceData.h"
+
 #ifdef WITH_IPv4
 #include "IPv4InterfaceData.h"
 #endif
@@ -141,6 +143,13 @@ void InterfaceEntry::changed(int category)
 {
     if (ownerp)
         ownerp->interfaceChanged(this, category);
+}
+
+void InterfaceEntry::setGenericNetworkProtocolData(GenericNetworkProtocolInterfaceData *p)
+{
+    genericNetworkProtocolData = p;
+    p->ownerp = this;
+    configChanged();
 }
 
 void InterfaceEntry::setIPv4Data(IPv4InterfaceData *p)

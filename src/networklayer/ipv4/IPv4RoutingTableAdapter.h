@@ -40,9 +40,7 @@ class INET_API IPv4RoutingTableAdapter : public IGenericRoutingTable
         virtual bool isMulticastForwardingEnabled() const {return rt->isMulticastForwardingEnabled();}
         virtual Address getRouterId() const {return rt->getRouterId();}
         virtual bool isLocalAddress(const Address& dest) const {return rt->isLocalAddress(dest.toIPv4());}
-        virtual bool isLocalBroadcastAddress(const Address& dest) const {return rt->isLocalBroadcastAddress(dest.toIPv4());}
         virtual InterfaceEntry *getInterfaceByAddress(const Address& address) const {return rt->getInterfaceByAddress(address.toIPv4());}
-        virtual InterfaceEntry *findInterfaceByLocalBroadcastAddress(const Address& dest) const {return rt->findInterfaceByLocalBroadcastAddress(dest.toIPv4());}
         virtual IGenericRoute *findBestMatchingRoute(const Address& dest) const {return toGeneric(rt->findBestMatchingRoute(dest.toIPv4()));}
         virtual InterfaceEntry *getOutputInterfaceForDestination(const Address& dest) const {return rt->getInterfaceForDestAddr(dest.toIPv4());} //XXX inconsistent names
         virtual Address getNextHopForDestination(const Address& dest) const {return rt->getGatewayForDestAddr(dest.toIPv4());}  //XXX inconsistent names

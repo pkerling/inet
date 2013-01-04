@@ -51,6 +51,7 @@ class INET_API GenericRoute : public cObject, public IGenericRoute
 
         bool equals(const IGenericRoute& route) const;
 
+        virtual void setRoutingTable(IGenericRoutingTable *owner) {this->owner = owner;}
         virtual void setEnabled(bool enabled) {this->enabled = enabled;}
         virtual void setDestination(const Address& dest) {this->destination = dest;}
         virtual void setPrefixLength(int l) {this->prefixLength = l;}
@@ -89,6 +90,8 @@ class INET_API GenericRoute : public cObject, public IGenericRoute
 
         virtual cObject *getProtocolData() const {return protocolData;}
 };
+
+class GenericMulticastRoute  { };
 
 #if 0 /*FIXME TODO!!!! */
 /**
