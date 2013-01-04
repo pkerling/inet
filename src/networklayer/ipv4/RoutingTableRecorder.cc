@@ -15,6 +15,7 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
+#if OMNETPP_VERSION >= 0x0500  /* cEventlogListener is only supported from 5.0 */
 
 #include "NotifierConsts.h"
 #include "NotificationBoard.h"
@@ -187,3 +188,5 @@ void RoutingTableRecorder::recordRoute(cModule *host,  IPv4Route *route, int cat
 //    // moduleId, routerID
 //    content << getParentModule()->getId() << " "; //XXX we assume routing table is direct child of the node compound module
 //    content << a.str();
+
+#endif /*OMNETPP_VERSION*/

@@ -18,6 +18,8 @@
 #ifndef __ROUTINGTABLERECORDER_H
 #define __ROUTINGTABLERECORDER_H
 
+#if OMNETPP_VERSION >= 0x0500  /* cEventlogListener is only supported from 5.0 */
+
 #include <map>
 #include "INETDefs.h"
 #include "IRoutingTable.h"
@@ -71,5 +73,7 @@ class INET_API RoutingTableRecorder : public cSimpleModule, public cIndexedEvent
     virtual void recordInterface(cModule *host, InterfaceEntry *ie, int category);
     virtual void recordRoute(cModule *host, IPv4Route *route, int category);
 };
+
+#endif /*OMNETPP_VERSION*/
 
 #endif
