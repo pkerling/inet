@@ -10,9 +10,9 @@
 class IGenericDatagram {
   public:
     virtual ~IGenericDatagram() { }
-    virtual const Address getSourceAddress() const = 0;
+    virtual Address getSourceAddress() const = 0;
     virtual void setSourceAddress(const Address & address) = 0;
-    virtual const Address getDestinationAddress() const = 0;
+    virtual Address getDestinationAddress() const = 0;
     virtual void setDestinationAddress(const Address & address) = 0;
 };
 

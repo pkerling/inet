@@ -56,9 +56,9 @@ class INET_API IPv4Datagram : public IPv4Datagram_Base, public IGenericDatagram
      */
     virtual void setExplicitCongestionNotification(int ecn)  { setTypeOfService( (getTypeOfService() & 0x3f) | ((ecn & 0x3) << 6)); }
 
-    virtual const Address getSourceAddress() const { return Address(getSrcAddress()); }
+    virtual Address getSourceAddress() const { return Address(getSrcAddress()); }
     virtual void setSourceAddress(const Address & address) { setSrcAddress(address.toIPv4()); }
-    virtual const Address getDestinationAddress() const { return Address(getDestAddress()); }
+    virtual Address getDestinationAddress() const { return Address(getDestAddress()); }
     virtual void setDestinationAddress(const Address & address) { setDestAddress(address.toIPv4()); }
 };
 

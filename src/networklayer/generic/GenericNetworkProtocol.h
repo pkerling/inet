@@ -15,10 +15,12 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_IP_H
-#define __INET_IP_H
+#ifndef __INET_GENERICNETWORKPROTOCOL_H
+#define __INET_GENERICNETWORKPROTOCOL_H
 
 #include "INETDefs.h"
+
+#include "Address.h"
 
 #include "ICMPAccess.h"
 #include "IPv4FragBuf.h"
@@ -29,7 +31,7 @@
 class ARPPacket;
 class ICMPMessage;
 class IInterfaceTable;
-class IPv4Datagram;
+class GenericDatagram;
 class IRoutingTable;
 
 // ICMP type 2, code 4: fragmentation needed, but don't-fragment bit set
@@ -60,31 +62,31 @@ class INET_API GenericNetworkProtocol : public QueueBase
         /**
         * called before a packet arriving from the network is routed
         */
-        virtual Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE) = 0;
+        virtual Result datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE) = 0;
 
         /**
         * called before a packet arriving from the network is delivered locally
         */
-        virtual Result datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE) = 0;
+        virtual Result datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE) = 0;
 
         /**
         * called before a packet arriving from the network is delivered via the network
         */
-        virtual Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) = 0;
+        virtual Result datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) = 0;
 
         /**
         * called before a packet is delivered via the network
         */
-        virtual Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) = 0;
+        virtual Result datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) = 0;
 
         /**
         * called before a packet arriving locally is delivered
         */
-        virtual Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE) = 0;
+        virtual Result datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE) = 0;
     };
 
     /**
-     * Represents an IPv4Datagram, queued by a Hook
+     * Represents an GenericDatagram, queued by a Hook
      */
     class QueuedDatagramForHook {
       public:
@@ -96,14 +98,14 @@ class INET_API GenericNetworkProtocol : public QueueBase
           LOCALOUT
         };
 
-        QueuedDatagramForHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, const IPv4Address& nextHopAddr, Hook hook) :
+        QueuedDatagramForHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, const Address& nextHopAddr, Hook hook) :
                 datagram(datagram), inIE(inIE), outIE(outIE), nextHopAddr(nextHopAddr), hook(hook) {}
         virtual ~QueuedDatagramForHook() {}
 
-        IPv4Datagram* datagram;
+        GenericDatagram* datagram;
         InterfaceEntry* inIE;
         InterfaceEntry* outIE;
-        IPv4Address nextHopAddr;
+        Address nextHopAddr;
         const Hook hook;
     };
 
@@ -143,31 +145,31 @@ class INET_API GenericNetworkProtocol : public QueueBase
     virtual InterfaceEntry *getSourceInterfaceFrom(cPacket *msg);
 
     // utility: look up route to the source of the datagram and return its interface
-    virtual InterfaceEntry *getShortestPathInterfaceToSource(IPv4Datagram *datagram);
+    virtual InterfaceEntry *getShortestPathInterfaceToSource(GenericDatagram *datagram);
 
     // utility: show current statistics above the icon
     virtual void updateDisplayString();
 
     /**
-     * Encapsulate packet coming from higher layers into IPv4Datagram, using
+     * Encapsulate packet coming from higher layers into GenericDatagram, using
      * the given control info. Override if you subclassed controlInfo and/or
      * want to add options etc to the datagram.
      */
-    virtual IPv4Datagram *encapsulate(cPacket *transportPacket, IPv4ControlInfo *controlInfo);
+    virtual GenericDatagram *encapsulate(cPacket *transportPacket, IPv4ControlInfo *controlInfo);
 
     /**
-     * Creates a blank GenericNetworkProtocol datagram. Override when subclassing IPv4Datagram is needed
+     * Creates a blank GenericNetworkProtocol datagram. Override when subclassing GenericDatagram is needed
      */
-    virtual IPv4Datagram *createIPv4Datagram(const char *name);
+    virtual GenericDatagram *createIPv4Datagram(const char *name);
 
     /**
-     * Handle IPv4Datagram messages arriving from lower layer.
+     * Handle GenericDatagram messages arriving from lower layer.
      * Decrements TTL, then invokes routePacket().
      */
-    virtual void handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromIE);
+    virtual void handlePacketFromNetwork(GenericDatagram *datagram, InterfaceEntry *fromIE);
 
     // called after PREROUTING Hook (used for reinject, too)
-    virtual void preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE);
+    virtual void preroutingFinish(GenericDatagram *datagram, InterfaceEntry *fromIE);
 
     /**
      * Handle messages (typically packets to be send in GenericNetworkProtocol) from transport or ICMP.
@@ -179,7 +181,7 @@ class INET_API GenericNetworkProtocol : public QueueBase
      * Routes and sends datagram received from higher layers.
      * Invokes datagramLocalOutHook(), then routePacket().
      */
-    virtual void datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE);
+    virtual void datagramLocalOut(GenericDatagram* datagram, InterfaceEntry* destIE);
 
     /**
      * Handle incoming ARP packets by sending them over "queueOut" to ARP.
@@ -195,53 +197,53 @@ class INET_API GenericNetworkProtocol : public QueueBase
      * Performs unicast routing. Based on the routing decision, it sends the
      * datagram through the outgoing interface.
      */
-    virtual void routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, IPv4Address nextHopAddr);
+    virtual void routeUnicastPacket(GenericDatagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, Address nextHopAddr);
 
     /**
      * Broadcasts the datagram on the specified interface.
      * When destIE is NULL, the datagram is broadcasted on each interface.
      */
-    virtual void routeLocalBroadcastPacket(IPv4Datagram *datagram, InterfaceEntry *destIE);
+    virtual void routeLocalBroadcastPacket(GenericDatagram *datagram, InterfaceEntry *destIE);
 
     /**
      * Determines the output interface for the given multicast datagram.
      */
-    virtual InterfaceEntry *determineOutgoingInterfaceForMulticastDatagram(IPv4Datagram *datagram, InterfaceEntry *multicastIFOption);
+    virtual InterfaceEntry *determineOutgoingInterfaceForMulticastDatagram(GenericDatagram *datagram, InterfaceEntry *multicastIFOption);
 
     /**
      * Forwards packets to all multicast destinations, using fragmentAndSend().
      */
-    virtual void forwardMulticastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE);
+    virtual void forwardMulticastPacket(GenericDatagram *datagram, InterfaceEntry *fromIE);
 
     /**
      * Perform reassembly of fragmented datagrams, then send them up to the
      * higher layers using sendToHL().
      */
-    virtual void reassembleAndDeliver(IPv4Datagram *datagram);
+    virtual void reassembleAndDeliver(GenericDatagram *datagram);
 
     // called after LOCAL_IN Hook (used for reinject, too)
-    virtual void reassembleAndDeliverFinish(IPv4Datagram *datagram);
+    virtual void reassembleAndDeliverFinish(GenericDatagram *datagram);
 
     /**
      * Decapsulate and return encapsulated packet after attaching IPv4ControlInfo.
      */
-    virtual cPacket *decapsulate(IPv4Datagram *datagram);
+    virtual cPacket *decapsulate(GenericDatagram *datagram);
 
     /**
      * Call PostRouting Hook and continue with fragmentAndSend() if accepted
      */
-    virtual void fragmentPostRouting(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr);
+    virtual void fragmentPostRouting(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr);
 
     /**
      * Fragment packet if needed, then send it to the selected interface using
      * sendDatagramToOutput().
      */
-    virtual void fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr);
+    virtual void fragmentAndSend(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr);
 
     /**
      * Last TTL check, then send datagram on the given interface.
      */
-    virtual void sendDatagramToOutput(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr);
+    virtual void sendDatagramToOutput(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr);
 
   public:
     GenericNetworkProtocol() { rt = NULL; ift = NULL; queueOutGate = NULL; }
@@ -263,27 +265,27 @@ class INET_API GenericNetworkProtocol : public QueueBase
     /**
      * called before a packet arriving from the network is routed
      */
-    Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
+    Hook::Result datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE);
 
     /**
      * called before a packet arriving from the network is delivered locally
      */
-    Hook::Result datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
+    Hook::Result datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE);
 
     /**
      * called before a packet arriving from the network is delivered via the network
      */
-    Hook::Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr);
+    Hook::Result datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr);
 
     /**
      * called before a packet is delivered via the network
      */
-    Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr);
+    Hook::Result datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr);
 
     /**
      * called before a packet arriving locally is delivered
      */
-    Hook::Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE);
+    Hook::Result datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE);
 
   public:
     /**
@@ -299,7 +301,7 @@ class INET_API GenericNetworkProtocol : public QueueBase
     /**
      * re-injects a previously queued datagram
      */
-    void reinjectDatagram(const IPv4Datagram* datagram, GenericNetworkProtocol::Hook::Result verdict);
+    void reinjectDatagram(const GenericDatagram* datagram, GenericNetworkProtocol::Hook::Result verdict);
 };
 
 #endif

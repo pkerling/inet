@@ -25,7 +25,7 @@
 #include "ICMPMessage_m.h"
 #include "InterfaceTableAccess.h"
 #include "IPv4ControlInfo.h"
-#include "IPv4Datagram.h"
+#include "GenericDatagram.h"
 #include "IPv4InterfaceData.h"
 #include "IRoutingTable.h"
 
@@ -91,7 +91,7 @@ void GenericNetworkProtocol::endService(cPacket *msg)
     }
     else
     {
-        IPv4Datagram *dgram = check_and_cast<IPv4Datagram *>(msg);
+        GenericDatagram *dgram = check_and_cast<GenericDatagram *>(msg);
         InterfaceEntry *fromIE = getSourceInterfaceFrom(dgram);
         handlePacketFromNetwork(dgram, fromIE);
     }
@@ -106,7 +106,7 @@ InterfaceEntry *GenericNetworkProtocol::getSourceInterfaceFrom(cPacket *msg)
     return g ? ift->getInterfaceByNetworkLayerGateIndex(g->getIndex()) : NULL;
 }
 
-void GenericNetworkProtocol::handlePacketFromNetwork(IPv4Datagram *datagram, InterfaceEntry *fromIE)
+void GenericNetworkProtocol::handlePacketFromNetwork(GenericDatagram *datagram, InterfaceEntry *fromIE)
 {
     ASSERT(datagram);
     ASSERT(fromIE);
@@ -137,9 +137,9 @@ void GenericNetworkProtocol::handlePacketFromNetwork(IPv4Datagram *datagram, Int
     preroutingFinish(datagram, fromIE);
 }
 
-void GenericNetworkProtocol::preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE)
+void GenericNetworkProtocol::preroutingFinish(GenericDatagram *datagram, InterfaceEntry *fromIE)
 {
-    IPv4Address &destAddr = datagram->getDestAddress();
+    Address &destAddr = datagram->getDestinationAddress();
 
     // remove control info
     delete datagram->removeControlInfo();
@@ -183,7 +183,7 @@ void GenericNetworkProtocol::preroutingFinish(IPv4Datagram *datagram, InterfaceE
         {
             // broadcast datagram on the target subnet if we are a router
             if (broadcastIE && fromIE != broadcastIE && rt->isIPForwardingEnabled())
-                fragmentPostRouting(datagram->dup(), broadcastIE, IPv4Address::ALLONES_ADDRESS);
+                fragmentPostRouting(datagram->dup(), broadcastIE, Address::ALLONES_ADDRESS);
 
             EV << "Broadcast received\n";
             reassembleAndDeliver(datagram);
@@ -195,7 +195,7 @@ void GenericNetworkProtocol::preroutingFinish(IPv4Datagram *datagram, InterfaceE
             delete datagram;
         }
         else
-            routeUnicastPacket(datagram, fromIE, NULL/*destIE*/, IPv4Address::UNSPECIFIED_ADDRESS);
+            routeUnicastPacket(datagram, fromIE, NULL/*destIE*/, Address::UNSPECIFIED_ADDRESS);
     }
 }
 
@@ -226,7 +226,7 @@ void GenericNetworkProtocol::handleReceivedICMP(ICMPMessage *msg)
         case ICMP_TIME_EXCEEDED:
         case ICMP_PARAMETER_PROBLEM: {
             // ICMP errors are delivered to the appropriate higher layer protocol
-            IPv4Datagram *bogusPacket = check_and_cast<IPv4Datagram *>(msg->getEncapsulatedPacket());
+            GenericDatagram *bogusPacket = check_and_cast<GenericDatagram *>(msg->getEncapsulatedPacket());
             int protocol = bogusPacket->getTransportProtocol();
             int gateindex = mapping.getOutputGateForProtocol(protocol);
             send(msg, "transportOut", gateindex);
@@ -254,12 +254,12 @@ void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
     }
 
     // encapsulate and send
-    IPv4Datagram *datagram = dynamic_cast<IPv4Datagram *>(msg);
+    GenericDatagram *datagram = dynamic_cast<GenericDatagram *>(msg);
     IPv4ControlInfo *controlInfo = NULL;
     //FIXME dubious code, remove? how can the HL tell IP whether it wants tunneling or forwarding?? --Andras
-    if (datagram) // if HL sends an IPv4Datagram, route the packet
+    if (datagram) // if HL sends an GenericDatagram, route the packet
     {
-        // Dsr routing, Dsr is a HL protocol and send IPv4Datagram
+        // Dsr routing, Dsr is a HL protocol and send GenericDatagram
         if (datagram->getTransportProtocol()==IP_PROT_DSR)
         {
             controlInfo = check_and_cast<IPv4ControlInfo*>(datagram->removeControlInfo());
@@ -274,7 +274,7 @@ void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
 
     // extract requested interface and next hop
     InterfaceEntry *destIE = NULL;
-    IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
+    Address nextHopAddress = Address::UNSPECIFIED_ADDRESS;
     bool multicastLoop = true;
     if (controlInfo!=NULL)
     {
@@ -293,10 +293,10 @@ void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
     datagramLocalOut(datagram, destIE);
 }
 
-void GenericNetworkProtocol::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
+void GenericNetworkProtocol::datagramLocalOut(GenericDatagram* datagram, InterfaceEntry* destIE)
 {
     IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
-    IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
+    Address nextHopAddress = Address::UNSPECIFIED_ADDRESS;
     bool multicastLoop = true;
 
     if (controlInfo!=NULL)
@@ -308,7 +308,7 @@ void GenericNetworkProtocol::datagramLocalOut(IPv4Datagram* datagram, InterfaceE
     delete datagram->removeControlInfo();
 
     // send
-    IPv4Address &destAddr = datagram->getDestAddress();
+    Address &destAddr = datagram->getDestAddress();
 
     EV << "Sending datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
 
@@ -362,7 +362,7 @@ void GenericNetworkProtocol::datagramLocalOut(IPv4Datagram* datagram, InterfaceE
  *   3. if no route, choose the interface according to the source address
  *   4. or if the source address is unspecified, choose the first MULTICAST interface
  */
-InterfaceEntry *GenericNetworkProtocol::determineOutgoingInterfaceForMulticastDatagram(IPv4Datagram *datagram, InterfaceEntry *multicastIFOption)
+InterfaceEntry *GenericNetworkProtocol::determineOutgoingInterfaceForMulticastDatagram(GenericDatagram *datagram, InterfaceEntry *multicastIFOption)
 {
     InterfaceEntry *ie = NULL;
     if (multicastIFOption)
@@ -394,13 +394,13 @@ InterfaceEntry *GenericNetworkProtocol::determineOutgoingInterfaceForMulticastDa
 }
 
 
-void GenericNetworkProtocol::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, IPv4Address destNextHopAddr)
+void GenericNetworkProtocol::routeUnicastPacket(GenericDatagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, Address destNextHopAddr)
 {
-    IPv4Address destAddr = datagram->getDestAddress();
+    Address destAddr = datagram->getDestAddress();
 
     EV << "Routing datagram `" << datagram->getName() << "' with dest=" << destAddr << ": ";
 
-    IPv4Address nextHopAddr;
+    Address nextHopAddr;
     // if output port was explicitly requested, use that, otherwise use GenericNetworkProtocol routing
     if (destIE)
     {
@@ -446,14 +446,14 @@ void GenericNetworkProtocol::routeUnicastPacket(IPv4Datagram *datagram, Interfac
     }
 }
 
-void GenericNetworkProtocol::routeLocalBroadcastPacket(IPv4Datagram *datagram, InterfaceEntry *destIE)
+void GenericNetworkProtocol::routeLocalBroadcastPacket(GenericDatagram *datagram, InterfaceEntry *destIE)
 {
     // The destination address is 255.255.255.255 or local subnet broadcast address.
     // We always use 255.255.255.255 as nextHopAddress, because it is recognized by ARP,
     // and mapped to the broadcast MAC address.
     if (destIE!=NULL)
     {
-        fragmentPostRouting(datagram, destIE, IPv4Address::ALLONES_ADDRESS);
+        fragmentPostRouting(datagram, destIE, Address::ALLONES_ADDRESS);
     }
     else if (forceBroadcast)
     {
@@ -461,7 +461,7 @@ void GenericNetworkProtocol::routeLocalBroadcastPacket(IPv4Datagram *datagram, I
         for (int i = 0; i<ift->getNumInterfaces(); i++)
         {
             InterfaceEntry *ie = ift->getInterface(i);
-            fragmentPostRouting(datagram->dup(), ie, IPv4Address::ALLONES_ADDRESS);
+            fragmentPostRouting(datagram->dup(), ie, Address::ALLONES_ADDRESS);
         }
         delete datagram;
     }
@@ -472,16 +472,16 @@ void GenericNetworkProtocol::routeLocalBroadcastPacket(IPv4Datagram *datagram, I
     }
 }
 
-InterfaceEntry *GenericNetworkProtocol::getShortestPathInterfaceToSource(IPv4Datagram *datagram)
+InterfaceEntry *GenericNetworkProtocol::getShortestPathInterfaceToSource(GenericDatagram *datagram)
 {
     return rt->getInterfaceForDestAddr(datagram->getSrcAddress());
 }
 
-void GenericNetworkProtocol::forwardMulticastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE)
+void GenericNetworkProtocol::forwardMulticastPacket(GenericDatagram *datagram, InterfaceEntry *fromIE)
 {
     ASSERT(fromIE);
-    const IPv4Address &origin = datagram->getSrcAddress();
-    const IPv4Address &destAddr = datagram->getDestAddress();
+    const Address &origin = datagram->getSrcAddress();
+    const Address &destAddr = datagram->getDestAddress();
     ASSERT(destAddr.isMulticast());
 
     EV << "Forwarding multicast datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
@@ -535,7 +535,7 @@ void GenericNetworkProtocol::forwardMulticastPacket(IPv4Datagram *datagram, Inte
     }
 }
 
-void GenericNetworkProtocol::reassembleAndDeliver(IPv4Datagram *datagram)
+void GenericNetworkProtocol::reassembleAndDeliver(GenericDatagram *datagram)
 {
     EV << "Local delivery\n";
 
@@ -571,7 +571,7 @@ void GenericNetworkProtocol::reassembleAndDeliver(IPv4Datagram *datagram)
     reassembleAndDeliverFinish(datagram);
 }
 
-void GenericNetworkProtocol::reassembleAndDeliverFinish(IPv4Datagram *datagram)
+void GenericNetworkProtocol::reassembleAndDeliverFinish(GenericDatagram *datagram)
 {
     // decapsulate and send on appropriate output gate
     int protocol = datagram->getTransportProtocol();
@@ -606,7 +606,7 @@ void GenericNetworkProtocol::reassembleAndDeliverFinish(IPv4Datagram *datagram)
     }
 }
 
-cPacket *GenericNetworkProtocol::decapsulate(IPv4Datagram *datagram)
+cPacket *GenericNetworkProtocol::decapsulate(GenericDatagram *datagram)
 {
     // decapsulate transport packet
     InterfaceEntry *fromIE = getSourceInterfaceFrom(datagram);
@@ -630,7 +630,7 @@ cPacket *GenericNetworkProtocol::decapsulate(IPv4Datagram *datagram)
     return packet;
 }
 
-void GenericNetworkProtocol::fragmentPostRouting(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
+void GenericNetworkProtocol::fragmentPostRouting(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
 {
     if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHopAddr) != GenericNetworkProtocol::Hook::ACCEPT) {
         return;
@@ -639,7 +639,7 @@ void GenericNetworkProtocol::fragmentPostRouting(IPv4Datagram *datagram, Interfa
     fragmentAndSend(datagram, ie, nextHopAddr);
 }
 
-void GenericNetworkProtocol::fragmentAndSend(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
+void GenericNetworkProtocol::fragmentAndSend(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
 {
     // fill in source address
     if (datagram->getSrcAddress().isUnspecified())
@@ -706,7 +706,7 @@ void GenericNetworkProtocol::fragmentAndSend(IPv4Datagram *datagram, InterfaceEn
 
         // FIXME is it ok that full encapsulated packet travels in every datagram fragment?
         // should better travel in the last fragment only. Cf. with reassembly code!
-        IPv4Datagram *fragment = (IPv4Datagram *) datagram->dup();
+        GenericDatagram *fragment = (GenericDatagram *) datagram->dup();
         fragment->setName(fragMsgName.c_str());
 
         // "more fragments" bit is unchanged in the last fragment, otherwise true
@@ -722,17 +722,17 @@ void GenericNetworkProtocol::fragmentAndSend(IPv4Datagram *datagram, InterfaceEn
     delete datagram;
 }
 
-IPv4Datagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, IPv4ControlInfo *controlInfo)
+GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, IPv4ControlInfo *controlInfo)
 {
-    IPv4Datagram *datagram = createIPv4Datagram(transportPacket->getName());
+    GenericDatagram *datagram = createIPv4Datagram(transportPacket->getName());
     datagram->setByteLength(IP_HEADER_BYTES);
     datagram->encapsulate(transportPacket);
 
     // set source and destination address
-    IPv4Address dest = controlInfo->getDestAddr();
+    Address dest = controlInfo->getDestAddr();
     datagram->setDestAddress(dest);
 
-    IPv4Address src = controlInfo->getSrcAddr();
+    Address src = controlInfo->getSrcAddr();
 
     // when source address was given, use it; otherwise it'll get the address
     // of the outgoing interface after routing
@@ -771,12 +771,12 @@ IPv4Datagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, IPv4
     return datagram;
 }
 
-IPv4Datagram *GenericNetworkProtocol::createIPv4Datagram(const char *name)
+GenericDatagram *GenericNetworkProtocol::createIPv4Datagram(const char *name)
 {
-    return new IPv4Datagram(name);
+    return new GenericDatagram(name);
 }
 
-void GenericNetworkProtocol::sendDatagramToOutput(IPv4Datagram *datagram, InterfaceEntry *ie, IPv4Address nextHopAddr)
+void GenericNetworkProtocol::sendDatagramToOutput(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
 {
     if (ie->isLoopback())
     {
@@ -813,11 +813,11 @@ void GenericNetworkProtocol::unregisterHook(int priority, GenericNetworkProtocol
     }
 }
 
-void GenericNetworkProtocol::reinjectDatagram(const IPv4Datagram* datagram, GenericNetworkProtocol::Hook::Result verdict) {
+void GenericNetworkProtocol::reinjectDatagram(const GenericDatagram* datagram, GenericNetworkProtocol::Hook::Result verdict) {
     Enter_Method("reinjectDatagram()");
     for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
-            IPv4Datagram* datagram = iter->datagram;
+            GenericDatagram* datagram = iter->datagram;
             if (verdict == GenericNetworkProtocol::Hook::DROP) {
                 delete datagram;
             } else {
@@ -849,14 +849,14 @@ void GenericNetworkProtocol::reinjectDatagram(const IPv4Datagram* datagram, Gene
     }
 }
 
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE) {
+GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         GenericNetworkProtocol::Hook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE);
         switch(r)
         {
             case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
             case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::PREROUTING)); return r;
+            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::PREROUTING)); return r;
             case GenericNetworkProtocol::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -864,14 +864,14 @@ GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPreRoutingH
     return GenericNetworkProtocol::Hook::ACCEPT;
 }
 
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE) {
+GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         GenericNetworkProtocol::Hook::Result r = iter->second->datagramLocalInHook(datagram, inIE);
         switch(r)
         {
             case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
             case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALIN)); return r;
+            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALIN)); return r;
             case GenericNetworkProtocol::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -879,7 +879,7 @@ GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalInHook
     return GenericNetworkProtocol::Hook::ACCEPT;
 }
 
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) {
+GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         GenericNetworkProtocol::Hook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
@@ -894,7 +894,7 @@ GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramForwardHook
     return GenericNetworkProtocol::Hook::ACCEPT;
 }
 
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) {
+GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         GenericNetworkProtocol::Hook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
@@ -909,14 +909,14 @@ GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPostRouting
     return GenericNetworkProtocol::Hook::ACCEPT;
 }
 
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE) {
+GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         GenericNetworkProtocol::Hook::Result r = iter->second->datagramLocalOutHook(datagram, outIE);
         switch(r)
         {
             case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
             case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALOUT)); return r;
+            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALOUT)); return r;
             case GenericNetworkProtocol::Hook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
