@@ -84,7 +84,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE)
 {
     if (isReactive)
     {
@@ -100,12 +100,12 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, I
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
+IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
+IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
     return IPv4::Hook::ACCEPT;
 }

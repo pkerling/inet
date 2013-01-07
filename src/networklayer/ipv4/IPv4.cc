@@ -894,7 +894,7 @@ IPv4::Hook::Result IPv4::datagramLocalInHook(IPv4Datagram* datagram, InterfaceEn
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) {
+IPv4::Hook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
@@ -909,7 +909,7 @@ IPv4::Hook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, InterfaceEn
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr) {
+IPv4::Hook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
@@ -924,7 +924,7 @@ IPv4::Hook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, Interfa
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE) {
+IPv4::Hook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramLocalOutHook(datagram, outIE);
         switch(r)
