@@ -296,9 +296,22 @@ class INET_API IPv4 : public QueueBase
     void unregisterHook(int priority, IPv4::Hook* hook);
 
     /**
+     * get queued infos for a previously queued datagram
+     *
+     * you must use it, if you want to change output interface, next hop address, etc.
+     * before use reinjectDatagram()
+     */
+    QueuedDatagramForHook& getQueuedDatagramForHook(const IPv4Datagram* datagram);
+
+    /**
+     * drop a previously queued datagram
+     */
+    void dropQueuedDatagram(const IPv4Datagram* datagram);
+
+    /**
      * re-injects a previously queued datagram
      */
-    void reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result verdict);
+    void reinjectDatagram(const IPv4Datagram* datagram);
 };
 
 #endif

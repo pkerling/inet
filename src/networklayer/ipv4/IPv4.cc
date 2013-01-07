@@ -813,36 +813,51 @@ void IPv4::unregisterHook(int priority, IPv4::Hook* hook) {
     }
 }
 
-void IPv4::reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result verdict) {
+void IPv4::dropQueuedDatagram(const IPv4Datagram* datagram) {
+    Enter_Method("dropQueuedDatagram()");
+    for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
+        if (iter->datagram == datagram) {
+            delete datagram;
+            queuedDatagramsForHooks.erase(iter);
+            return;
+        }
+    }
+}
+
+IPv4::QueuedDatagramForHook& IPv4::getQueuedDatagramForHook(const IPv4Datagram* datagram) {
+    Enter_Method("getQueuedDatagramForHook()");
+    for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
+        if (iter->datagram == datagram)
+            return *iter;
+    }
+    throw cRuntimeError("datagram not found in hook queue");
+}
+
+void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
     Enter_Method("reinjectDatagram()");
     for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
             IPv4Datagram* datagram = iter->datagram;
-            if (verdict == IPv4::Hook::DROP) {
-                delete datagram;
-            } else {
-                switch (iter->hook) {
-                    case QueuedDatagramForHook::LOCALOUT:
-                        datagramLocalOut(datagram, iter->outIE);
-                        break;
-                    case QueuedDatagramForHook::PREROUTING:
-                        preroutingFinish(datagram, iter->inIE);
-                        break;
-                    case QueuedDatagramForHook::POSTROUTING:
-                        fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
-                        break;
-                    case QueuedDatagramForHook::LOCALIN:
-                        reassembleAndDeliverFinish(datagram);
-                        break;
-                    case QueuedDatagramForHook::FORWARD:
-                        throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
-                        break;
-                    default:
-                        throw cRuntimeError("Unknown hook ID: %d", (int)(iter->hook));
-                        break;
-                }
+            switch (iter->hook) {
+                case QueuedDatagramForHook::LOCALOUT:
+                    datagramLocalOut(datagram, iter->outIE);
+                    break;
+                case QueuedDatagramForHook::PREROUTING:
+                    preroutingFinish(datagram, iter->inIE);
+                    break;
+                case QueuedDatagramForHook::POSTROUTING:
+                    fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
+                    break;
+                case QueuedDatagramForHook::LOCALIN:
+                    reassembleAndDeliverFinish(datagram);
+                    break;
+                case QueuedDatagramForHook::FORWARD:
+                    throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
+                    break;
+                default:
+                    throw cRuntimeError("Unknown hook ID: %d", (int)(iter->hook));
+                    break;
             }
-
             queuedDatagramsForHooks.erase(iter);
             return;
         }
