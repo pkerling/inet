@@ -228,7 +228,7 @@ InterfaceEntry* GenericRoutingTable::getInterfaceByAddress(const Address& addres
     return NULL;
 }
 
-IGenericRoute* GenericRoutingTable::findBestMatchingRoute(const Address& dest) const
+GenericRoute* GenericRoutingTable::findBestMatchingRoute(const Address& dest) const
 {
     //TODO Enter_Method("findBestMatchingRoute(%u.%u.%u.%u)", dest.getDByte(0), dest.getDByte(1), dest.getDByte(2), dest.getDByte(3)); // note: str().c_str() too slow here
 

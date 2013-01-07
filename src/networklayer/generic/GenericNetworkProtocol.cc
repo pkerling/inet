@@ -2,65 +2,45 @@
 // Copyright (C) 2004 Andras Varga
 //
 // This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public License
+// modify it under the terms of the GNU General Public License
 // as published by the Free Software Foundation; either version 2
 // of the License, or (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Lesser General Public License for more details.
+// GNU General Public License for more details.
 //
-// You should have received a copy of the GNU Lesser General Public License
-// along with this program; if not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 
-
-#include <stdlib.h>
-#include <string.h>
 
 #include "GenericNetworkProtocol.h"
-
-#include "ARPPacket_m.h"
-#include "ICMPMessage_m.h"
-#include "InterfaceTableAccess.h"
-#include "IPv4ControlInfo.h"
 #include "GenericDatagram.h"
-#include "IPv4InterfaceData.h"
-#include "IRoutingTable.h"
-
+#include "GenericControlInfo_m.h"
+#include "GenericRoute.h"
+#include "GenericRoutingTable.h"
+#include "GenericNetworkProtocolInterfaceData.h"
 
 Define_Module(GenericNetworkProtocol);
 
-//TODO TRANSLATE
-// a multicast cimek eseten hianyoznak bizonyos NetFilter hook-ok
-// a local interface-k hasznalata eseten szinten hianyozhatnak bizonyos NetFilter hook-ok
 
 void GenericNetworkProtocol::initialize()
 {
     QueueBase::initialize();
 
     ift = InterfaceTableAccess().get();
-    rt = RoutingTableAccess().get();
+    rt = NULL; //TODO RoutingTableAccess().get();
 
     queueOutGate = gate("queueOut");
 
-    defaultTimeToLive = par("timeToLive");
-    defaultMCTimeToLive = par("multicastTimeToLive");
-    fragmentTimeoutTime = par("fragmentTimeout");
-    forceBroadcast = par("forceBroadcast");
+    defaultHopLimit = par("hopLimit");
     mapping.parseProtocolMapping(par("protocolMapping"));
 
-    curFragmentId = 0;
-    lastCheckTime = 0;
-    fragbuf.init(icmpAccess.get());
+    numLocalDeliver = numDropped = numUnroutable = numForwarded = 0;
 
-    numMulticast = numLocalDeliver = numDropped = numUnroutable = numForwarded = 0;
-
-    // NetFilter:
-    hooks.clear();
-
-    WATCH(numMulticast);
     WATCH(numLocalDeliver);
     WATCH(numDropped);
     WATCH(numUnroutable);
@@ -72,28 +52,21 @@ void GenericNetworkProtocol::updateDisplayString()
     char buf[80] = "";
     if (numForwarded>0) sprintf(buf+strlen(buf), "fwd:%d ", numForwarded);
     if (numLocalDeliver>0) sprintf(buf+strlen(buf), "up:%d ", numLocalDeliver);
-    if (numMulticast>0) sprintf(buf+strlen(buf), "mcast:%d ", numMulticast);
     if (numDropped>0) sprintf(buf+strlen(buf), "DROP:%d ", numDropped);
     if (numUnroutable>0) sprintf(buf+strlen(buf), "UNROUTABLE:%d ", numUnroutable);
-    getDisplayString().setTagArg("t", 0, buf);
+    getDisplayString().setTagArg("t",0,buf);
 }
 
-void GenericNetworkProtocol::endService(cPacket *msg)
+void GenericNetworkProtocol::endService(cPacket *pk)
 {
-    if (msg->getArrivalGate()->isName("transportIn"))
+    if (pk->getArrivalGate()->isName("transportIn"))
     {
-        handleMessageFromHL( msg );
-    }
-    else if (dynamic_cast<ARPPacket *>(msg))
-    {
-        // dispatch ARP packets to ARP
-        handleARP((ARPPacket *)msg);
+        handleMessageFromHL(pk);
     }
     else
     {
-        GenericDatagram *dgram = check_and_cast<GenericDatagram *>(msg);
-        InterfaceEntry *fromIE = getSourceInterfaceFrom(dgram);
-        handlePacketFromNetwork(dgram, fromIE);
+        GenericDatagram *dgram = check_and_cast<GenericDatagram *>(pk);
+        handlePacketFromNetwork(dgram);
     }
 
     if (ev.isGUI())
@@ -106,140 +79,28 @@ InterfaceEntry *GenericNetworkProtocol::getSourceInterfaceFrom(cPacket *msg)
     return g ? ift->getInterfaceByNetworkLayerGateIndex(g->getIndex()) : NULL;
 }
 
-void GenericNetworkProtocol::handlePacketFromNetwork(GenericDatagram *datagram, InterfaceEntry *fromIE)
+void GenericNetworkProtocol::handlePacketFromNetwork(GenericDatagram *datagram)
 {
-    ASSERT(datagram);
-    ASSERT(fromIE);
-
     //
     // "Prerouting"
     //
 
     // check for header biterror
-    if (datagram->hasBitError())
-    {
-        // probability of bit error in header = size of header / size of total message
-        // (ignore bit error if in payload)
-        double relativeHeaderLength = datagram->getHeaderLength() / (double)datagram->getByteLength();
-        if (dblrand() <= relativeHeaderLength)
-        {
-            EV << "bit error found, sending ICMP_PARAMETER_PROBLEM\n";
-            icmpAccess.get()->sendErrorMessage(datagram, ICMP_PARAMETER_PROBLEM, 0);
-            return;
-        }
+    if (datagram->hasBitError()) {
+        //TODO discard
     }
-
-    EV << "Received datagram `" << datagram->getName() << "' with dest=" << datagram->getDestAddress() << "\n";
-
-    if (datagramPreRoutingHook(datagram, fromIE) != GenericNetworkProtocol::Hook::ACCEPT) {
-        return;
-    }
-    preroutingFinish(datagram, fromIE);
-}
-
-void GenericNetworkProtocol::preroutingFinish(GenericDatagram *datagram, InterfaceEntry *fromIE)
-{
-    Address &destAddr = datagram->getDestinationAddress();
 
     // remove control info
     delete datagram->removeControlInfo();
 
+    // hop counter decrement; FIXME but not if it will be locally delivered
+    datagram->setHopLimit(datagram->getHopLimit()-1);
+
     // route packet
-
-    if (fromIE->isLoopback())
-    {
-        reassembleAndDeliver(datagram);
-    }
-    else if (destAddr.isMulticast())
-    {
-        // check for local delivery
-        // Note: multicast routers will receive IGMP datagrams even if their interface is not joined to the group
-        if (fromIE->ipv4Data()->isMemberOfMulticastGroup(destAddr) ||
-                (rt->isMulticastForwardingEnabled() && datagram->getTransportProtocol() == IP_PROT_IGMP))
-            reassembleAndDeliver(datagram->dup());
-
-        // don't forward if IP forwarding is off, or if dest address is link-scope
-        if (!rt->isIPForwardingEnabled() || destAddr.isLinkLocalMulticast())
-            delete datagram;
-        else if (datagram->getTimeToLive() == 0)
-        {
-            EV << "TTL reached 0, dropping datagram.\n";
-            delete datagram;
-        }
-        else
-            forwardMulticastPacket(datagram, fromIE);
-    }
+    if (!datagram->getDestinationAddress().isMulticast())
+        routePacket(datagram, NULL, false);
     else
-    {
-        InterfaceEntry *broadcastIE = NULL;
-
-        // check for local delivery; we must accept also packets coming from the interfaces that
-        // do not yet have an IP address assigned. This happens during DHCP requests.
-        if (rt->isLocalAddress(destAddr) || fromIE->ipv4Data()->getIPAddress().isUnspecified())
-        {
-            reassembleAndDeliver(datagram);
-        }
-        else if (destAddr.isLimitedBroadcastAddress() || (broadcastIE=rt->findInterfaceByLocalBroadcastAddress(destAddr)))
-        {
-            // broadcast datagram on the target subnet if we are a router
-            if (broadcastIE && fromIE != broadcastIE && rt->isIPForwardingEnabled())
-                fragmentPostRouting(datagram->dup(), broadcastIE, Address::ALLONES_ADDRESS);
-
-            EV << "Broadcast received\n";
-            reassembleAndDeliver(datagram);
-        }
-        else if (!rt->isIPForwardingEnabled())
-        {
-            EV << "forwarding off, dropping packet\n";
-            numDropped++;
-            delete datagram;
-        }
-        else
-            routeUnicastPacket(datagram, fromIE, NULL/*destIE*/, Address::UNSPECIFIED_ADDRESS);
-    }
-}
-
-void GenericNetworkProtocol::handleARP(ARPPacket *msg)
-{
-    // FIXME hasBitError() check  missing!
-
-    // delete old control info
-    delete msg->removeControlInfo();
-
-    // dispatch ARP packets to ARP and let it know the gate index it arrived on
-    InterfaceEntry *fromIE = getSourceInterfaceFrom(msg);
-    ASSERT(fromIE);
-
-    IPv4RoutingDecision *routingDecision = new IPv4RoutingDecision();
-    routingDecision->setInterfaceId(fromIE->getInterfaceId());
-    msg->setControlInfo(routingDecision);
-
-    send(msg, queueOutGate);
-}
-
-void GenericNetworkProtocol::handleReceivedICMP(ICMPMessage *msg)
-{
-    switch (msg->getType())
-    {
-        case ICMP_REDIRECT: // TODO implement redirect handling
-        case ICMP_DESTINATION_UNREACHABLE:
-        case ICMP_TIME_EXCEEDED:
-        case ICMP_PARAMETER_PROBLEM: {
-            // ICMP errors are delivered to the appropriate higher layer protocol
-            GenericDatagram *bogusPacket = check_and_cast<GenericDatagram *>(msg->getEncapsulatedPacket());
-            int protocol = bogusPacket->getTransportProtocol();
-            int gateindex = mapping.getOutputGateForProtocol(protocol);
-            send(msg, "transportOut", gateindex);
-            break;
-        }
-        default: {
-            // all others are delivered to ICMP: ICMP_ECHO_REQUEST, ICMP_ECHO_REPLY,
-            // ICMP_TIMESTAMP_REQUEST, ICMP_TIMESTAMP_REPLY, etc.
-            int gateindex = mapping.getOutputGateForProtocol(IP_PROT_ICMP);
-            send(msg, "transportOut", gateindex);
-            break;
-        }
-    }
+        routeMulticastPacket(datagram, NULL, getSourceInterfaceFrom(datagram));
 }
 
 void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
@@ -248,381 +109,214 @@ void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
     if (ift->getNumInterfaces() == 0)
     {
         EV << "No interfaces exist, dropping packet\n";
-        numDropped++;
         delete msg;
         return;
     }
 
     // encapsulate and send
-    GenericDatagram *datagram = dynamic_cast<GenericDatagram *>(msg);
-    IPv4ControlInfo *controlInfo = NULL;
-    //FIXME dubious code, remove? how can the HL tell IP whether it wants tunneling or forwarding?? --Andras
-    if (datagram) // if HL sends an GenericDatagram, route the packet
-    {
-        // Dsr routing, Dsr is a HL protocol and send GenericDatagram
-        if (datagram->getTransportProtocol()==IP_PROT_DSR)
-        {
-            controlInfo = check_and_cast<IPv4ControlInfo*>(datagram->removeControlInfo());
-        }
-    }
+    InterfaceEntry *destIE; // will be filled in by encapsulate()
+    GenericDatagram *datagram = encapsulate(msg, destIE);
+
+    // route packet
+    if (!datagram->getDestinationAddress().isMulticast())
+        routePacket(datagram, destIE, true);
     else
-    {
-        // encapsulate
-        controlInfo = check_and_cast<IPv4ControlInfo*>(msg->removeControlInfo());
-        datagram = encapsulate(msg, controlInfo);
-    }
-
-    // extract requested interface and next hop
-    InterfaceEntry *destIE = NULL;
-    Address nextHopAddress = Address::UNSPECIFIED_ADDRESS;
-    bool multicastLoop = true;
-    if (controlInfo!=NULL)
-    {
-        destIE = ift->getInterfaceById(controlInfo->getInterfaceId());
-        nextHopAddress = controlInfo->getNextHopAddr();
-        multicastLoop = controlInfo->getMulticastLoop();
-    }
-
-    if (controlInfo)
-        datagram->setControlInfo(controlInfo);
-
-    if (datagramLocalOutHook(datagram, destIE) != GenericNetworkProtocol::Hook::ACCEPT) {
-        return;
-    }
-
-    datagramLocalOut(datagram, destIE);
+        routeMulticastPacket(datagram, destIE, NULL);
 }
 
-void GenericNetworkProtocol::datagramLocalOut(GenericDatagram* datagram, InterfaceEntry* destIE)
+void GenericNetworkProtocol::routePacket(GenericDatagram *datagram, InterfaceEntry *destIE, bool fromHL)
 {
-    IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
-    Address nextHopAddress = Address::UNSPECIFIED_ADDRESS;
-    bool multicastLoop = true;
+    // TBD add option handling code here
 
-    if (controlInfo!=NULL)
-    {
-        nextHopAddress = controlInfo->getNextHopAddr();
-        multicastLoop = controlInfo->getMulticastLoop();
-    }
-
-    delete datagram->removeControlInfo();
-
-    // send
-    Address &destAddr = datagram->getDestAddress();
-
-    EV << "Sending datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
-
-    if (datagram->getDestAddress().isMulticast())
-    {
-        destIE = determineOutgoingInterfaceForMulticastDatagram(datagram, destIE);
-
-        // loop back a copy
-        if (multicastLoop && (!destIE || !destIE->isLoopback()))
-        {
-            InterfaceEntry *loopbackIF = ift->getFirstLoopbackInterface();
-            if (loopbackIF)
-                fragmentPostRouting(datagram->dup(), loopbackIF, destAddr);
-        }
-
-        if (destIE)
-        {
-            numMulticast++;
-            fragmentPostRouting(datagram, destIE, destAddr);
-        }
-        else
-        {
-            EV << "No multicast interface, packet dropped\n";
-            numUnroutable++;
-            delete datagram;
-        }
-    }
-    else // unicast and broadcast
-    {
-        // check for local delivery
-        if (rt->isLocalAddress(destAddr))
-        {
-            EV << "local delivery\n";
-            if (destIE)
-                EV << "datagram destination address is local, ignoring destination interface specified in the control info\n";
-
-            destIE = ift->getFirstLoopbackInterface();
-            ASSERT(destIE);
-            fragmentPostRouting(datagram, destIE, destAddr);
-        }
-        else if (destAddr.isLimitedBroadcastAddress() || rt->isLocalBroadcastAddress(destAddr))
-            routeLocalBroadcastPacket(datagram, destIE);
-        else
-            routeUnicastPacket(datagram, NULL, destIE, nextHopAddress);
-    }
-}
-
-/* Choose the outgoing interface for the muticast datagram:
- *   1. use the interface specified by MULTICAST_IF socket option (received in the control info)
- *   2. lookup the destination address in the routing table
- *   3. if no route, choose the interface according to the source address
- *   4. or if the source address is unspecified, choose the first MULTICAST interface
- */
-InterfaceEntry *GenericNetworkProtocol::determineOutgoingInterfaceForMulticastDatagram(GenericDatagram *datagram, InterfaceEntry *multicastIFOption)
-{
-    InterfaceEntry *ie = NULL;
-    if (multicastIFOption)
-    {
-        ie = multicastIFOption;
-        EV << "multicast packet routed by socket option via output interface " << ie->getName() << "\n";
-    }
-    if (!ie)
-    {
-        IPv4Route *route = rt->findBestMatchingRoute(datagram->getDestAddress());
-        if (route)
-            ie = route->getInterface();
-        if (ie)
-            EV << "multicast packet routed by routing table via output interface " << ie->getName() << "\n";
-    }
-    if (!ie)
-    {
-        ie = rt->getInterfaceByAddress(datagram->getSrcAddress());
-        if (ie)
-            EV << "multicast packet routed by source address via output interface " << ie->getName() << "\n";
-    }
-    if (!ie)
-    {
-        ie = ift->getFirstMulticastInterface();
-        if (ie)
-            EV << "multicast packet routed via the first multicast interface " << ie->getName() << "\n";
-    }
-    return ie;
-}
-
-
-void GenericNetworkProtocol::routeUnicastPacket(GenericDatagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, Address destNextHopAddr)
-{
-    Address destAddr = datagram->getDestAddress();
+    Address destAddr = datagram->getDestinationAddress();
 
     EV << "Routing datagram `" << datagram->getName() << "' with dest=" << destAddr << ": ";
 
+    // check for local delivery
+    if (rt->isLocalAddress(destAddr))
+    {
+        EV << "local delivery\n";
+        if (datagram->getSourceAddress().isUnspecified())
+            datagram->setSourceAddress(destAddr); // allows two apps on the same host to communicate
+        numLocalDeliver++;
+        reassembleAndDeliver(datagram);
+        return;
+    }
+
+    // if datagram arrived from input gate and Generic_FORWARD is off, delete datagram
+    if (!fromHL && !rt->isForwardingEnabled())
+    {
+        EV << "forwarding off, dropping packet\n";
+        numDropped++;
+        delete datagram;
+        return;
+    }
+
     Address nextHopAddr;
+
     // if output port was explicitly requested, use that, otherwise use GenericNetworkProtocol routing
     if (destIE)
     {
         EV << "using manually specified output interface " << destIE->getName() << "\n";
         // and nextHopAddr remains unspecified
-        if (!destNextHopAddr.isUnspecified())
-           nextHopAddr = destNextHopAddr;  // Manet DSR routing explicit route
-        // special case ICMP reply
-        else if (destIE->isBroadcast())
-        {
-            // if the interface is broadcast we must search the next hop
-            const IPv4Route *re = rt->findBestMatchingRoute(destAddr);
-            if (re && re->getInterface() == destIE)
-                nextHopAddr = re->getGateway();
-        }
     }
     else
     {
         // use GenericNetworkProtocol routing (lookup in routing table)
-        const IPv4Route *re = rt->findBestMatchingRoute(destAddr);
-        if (re)
-        {
-            destIE = re->getInterface();
-            nextHopAddr = re->getGateway();
-        }
-    }
+        const GenericRoute *re = rt->findBestMatchingRoute(destAddr);
 
-    if (!destIE) // no route found
-    {
-        EV << "unroutable, sending ICMP_DESTINATION_UNREACHABLE\n";
-        numUnroutable++;
-        icmpAccess.get()->sendErrorMessage(datagram, ICMP_DESTINATION_UNREACHABLE, 0);
-    }
-    else // fragment and send
-    {
-        if (fromIE != NULL) if (datagramForwardHook(datagram, fromIE, destIE, nextHopAddr) != GenericNetworkProtocol::Hook::ACCEPT) {
+        // error handling: destination address does not exist in routing table:
+        // notify ICMP, throw packet away and continue
+        if (re==NULL)
+        {
+            EV << "unroutable, sending ICMP_DESTINATION_UNREACHABLE\n";
+            numUnroutable++;
+            delete datagram;
             return;
         }
 
-        EV << "output interface is " << destIE->getName() << ", next-hop address: " << nextHopAddr << "\n";
-        numForwarded++;
-        fragmentPostRouting(datagram, destIE, nextHopAddr);
+        // extract interface and next-hop address from routing table entry
+        destIE = re->getInterface();
+        nextHopAddr = re->getNextHop();
     }
+
+    // set datagram source address if not yet set
+    if (datagram->getSourceAddress().isUnspecified())
+        datagram->setSourceAddress(destIE->getGenericNetworkProtocolData()->getAddress());
+
+    // default: send datagram to fragmentation
+    EV << "output interface is " << destIE->getName() << ", next-hop address: " << nextHopAddr << "\n";
+    numForwarded++;
+
+    //
+    // fragment and send the packet
+    //
+    fragmentAndSend(datagram, destIE, nextHopAddr);
 }
 
-void GenericNetworkProtocol::routeLocalBroadcastPacket(GenericDatagram *datagram, InterfaceEntry *destIE)
+void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, InterfaceEntry *destIE, InterfaceEntry *fromIE)
 {
-    // The destination address is 255.255.255.255 or local subnet broadcast address.
-    // We always use 255.255.255.255 as nextHopAddress, because it is recognized by ARP,
-    // and mapped to the broadcast MAC address.
-    if (destIE!=NULL)
-    {
-        fragmentPostRouting(datagram, destIE, Address::ALLONES_ADDRESS);
-    }
-    else if (forceBroadcast)
-    {
-        // forward to each interface including loopback
-        for (int i = 0; i<ift->getNumInterfaces(); i++)
-        {
-            InterfaceEntry *ie = ift->getInterface(i);
-            fragmentPostRouting(datagram->dup(), ie, Address::ALLONES_ADDRESS);
-        }
-        delete datagram;
-    }
-    else
-    {
-        numDropped++;
-        delete datagram;
-    }
-}
-
-InterfaceEntry *GenericNetworkProtocol::getShortestPathInterfaceToSource(GenericDatagram *datagram)
-{
-    return rt->getInterfaceForDestAddr(datagram->getSrcAddress());
-}
-
-void GenericNetworkProtocol::forwardMulticastPacket(GenericDatagram *datagram, InterfaceEntry *fromIE)
-{
-    ASSERT(fromIE);
-    const Address &origin = datagram->getSrcAddress();
-    const Address &destAddr = datagram->getDestAddress();
-    ASSERT(destAddr.isMulticast());
-
-    EV << "Forwarding multicast datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
-
-    numMulticast++;
-
-    const IPv4MulticastRoute *route = rt->findBestMatchingMulticastRoute(origin, destAddr);
-    if (!route)
-    {
-        EV << "No route, packet dropped.\n";
-        numUnroutable++;
-        delete datagram;
-    }
-    else if (route->getParent() && fromIE != route->getParent())
-    {
-        EV << "Did not arrive on parent interface, packet dropped.\n";
-        numDropped++;
-        delete datagram;
-    }
-    // backward compatible: no parent means shortest path interface to source (RPB routing)
-    else if (!route->getParent() && fromIE != getShortestPathInterfaceToSource(datagram))
-    {
-        EV << "Did not arrive on shortest path, packet dropped.\n";
-        numDropped++;
-        delete datagram;
-    }
-    else
-    {
-        numForwarded++;
-        // copy original datagram for multiple destinations
-        const IPv4MulticastRoute::ChildInterfaceVector &children = route->getChildren();
-        for (unsigned int i=0; i<children.size(); i++)
-        {
-            InterfaceEntry *destIE = children[i]->getInterface();
-            if (destIE != fromIE)
-            {
-                int ttlThreshold = destIE->ipv4Data()->getMulticastTtlThreshold();
-                if (datagram->getTimeToLive() <= ttlThreshold)
-                    EV << "Not forwarding to " << destIE->getName() << " (ttl treshold reached)\n";
-                else if (children[i]->isLeaf() && !destIE->ipv4Data()->hasMulticastListener(destAddr))
-                    EV << "Not forwarding to " << destIE->getName() << " (no listeners)\n";
-                else
-                {
-                    EV << "Forwarding to " << destIE->getName() << "\n";
-                    fragmentPostRouting(datagram->dup(), destIE, destAddr);
-                }
-            }
-        }
-        // only copies sent, delete original datagram
-        delete datagram;
-    }
+    //TODO
+//    Address destAddr = datagram->getDestinationAddress();
+//    EV << "Routing multicast datagram `" << datagram->getName() << "' with dest=" << destAddr << "\n";
+//
+//    numMulticast++;
+//
+//    // DVMRP: process datagram only if sent locally or arrived on the shortest
+//    // route (provided routing table already contains srcAddr); otherwise
+//    // discard and continue.
+//    InterfaceEntry *shortestPathIE = rt->getInterfaceForDestinationAddr(datagram->getSourceAddress());
+//    if (fromIE!=NULL && shortestPathIE!=NULL && fromIE!=shortestPathIE)
+//    {
+//        // FIXME count dropped
+//        EV << "Packet dropped.\n";
+//        delete datagram;
+//        return;
+//    }
+//
+//    // if received from the network...
+//    if (fromIE!=NULL)
+//    {
+//        // check for local delivery
+//        if (rt->isLocalMulticastAddress(destAddr))
+//        {
+//            GenericDatagram *datagramCopy = (GenericDatagram *) datagram->dup();
+//
+//            // FIXME code from the MPLS model: set packet dest address to routerId (???)
+//            datagramCopy->setDestinationAddress(rt->getRouterId());
+//
+//            reassembleAndDeliver(datagramCopy);
+//        }
+//
+//        // don't forward if GenericNetworkProtocol forwarding is off
+//        if (!rt->isGenericForwardingEnabled())
+//        {
+//            delete datagram;
+//            return;
+//        }
+//
+//        // don't forward if dest address is link-scope
+//        if (destAddr.isLinkLocalMulticast())
+//        {
+//            delete datagram;
+//            return;
+//        }
+//
+//    }
+//
+//    // routed explicitly via Generic_MULTICAST_IF
+//    if (destIE!=NULL)
+//    {
+//        ASSERT(datagram->getDestinationAddress().isMulticast());
+//
+//        EV << "multicast packet explicitly routed via output interface " << destIE->getName() << endl;
+//
+//        // set datagram source address if not yet set
+//        if (datagram->getSourceAddress().isUnspecified())
+//            datagram->setSourceAddress(destIE->ipv4Data()->getGenericAddress());
+//
+//        // send
+//        fragmentAndSend(datagram, destIE, datagram->getDestinationAddress());
+//
+//        return;
+//    }
+//
+//    // now: routing
+//    MulticastRoutes routes = rt->getMulticastRoutesFor(destAddr);
+//    if (routes.size()==0)
+//    {
+//        // no destination: delete datagram
+//        delete datagram;
+//    }
+//    else
+//    {
+//        // copy original datagram for multiple destinations
+//        for (unsigned int i=0; i<routes.size(); i++)
+//        {
+//            InterfaceEntry *destIE = routes[i].interf;
+//
+//            // don't forward to input port
+//            if (destIE && destIE!=fromIE)
+//            {
+//                GenericDatagram *datagramCopy = (GenericDatagram *) datagram->dup();
+//
+//                // set datagram source address if not yet set
+//                if (datagramCopy->getSourceAddress().isUnspecified())
+//                    datagramCopy->setSourceAddress(destIE->ipv4Data()->getGenericAddress());
+//
+//                // send
+//                Address nextHopAddr = routes[i].gateway;
+//                fragmentAndSend(datagramCopy, destIE, nextHopAddr);
+//            }
+//        }
+//
+//        // only copies sent, delete original datagram
+//        delete datagram;
+//    }
 }
 
 void GenericNetworkProtocol::reassembleAndDeliver(GenericDatagram *datagram)
 {
-    EV << "Local delivery\n";
-
-    if (datagram->getSrcAddress().isUnspecified())
-        EV << "Received datagram '%s' without source address filled in" << datagram->getName() << "\n";
-
-    // reassemble the packet (if fragmented)
-    if (datagram->getFragmentOffset()!=0 || datagram->getMoreFragments())
-    {
-        EV << "Datagram fragment: offset=" << datagram->getFragmentOffset()
-           << ", MORE=" << (datagram->getMoreFragments() ? "true" : "false") << ".\n";
-
-        // erase timed out fragments in fragmentation buffer; check every 10 seconds max
-        if (simTime() >= lastCheckTime + 10)
-        {
-            lastCheckTime = simTime();
-            fragbuf.purgeStaleFragments(simTime()-fragmentTimeoutTime);
-        }
-
-        datagram = fragbuf.addFragment(datagram, simTime());
-        if (!datagram)
-        {
-            EV << "No complete datagram yet.\n";
-            return;
-        }
-        EV << "This fragment completes the datagram.\n";
-    }
-
-    if (datagramLocalInHook(datagram, getSourceInterfaceFrom(datagram)) != GenericNetworkProtocol::Hook::ACCEPT) {
-        return;
-    }
-
-    reassembleAndDeliverFinish(datagram);
-}
-
-void GenericNetworkProtocol::reassembleAndDeliverFinish(GenericDatagram *datagram)
-{
     // decapsulate and send on appropriate output gate
     int protocol = datagram->getTransportProtocol();
+    cPacket *packet = decapsulateGeneric(datagram);
 
-    if (protocol==IP_PROT_ICMP)
-    {
-        // incoming ICMP packets are handled specially
-        handleReceivedICMP(check_and_cast<ICMPMessage *>(decapsulate(datagram)));
-        numLocalDeliver++;
-    }
-    else if (protocol==IP_PROT_IP)
-    {
-        // tunnelled IP packets are handled separately
-        send(decapsulate(datagram), "preRoutingOut");  //FIXME There is no "preRoutingOut" gate in the GenericNetworkProtocol module.
-    }
-    else
-    {
-        // JcM Fix: check if the transportOut port are connected, otherwise
-        // discard the packet
-        int gateindex = mapping.getOutputGateForProtocol(protocol);
-
-        if (gate("transportOut", gateindex)->isPathOK())
-        {
-            send(decapsulate(datagram), "transportOut", gateindex);
-            numLocalDeliver++;
-        }
-        else
-        {
-            EV << "L3 Protocol not connected. discarding packet" << endl;
-            icmpAccess.get()->sendErrorMessage(datagram, ICMP_DESTINATION_UNREACHABLE, ICMP_DU_PROTOCOL_UNREACHABLE);
-        }
-    }
+    int gateindex = mapping.getOutputGateForProtocol(protocol);
+    send(packet, "transportOut", gateindex);
 }
 
-cPacket *GenericNetworkProtocol::decapsulate(GenericDatagram *datagram)
+cPacket *GenericNetworkProtocol::decapsulateGeneric(GenericDatagram *datagram)
 {
     // decapsulate transport packet
     InterfaceEntry *fromIE = getSourceInterfaceFrom(datagram);
     cPacket *packet = datagram->decapsulate();
 
     // create and fill in control info
-    IPv4ControlInfo *controlInfo = new IPv4ControlInfo();
+    GenericControlInfo *controlInfo = new GenericControlInfo();
     controlInfo->setProtocol(datagram->getTransportProtocol());
-    controlInfo->setSrcAddr(datagram->getSrcAddress());
-    controlInfo->setDestAddr(datagram->getDestAddress());
-    controlInfo->setTypeOfService(datagram->getTypeOfService());
+    controlInfo->setSourceAddress(datagram->getSourceAddress());
+    controlInfo->setDestinationAddress(datagram->getDestinationAddress());
     controlInfo->setInterfaceId(fromIE ? fromIE->getInterfaceId() : -1);
-    controlInfo->setTimeToLive(datagram->getTimeToLive());
-
-    // original GenericNetworkProtocol datagram might be needed in upper layers to send back ICMP error message
-    controlInfo->setOrigDatagram(datagram);
 
     // attach control info
     packet->setControlInfo(controlInfo);
@@ -630,109 +324,38 @@ cPacket *GenericNetworkProtocol::decapsulate(GenericDatagram *datagram)
     return packet;
 }
 
-void GenericNetworkProtocol::fragmentPostRouting(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
-{
-    if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHopAddr) != GenericNetworkProtocol::Hook::ACCEPT) {
-        return;
-    }
-
-    fragmentAndSend(datagram, ie, nextHopAddr);
-}
 
 void GenericNetworkProtocol::fragmentAndSend(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
 {
-    // fill in source address
-    if (datagram->getSrcAddress().isUnspecified())
-        datagram->setSrcAddress(ie->ipv4Data()->getIPAddress());
+    if (datagram->getByteLength() > ie->getMTU())
+        error("datagram too large"); //TODO refine
 
-    // hop counter decrement; but not if it will be locally delivered
-    if (!ie->isLoopback())
-        datagram->setTimeToLive(datagram->getTimeToLive()-1);
-
-    // hop counter check
-    if (datagram->getTimeToLive() < 0)
-    {
-        // drop datagram, destruction responsibility in ICMP
-        EV << "datagram TTL reached zero, sending ICMP_TIME_EXCEEDED\n";
-        icmpAccess.get()->sendErrorMessage(datagram, ICMP_TIME_EXCEEDED, 0);
-        numDropped++;
-        return;
-    }
-
-    int mtu = ie->getMTU();
-
-    // check if datagram does not require fragmentation
-    if (datagram->getByteLength() <= mtu)
-    {
-        sendDatagramToOutput(datagram, ie, nextHopAddr);
-        return;
-    }
-
-    // if "don't fragment" bit is set, throw datagram away and send ICMP error message
-    if (datagram->getDontFragment())
-    {
-        EV << "datagram larger than MTU and don't fragment bit set, sending ICMP_DESTINATION_UNREACHABLE\n";
-        icmpAccess.get()->sendErrorMessage(datagram, ICMP_DESTINATION_UNREACHABLE,
-                                                     ICMP_FRAGMENTATION_ERROR_CODE);
-        numDropped++;
-        return;
-    }
-
-    // optimization: do not fragment and reassemble on the loopback interface
-    if (ie->isLoopback())
-    {
-        sendDatagramToOutput(datagram, ie, nextHopAddr);
-        return;
-    }
-
-    // FIXME some IP options should not be copied into each fragment, check their COPY bit
-    int headerLength = datagram->getHeaderLength();
-    int payloadLength = datagram->getByteLength() - headerLength;
-    int fragmentLength = ((mtu - headerLength) / 8) * 8; // payload only (without header)
-    int offsetBase = datagram->getFragmentOffset();
-
-    int noOfFragments = (payloadLength + fragmentLength - 1)/ fragmentLength;
-    EV << "Breaking datagram into " << noOfFragments << " fragments\n";
-
-    // create and send fragments
-    std::string fragMsgName = datagram->getName();
-    fragMsgName += "-frag";
-
-    for (int offset=0; offset < payloadLength; offset+=fragmentLength)
-    {
-        bool lastFragment = (offset+fragmentLength >= payloadLength);
-        // length equal to fragmentLength, except for last fragment;
-        int thisFragmentLength = lastFragment ? payloadLength - offset : fragmentLength;
-
-        // FIXME is it ok that full encapsulated packet travels in every datagram fragment?
-        // should better travel in the last fragment only. Cf. with reassembly code!
-        GenericDatagram *fragment = (GenericDatagram *) datagram->dup();
-        fragment->setName(fragMsgName.c_str());
-
-        // "more fragments" bit is unchanged in the last fragment, otherwise true
-        if (!lastFragment)
-            fragment->setMoreFragments(true);
-
-        fragment->setByteLength(headerLength + thisFragmentLength);
-        fragment->setFragmentOffset(offsetBase + offset);
-
-        sendDatagramToOutput(fragment, ie, nextHopAddr);
-    }
-
-    delete datagram;
+    sendDatagramToOutput(datagram, ie, nextHopAddr);
 }
 
-GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, IPv4ControlInfo *controlInfo)
+
+GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE)
 {
-    GenericDatagram *datagram = createIPv4Datagram(transportPacket->getName());
-    datagram->setByteLength(IP_HEADER_BYTES);
+    GenericControlInfo *controlInfo = check_and_cast<GenericControlInfo*>(transportPacket->removeControlInfo());
+    GenericDatagram *datagram = encapsulate(transportPacket, destIE, controlInfo);
+    delete controlInfo;
+    return datagram;
+}
+
+GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE, GenericControlInfo *controlInfo)
+{
+    GenericDatagram *datagram = createGenericDatagram(transportPacket->getName());
+//    datagram->setByteLength(HEADER_BYTES); //TODO parameter
     datagram->encapsulate(transportPacket);
 
     // set source and destination address
-    Address dest = controlInfo->getDestAddr();
-    datagram->setDestAddress(dest);
+    Address dest = controlInfo->getDestinationAddress();
+    datagram->setDestinationAddress(dest);
 
-    Address src = controlInfo->getSrcAddr();
+    // Generic_MULTICAST_IF option, but allow interface selection for unicast packets as well
+    destIE = ift->getInterfaceById(controlInfo->getInterfaceId());
+
+    Address src = controlInfo->getSourceAddress();
 
     // when source address was given, use it; otherwise it'll get the address
     // of the outgoing interface after routing
@@ -740,30 +363,21 @@ GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, I
     {
         // if interface parameter does not match existing interface, do not send datagram
         if (rt->getInterfaceByAddress(src)==NULL)
-            throw cRuntimeError("Wrong source address %s in (%s)%s: no interface with such address",
+            opp_error("Wrong source address %s in (%s)%s: no interface with such address",
                       src.str().c_str(), transportPacket->getClassName(), transportPacket->getFullName());
-
-        datagram->setSrcAddress(src);
+        datagram->setSourceAddress(src);
     }
 
     // set other fields
-    datagram->setTypeOfService(controlInfo->getTypeOfService());
-
-    datagram->setIdentification(curFragmentId++);
-    datagram->setMoreFragments(false);
-    datagram->setDontFragment(controlInfo->getDontFragment());
-    datagram->setFragmentOffset(0);
-
     short ttl;
-    if (controlInfo->getTimeToLive() > 0)
-        ttl = controlInfo->getTimeToLive();
-    else if (datagram->getDestAddress().isLinkLocalMulticast())
+    if (controlInfo->getHopLimit() > 0)
+        ttl = controlInfo->getHopLimit();
+    else if (false) //TODO: datagram->getDestinationAddress().isLinkLocalMulticast())
         ttl = 1;
-    else if (datagram->getDestAddress().isMulticast())
-        ttl = defaultMCTimeToLive;
     else
-        ttl = defaultTimeToLive;
-    datagram->setTimeToLive(ttl);
+        ttl = defaultHopLimit;
+
+    datagram->setHopLimit(ttl);
     datagram->setTransportProtocol(controlInfo->getProtocol());
 
     // setting GenericNetworkProtocol options is currently not supported
@@ -771,156 +385,27 @@ GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, I
     return datagram;
 }
 
-GenericDatagram *GenericNetworkProtocol::createIPv4Datagram(const char *name)
+GenericDatagram *GenericNetworkProtocol::createGenericDatagram(const char *name)
 {
     return new GenericDatagram(name);
 }
 
 void GenericNetworkProtocol::sendDatagramToOutput(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
 {
-    if (ie->isLoopback())
+    // hop counter check
+    if (datagram->getHopLimit() <= 0)
     {
-        // no interface module for loopback, forward packet internally
-        // FIXME shouldn't be arrival(datagram) ?
-        handlePacketFromNetwork(datagram, ie);
+        // drop datagram, destruction responsibility in ICMP
+        EV << "datagram hopLimit reached zero, discarding\n";
+        delete datagram;  //TODO stats counter???
+        return;
     }
-    else
-    {
-        // send out datagram to ARP, with control info attached
-        delete datagram->removeControlInfo();
-        IPv4RoutingDecision *routingDecision = new IPv4RoutingDecision();
-        routingDecision->setInterfaceId(ie->getInterfaceId());
-        routingDecision->setNextHopAddr(nextHopAddr);
-        datagram->setControlInfo(routingDecision);
-        send(datagram, queueOutGate);
-    }
+
+    // send out datagram to ARP, with control info attached
+    GenericRoutingDecision *routingDecision = new GenericRoutingDecision();
+    routingDecision->setInterfaceId(ie->getInterfaceId());
+    routingDecision->setNextHop(nextHopAddr);
+    datagram->setControlInfo(routingDecision);
+
+    send(datagram, queueOutGate);
 }
-
-// NetFilter:
-
-void GenericNetworkProtocol::registerHook(int priority, GenericNetworkProtocol::Hook* hook) {
-    Enter_Method("registerHook()");
-    hooks.insert(std::pair<int, GenericNetworkProtocol::Hook*>(priority, hook));
-}
-
-void GenericNetworkProtocol::unregisterHook(int priority, GenericNetworkProtocol::Hook* hook) {
-    Enter_Method("unregisterHook()");
-    for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        if ((iter->first == priority) && (iter->second == hook)) {
-            hooks.erase(iter);
-            return;
-        }
-    }
-}
-
-void GenericNetworkProtocol::reinjectDatagram(const GenericDatagram* datagram, GenericNetworkProtocol::Hook::Result verdict) {
-    Enter_Method("reinjectDatagram()");
-    for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
-        if (iter->datagram == datagram) {
-            GenericDatagram* datagram = iter->datagram;
-            if (verdict == GenericNetworkProtocol::Hook::DROP) {
-                delete datagram;
-            } else {
-                switch (iter->hook) {
-                    case QueuedDatagramForHook::LOCALOUT:
-                        datagramLocalOut(datagram, iter->outIE);
-                        break;
-                    case QueuedDatagramForHook::PREROUTING:
-                        preroutingFinish(datagram, iter->inIE);
-                        break;
-                    case QueuedDatagramForHook::POSTROUTING:
-                        fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
-                        break;
-                    case QueuedDatagramForHook::LOCALIN:
-                        reassembleAndDeliverFinish(datagram);
-                        break;
-                    case QueuedDatagramForHook::FORWARD:
-                        throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
-                        break;
-                    default:
-                        throw cRuntimeError("Unknown hook ID: %d", (int)(iter->hook));
-                        break;
-                }
-            }
-
-            queuedDatagramsForHooks.erase(iter);
-            return;
-        }
-    }
-}
-
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE) {
-    for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        GenericNetworkProtocol::Hook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE);
-        switch(r)
-        {
-            case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
-            case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::PREROUTING)); return r;
-            case GenericNetworkProtocol::Hook::STOLEN: return r;
-            default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
-        }
-    }
-    return GenericNetworkProtocol::Hook::ACCEPT;
-}
-
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE) {
-    for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        GenericNetworkProtocol::Hook::Result r = iter->second->datagramLocalInHook(datagram, inIE);
-        switch(r)
-        {
-            case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
-            case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALIN)); return r;
-            case GenericNetworkProtocol::Hook::STOLEN: return r;
-            default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
-        }
-    }
-    return GenericNetworkProtocol::Hook::ACCEPT;
-}
-
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) {
-    for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        GenericNetworkProtocol::Hook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
-        switch(r)
-        {
-            case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
-            case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, QueuedDatagramForHook::FORWARD)); return r;
-            case GenericNetworkProtocol::Hook::STOLEN: return r;
-            default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
-        }
-    }
-    return GenericNetworkProtocol::Hook::ACCEPT;
-}
-
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) {
-    for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        GenericNetworkProtocol::Hook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
-        switch(r)
-        {
-            case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
-            case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, QueuedDatagramForHook::POSTROUTING)); return r;
-            case GenericNetworkProtocol::Hook::STOLEN: return r;
-            default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
-        }
-    }
-    return GenericNetworkProtocol::Hook::ACCEPT;
-}
-
-GenericNetworkProtocol::Hook::Result GenericNetworkProtocol::datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE) {
-    for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        GenericNetworkProtocol::Hook::Result r = iter->second->datagramLocalOutHook(datagram, outIE);
-        switch(r)
-        {
-            case GenericNetworkProtocol::Hook::ACCEPT: break;   // continue iteration
-            case GenericNetworkProtocol::Hook::DROP:   delete datagram; return r;
-            case GenericNetworkProtocol::Hook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALOUT)); return r;
-            case GenericNetworkProtocol::Hook::STOLEN: return r;
-            default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
-        }
-    }
-    return GenericNetworkProtocol::Hook::ACCEPT;
-}
-

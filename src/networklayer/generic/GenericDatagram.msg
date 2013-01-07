@@ -22,6 +22,7 @@ enum IPProtocolId;
 
 cplusplus {{
 #include "Address.h"
+#include "IPProtocolId_m.h"
 }}
 
 //

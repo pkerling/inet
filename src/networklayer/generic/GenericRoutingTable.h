@@ -114,7 +114,7 @@ class INET_API GenericRoutingTable : public cSimpleModule, public IGenericRoutin
          * destination address, and returns the resulting route. Returns NULL
          * if there is no matching route.
          */
-        virtual IGenericRoute *findBestMatchingRoute(const Address& dest) const;
+        virtual GenericRoute *findBestMatchingRoute(const Address& dest) const;  //TODO make coveriant return types everywhere
 
         /**
          * Convenience function based on findBestMatchingRoute().

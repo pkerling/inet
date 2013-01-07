@@ -59,6 +59,8 @@ class INET_API Address
         bool operator!=(const Address& address) const { return ipv4 != address.ipv4; }
 
         bool matches(const Address& other, int prefixLength) const;
+
+        std::string str() { return ipv4.str(); }
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Address& address)
