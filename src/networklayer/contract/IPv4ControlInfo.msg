@@ -43,7 +43,7 @@ cplusplus {{
 //
 // Optional fields:
 // - srcAddr: it will be set to the address of the outgoing interface
-// - typeOfServoce: (default: 0)
+// - typeOfService: (default: 0)
 // - timeToLive: default defined as module parameter
 // - dontFragment: default: false
 //
