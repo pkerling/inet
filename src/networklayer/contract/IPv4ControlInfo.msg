@@ -77,9 +77,9 @@ class IPv4ControlInfo
 
     // The following fields are used in the DSR protocol; TODO revise
     IPv4Address nextHopAddr; // next hop address (DSR)
-    bool moreFragments;    // "more fragments" bit (DSR protocol)
-    MACAddress macSrc;  // src MAC address (can be left empty when sending)
-    MACAddress macDest; // dest MAC address
+    //bool moreFragments;    // "more fragments" bit (DSR protocol)
+    //MACAddress macSrc;  // src MAC address (can be left empty when sending)
+    //MACAddress macDest; // dest MAC address
 }
 
 
