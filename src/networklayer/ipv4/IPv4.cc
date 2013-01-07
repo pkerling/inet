@@ -300,22 +300,13 @@ void IPv4::handleMessageFromHL(cPacket *msg)
     }
 
     // extract requested interface and next hop
-    InterfaceEntry *destIE = NULL;
-    IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
-    bool multicastLoop = true;
-    if (controlInfo!=NULL)
-    {
-        destIE = ift->getInterfaceById(controlInfo->getInterfaceId());
-        nextHopAddress = controlInfo->getNextHopAddr();
-        multicastLoop = controlInfo->getMulticastLoop();
-    }
+    InterfaceEntry *destIE = controlInfo ? ift->getInterfaceById(controlInfo->getInterfaceId()) : NULL;
 
     if (controlInfo)
-        datagram->setControlInfo(controlInfo);
+        datagram->setControlInfo(controlInfo);    //FIXME ne rakjuk bele a cntrInfot!!!!!
 
-    if (datagramLocalOutHook(datagram, destIE) != IPv4::Hook::ACCEPT) {
+    if (datagramLocalOutHook(datagram, destIE) != IPv4::Hook::ACCEPT)
         return;
-    }
 
     datagramLocalOut(datagram, destIE);
 }
