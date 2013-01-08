@@ -312,6 +312,9 @@ class INET_API IPv4 : public QueueBase
      * re-injects a previously queued datagram
      */
     void reinjectDatagram(const IPv4Datagram* datagram);
+
+    IRoutingTable* getRoutingTable() const { return rt; };
+    IInterfaceTable* getInterfaceTable() const { return ift; };
 };
 
 #endif

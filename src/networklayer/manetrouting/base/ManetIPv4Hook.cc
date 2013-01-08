@@ -30,7 +30,6 @@ void ManetIPv4Hook::initHook(cModule* _module)
     ipLayer = check_and_cast<IPv4*>(findModuleWhereverInNode("ip", module));
     cProperties *props = module->getProperties();
     isReactive = props && props->getAsBool("reactive");
-    rt = RoutingTableAccess().get();
 
     ProtocolMapping mapping;
     mapping.parseProtocolMapping(ipLayer->par("protocolMapping"));
@@ -147,8 +146,11 @@ bool ManetIPv4Hook::checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry
 
     if (destAddr.isMulticast() || destAddr.isLimitedBroadcastAddress())
         return false;
+
+    IRoutingTable* rt = ipLayer->getRoutingTable();
     if (rt->isLocalAddress(destAddr) || rt->isLocalBroadcastAddress(destAddr))
         return false;
+
     return (rt->findBestMatchingRoute(destAddr) == NULL);
 }
 

@@ -30,13 +30,12 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
 {
   protected:
     cModule* module;    // Manet module
-    IRoutingTable *rt;  // routing table
     IPv4 *ipLayer;      // IPv4 module
     int gateIndex;      // gateindex for manet protocol on transportOut gate in IPv4 module
     bool isReactive;    // true if it's a reactive routing
 
   public:
-    ManetIPv4Hook() : module(NULL), rt(NULL), ipLayer(NULL), gateIndex(-1), isReactive(false) {}
+    ManetIPv4Hook() : module(NULL), ipLayer(NULL), gateIndex(-1), isReactive(false) {}
 
   protected:
     void initHook(cModule* module);
