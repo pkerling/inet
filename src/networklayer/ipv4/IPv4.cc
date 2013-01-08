@@ -274,14 +274,8 @@ void IPv4::handleMessageFromHL(cPacket *msg)
 
     // extract requested interface and next hop
     InterfaceEntry *destIE = NULL;
-    IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
-    bool multicastLoop = true;
     if (controlInfo!=NULL)
-    {
         destIE = ift->getInterfaceById(controlInfo->getInterfaceId());
-        nextHopAddress = controlInfo->getNextHopAddr();
-        multicastLoop = controlInfo->getMulticastLoop();
-    }
 
     if (controlInfo)
         datagram->setControlInfo(controlInfo);
