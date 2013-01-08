@@ -281,15 +281,13 @@ void IPv4::handleMessageFromHL(cPacket *msg)
 
 void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
 {
-    IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
+    IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->removeControlInfo());
     bool multicastLoop = true;
-
-    if (controlInfo!=NULL)
+    if (controlInfo != NULL)
     {
         multicastLoop = controlInfo->getMulticastLoop();
+        delete controlInfo;
     }
-
-    delete datagram->removeControlInfo();
 
     // send
     IPv4Address &destAddr = datagram->getDestAddress();
