@@ -195,7 +195,7 @@ void IPv4::preroutingFinish(IPv4Datagram *datagram, InterfaceEntry *fromIE)
             delete datagram;
         }
         else
-            routeUnicastPacket(datagram, fromIE, NULL/*destIE*/, IPv4Address::UNSPECIFIED_ADDRESS);
+            routeUnicastPacket(datagram, fromIE, NULL/*destIE*/);
     }
 }
 
@@ -282,12 +282,10 @@ void IPv4::handleMessageFromHL(cPacket *msg)
 void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
 {
     IPv4ControlInfo *controlInfo = dynamic_cast<IPv4ControlInfo*>(datagram->getControlInfo());
-    IPv4Address nextHopAddress = IPv4Address::UNSPECIFIED_ADDRESS;
     bool multicastLoop = true;
 
     if (controlInfo!=NULL)
     {
-        nextHopAddress = controlInfo->getNextHopAddr();
         multicastLoop = controlInfo->getMulticastLoop();
     }
 
@@ -338,7 +336,7 @@ void IPv4::datagramLocalOut(IPv4Datagram* datagram, InterfaceEntry* destIE)
         else if (destAddr.isLimitedBroadcastAddress() || rt->isLocalBroadcastAddress(destAddr))
             routeLocalBroadcastPacket(datagram, destIE);
         else
-            routeUnicastPacket(datagram, NULL, destIE, nextHopAddress);
+            routeUnicastPacket(datagram, NULL, destIE);
     }
 }
 
@@ -380,7 +378,7 @@ InterfaceEntry *IPv4::determineOutgoingInterfaceForMulticastDatagram(IPv4Datagra
 }
 
 
-void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, IPv4Address destNextHopAddr)
+void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE)
 {
     IPv4Address destAddr = datagram->getDestAddress();
 
@@ -391,11 +389,8 @@ void IPv4::routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, In
     if (destIE)
     {
         EV << "using manually specified output interface " << destIE->getName() << "\n";
-        // and nextHopAddr remains unspecified
-        if (!destNextHopAddr.isUnspecified())
-           nextHopAddr = destNextHopAddr;  // Manet DSR routing explicit route
         // special case ICMP reply
-        else if (destIE->isBroadcast())
+        if (destIE->isBroadcast())
         {
             // if the interface is broadcast we must search the next hop
             const IPv4Route *re = rt->findBestMatchingRoute(destAddr);

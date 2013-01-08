@@ -194,7 +194,7 @@ class INET_API IPv4 : public QueueBase
      * Performs unicast routing. Based on the routing decision, it sends the
      * datagram through the outgoing interface.
      */
-    virtual void routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE, IPv4Address nextHopAddr);
+    virtual void routeUnicastPacket(IPv4Datagram *datagram, InterfaceEntry *fromIE, InterfaceEntry *destIE);
 
     /**
      * Broadcasts the datagram on the specified interface.
