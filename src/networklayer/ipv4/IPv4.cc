@@ -850,6 +850,11 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
     }
 }
 
+void IPv4::insertDatagramToHookQueue(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::Hook hook)
+{
+    queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, hook));
+}
+
 IPv4::Hook::Result IPv4::datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IPv4::Hook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE);

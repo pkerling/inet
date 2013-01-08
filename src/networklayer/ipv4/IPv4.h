@@ -304,6 +304,11 @@ class INET_API IPv4 : public QueueBase
     QueuedDatagramForHook& getQueuedDatagramForHook(const IPv4Datagram* datagram);
 
     /**
+     * TODO
+     */
+    void insertDatagramToHookQueue(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::Hook hook);
+
+    /**
      * drop a previously queued datagram
      */
     void dropQueuedDatagram(const IPv4Datagram* datagram);
