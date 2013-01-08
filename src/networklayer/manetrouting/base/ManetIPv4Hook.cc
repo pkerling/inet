@@ -64,10 +64,6 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram,
 
 IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE)
 {
-    EV << "HOOK " << module->getFullPath() << ": LOCAL IN: packet=" << datagram->getName()
-       << " inIE=" << (inIE ? inIE->getName() : "NULL")
-       << endl;
-
     if (isReactive)
     {
         if (datagram->getTransportProtocol() == IP_PROT_DSR)
