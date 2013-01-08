@@ -19,7 +19,9 @@
 #include "ManetIPv4Hook.h"
 
 #include "ControlManetRouting_m.h"
+#include "IInterfaceTable.h"
 #include "InterfaceEntry.h"
+#include "IPv4ControlInfo.h"
 #include "IPv4Datagram.h"
 #include "IRoutingTable.h"
 
@@ -77,6 +79,13 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
 
 IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE)
 {
+    // Dsr routing, Dsr is a HL protocol and send IPv4Datagram
+    if (datagram->getTransportProtocol()==IP_PROT_DSR)
+    {
+        IPv4ControlInfo *controlInfo = check_and_cast<IPv4ControlInfo*>(datagram->getControlInfo());
+        outIE = ipLayer->getInterfaceTable()->getInterfaceById(controlInfo->getInterfaceId());
+    }
+
     if (isReactive)
     {
         sendRouteUpdateMessageToManet(datagram);

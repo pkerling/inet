@@ -257,15 +257,7 @@ void IPv4::handleMessageFromHL(cPacket *msg)
     IPv4Datagram *datagram = dynamic_cast<IPv4Datagram *>(msg);
     IPv4ControlInfo *controlInfo = NULL;
     //FIXME dubious code, remove? how can the HL tell IP whether it wants tunneling or forwarding?? --Andras
-    if (datagram) // if HL sends an IPv4Datagram, route the packet
-    {
-        // Dsr routing, Dsr is a HL protocol and send IPv4Datagram
-        if (datagram->getTransportProtocol()==IP_PROT_DSR)
-        {
-            controlInfo = check_and_cast<IPv4ControlInfo*>(datagram->removeControlInfo());
-        }
-    }
-    else
+    if (!datagram) // if HL sends an IPv4Datagram, route the packet
     {
         // encapsulate
         controlInfo = check_and_cast<IPv4ControlInfo*>(msg->removeControlInfo());
