@@ -25,6 +25,8 @@
 #include "IPv4Datagram.h"
 #include "IRoutingTable.h"
 
+#include "dsr-pkt_omnet.h"
+
 
 void ManetIPv4Hook::initHook(cModule* _module)
 {
@@ -79,15 +81,21 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
 
 IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE)
 {
-    // Dsr routing, Dsr is a HL protocol and send IPv4Datagram
-    if (datagram->getTransportProtocol()==IP_PROT_DSR)
-    {
-        IPv4ControlInfo *controlInfo = check_and_cast<IPv4ControlInfo*>(datagram->getControlInfo());
-        outIE = ipLayer->getInterfaceTable()->getInterfaceById(controlInfo->getInterfaceId());
-    }
-
     if (isReactive)
     {
+        bool isDsr = false;
+        IPv4Address nextHopAddr(IPv4Address::UNSPECIFIED_ADDRESS);
+
+        // Dsr routing, Dsr is a HL protocol and send IPv4Datagram
+        if (datagram->getTransportProtocol()==IP_PROT_DSR)
+        {
+            isDsr = true;
+            IPv4ControlInfo *controlInfo = check_and_cast<IPv4ControlInfo*>(datagram->getControlInfo());
+            DSRPkt *dsrpkt = check_and_cast<DSRPkt *>(datagram);
+            outIE = ipLayer->getInterfaceTable()->getInterfaceById(controlInfo->getInterfaceId());
+            nextHopAddr = dsrpkt->nextAddress();
+        }
+
         sendRouteUpdateMessageToManet(datagram);
 
         if (checkPacketUnroutable(datagram, outIE))
@@ -95,6 +103,17 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, I
             delete datagram->removeControlInfo();
             sendNoRouteMessageToManet(datagram);
             return IPv4::Hook::STOLEN;
+        }
+        if (isDsr && outIE != NULL && !nextHopAddr.isUnspecified())
+        {
+            IPv4Address destAddr = datagram->getDestAddress();
+            if (!destAddr.isMulticast() && !ipLayer->getRoutingTable()->isLocalAddress(destAddr))
+            {
+                delete datagram->removeControlInfo();
+                ipLayer->insertDatagramToHookQueue(datagram, NULL, outIE, nextHopAddr, IPv4::QueuedDatagramForHook::POSTROUTING);
+                ipLayer->reinjectDatagram(datagram);
+                return IPv4::Hook::STOLEN;
+            }
         }
     }
     return IPv4::Hook::ACCEPT;
