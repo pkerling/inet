@@ -9,7 +9,6 @@
 #include <map>
 #include <omnetpp.h>
 #include "INotifiable.h"
-#include "InterfaceTableAccess.h"
 #include "IGenericNetworkProtocol.h"
 #include "IGenericRoutingTable.h"
 #include "DYMOdefs.h"
@@ -46,6 +45,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     // DYMO parameters from RFC
     const char * clientAddresses;
     bool useMulticastRREP;
+    const char * interfaces;
     double activeInterval;
     double maxIdleTime;
     double maxSequenceNumberLifetime;
@@ -72,10 +72,10 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     // internal
     cMessage * expungeTimer;
     DYMOSequenceNumber sequenceNumber;
-    std::map<Address, DYMOSequenceNumber> targetToSequenceNumber;
-    std::vector<std::pair<Address, int> > clientNetworks; // 5.3.  Router Clients and Client Networks
-    std::multimap<Address, IGenericDatagram *> targetAddressToDelayedPackets;
+    std::map<Address, DYMOSequenceNumber> targetAddressToSequenceNumber;
     std::map<Address, RREQTimer *> targetAddressToRREQTimer;
+    std::multimap<Address, IGenericDatagram *> targetAddressToDelayedPackets;
+    std::vector<std::pair<Address, int> > clientAddressAndPrefixLengthPairs; // 5.3.  Router Clients and Client Networks
 
   public:
     xDYMO();
@@ -131,17 +131,19 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     void processUDPPacket(UDPPacket * packet);
 
     // handling DYMO packets
-    void sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const IPv4Address & nextHop, double delay);
+    void sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const Address & nextHop, double delay);
     void processDYMOPacket(DYMOPacket * packet);
 
     // handling RteMsg packets
     bool permissibleRteMsg(RteMsg * rteMsg);
     void processRteMsg(RteMsg * rteMsg);
+    int computeRteMsgBitLength(RteMsg * rteMsg);
 
     // handling RREQ packets
     RREQ * createRREQ(const Address & target, int retryCount);
     void sendRREQ(RREQ * rreq);
     void processRREQ(RREQ * rreq);
+    int computeRREQBitLength(RREQ * rreq);
 
     // handling RREP packets
     RREP * createRREP(RteMsg * rteMsg);
@@ -149,6 +151,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     void sendRREP(RREP * rrep);
     void sendRREP(RREP * rrep, IGenericRoute * route);
     void processRREP(RREP * rrep);
+    int computeRREPBitLength(RREP * rrep);
 
     // handling RERR packets
     RERR * createRERR(std::vector<Address> & addresses);
@@ -156,6 +159,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     void sendRERRForUndeliverablePacket(const Address & destination);
     void sendRERRForBrokenLink(InterfaceEntry * interfaceEntry, const Address & nextHop);
     void processRERR(RERR * rerr);
+    int computeRERRBitLength(RERR * rerr);
 
     // handling routes
     IGenericRoute * createRoute(RteMsg * rteMsg, AddressBlock & addressBlock);
@@ -181,6 +185,9 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
 
     // sequence number
     void incrementSequenceNumber();
+
+    // utilities
+    Address getLinkLocalManetRoutersMulticastAddress();
 
     // generic network protocol
     virtual Result datagramPreRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }

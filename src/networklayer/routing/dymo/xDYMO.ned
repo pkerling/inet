@@ -24,10 +24,10 @@ simple xDYMO
         string networkProtocolModuleName = default("ip");
         
         // 1. DYMO parameter group
-        string clientAddresses = default(""); // CLIENT_ADDRESSES
+        string clientAddresses = default("10.10.0.0/24 10.20.0.0"); // CLIENT_ADDRESSES
         bool useMulticastRREP = default(false); // USE_MULTICAST_RREP
         // string DEFAULT_METRIC_TYPE = default("HOP_COUNT");
-        // string AODVv2_INTERFACES = default("*");
+        string interfaces = default("*"); // AODVv2_INTERFACES
 
         // 2. DYMO parameter group
         double activeInterval @unit("s") = default(5s); // ACTIVE_INTERVAL

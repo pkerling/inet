@@ -22,9 +22,13 @@ namespace DYMO;
 class AddressBlock {
     Address address;
     int prefixLength;
+    bool hasValidityTime;
     simtime_t validityTime;
+    bool hasMetric;
     double metric;
+    bool hasMetricType;
     DYMOMetricType metricType;
+    bool hasSequenceNumber;
     DYMOSequenceNumber sequenceNumber;
 }
 
