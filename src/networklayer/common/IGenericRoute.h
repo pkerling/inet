@@ -20,8 +20,8 @@
 
 #include "INETDefs.h"
 #include "Address.h"
+#include "InterfaceEntry.h"
 
-class InterfaceEntry;
 class IGenericRoutingTable;
 
 /**
@@ -81,6 +81,18 @@ class INET_API IGenericRoute
 
         virtual cObject *getProtocolData() const = 0;
         virtual void setProtocolData(cObject *protocolData) = 0;
+};
+
+// TODO: move into info()?
+inline std::ostream& operator<<(std::ostream& out, const IGenericRoute * route)
+{
+    out << "destination = " << route->getDestination();
+    out << ", prefixLength = " << route->getPrefixLength();
+    out << ", nextHop = " << route->getNextHop();
+    out << ", metric = " << route->getMetric();
+    if (route->getInterface())
+        out << ", interface = " << route->getInterface()->getName();
+    return out;
 };
 
 /**
