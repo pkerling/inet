@@ -64,6 +64,8 @@ class INET_API GenericNetworkProtocolInterfaceData : public InterfaceProtocolDat
     virtual void setAddress(Address a) {inetAddr = a; changed1();}
     virtual void setMetric(int m) {metric = m; changed1();}
     //@}
+
+    virtual void joinMulticastGroup(Address address) { }
 };
 
 #endif
