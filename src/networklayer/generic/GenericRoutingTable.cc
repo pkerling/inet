@@ -106,6 +106,16 @@ void GenericRoutingTable::initialize(int stage)
     }
 }
 
+void GenericRoutingTable::handleMessage(cMessage *msg)
+{
+    throw cRuntimeError("This module doesn't process messages");
+}
+
+void GenericRoutingTable::receiveChangeNotification(int category, const cObject *details)
+{
+    // TODO:
+}
+
 void GenericRoutingTable::configureRouterId()
 {
     if (routerId.isUnspecified())  // not yet configured
