@@ -37,7 +37,7 @@ class INET_API IPv4RouteAdapter : public IGenericRoute
         virtual void setPrefixLength(int len) {e->setNetmask(IPv4Address::makeNetmask(len));}
         virtual void setNextHop(const Address& nextHop) {e->setGateway(nextHop.toIPv4());}  //TODO rename IPv4 method
         virtual void setInterface(InterfaceEntry *ie) {e->setInterface(ie);}
-        virtual void setSource(cObject *source) {/*TODO: e->setSource(source);*/}
+        virtual void setSource(cObject *source) { e->setSourceXXX(source); }
         virtual void setMetric(int metric) {e->setMetric(metric);}
 
         virtual bool isEnabled() const {return true; /*TODO: e->isEnabled();*/}
@@ -46,7 +46,7 @@ class INET_API IPv4RouteAdapter : public IGenericRoute
         virtual int getPrefixLength() const {return e->getNetmask().getNetmaskLength();}
         virtual Address getNextHop() const {return e->getGateway();} //TODO rename IPv4 method
         virtual InterfaceEntry *getInterface() const {return e->getInterface();}
-        virtual cObject *getSource() const {return NULL; /*TODO: e->getSource();*/}
+        virtual cObject *getSource() const {return e->getSourceXXX(); }
         virtual int getMetric() const {return e->getMetric();}
         virtual cObject *getProtocolData() const { return e->getProtocolData(); }
         virtual void setProtocolData(cObject *protocolData) { e->setProtocolData(protocolData); }
