@@ -2,12 +2,12 @@
 // This program is property of its copyright holder. All rights reserved.
 //
 
+#include "NotificationBoard.h"
 #include "InterfaceTableAccess.h"
 #include "UDPPacket.h"
+#include "IPProtocolId_m.h"
 #include "Ieee80211Frame_m.h"
-#include "IPv4ControlInfo.h" // TODO: remove
-#include "IPv4InterfaceData.h" // TODO: remove
-#include "IPvXAddressResolver.h" // TODO: remove
+#include "IPvXAddressResolver.h" // TODO: rename
 #include "INetworkProtocolControlInfo.h"
 #include "UDPControlInfo.h"
 #include "xDYMO.h"
@@ -68,6 +68,7 @@ void xDYMO::initialize(int stage) {
         // KLUDGE: simplify this when RoutingTable implements IGenericRoutingTable
         routingTable = check_and_cast<RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
         networkProtocol = check_and_cast<IGenericNetworkProtocol *>(findModuleWhereverInNode(networkProtocolModuleName, this));
+        addressPolicy = getSelfAddress().getAddressPolicy();
         // internal
         expungeTimer = new cMessage("ExpungeTimer");
         notificationBoard->subscribe(this, NF_LINK_BREAK);
@@ -79,9 +80,9 @@ void xDYMO::initialize(int stage) {
             if (slash)
                 *slash = 0;
             // TODO: generalize
-            const IPvXAddress address = addressResolver.resolve(clientAddress, IPvXAddressResolver::ADDR_IPv4);
+            const Address address = addressResolver.resolveXXX(clientAddress);
             int prefixLength = slash ? atoi(slash + 1) : 32;
-            clientAddressAndPrefixLengthPairs.push_back(std::pair<Address, int>(Address(address.get4()), prefixLength));
+            clientAddressAndPrefixLengthPairs.push_back(std::pair<Address, int>(address, prefixLength));
         }
     }
     else if (stage == 4) {
@@ -89,15 +90,11 @@ void xDYMO::initialize(int stage) {
         cPatternMatcher interfaceMatcher(interfaces, false, true, false);
         for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
             InterfaceEntry * interfaceEntry = interfaceTable->getInterface(i);
-            if (interfaceEntry->isMulticast() && interfaceMatcher.matches(interfaceEntry->getName())) {
-                // TODO: generalize
-                IPv4InterfaceData * ipv4InterfaceData = interfaceTable->getInterface(i)->ipv4Data();
-                if (ipv4InterfaceData)
-                   // Most AODVv2 messages are sent with the IP destination address set to the link-local
-                   // multicast address LL-MANET-Routers [RFC5498] unless otherwise specified. Therefore,
-                   // all AODVv2 routers MUST subscribe to LL-MANET-Routers [RFC5498] to receiving AODVv2 messages.
-                   ipv4InterfaceData->joinMulticastGroup(getLinkLocalManetRoutersMulticastAddress().toIPv4());
-            }
+            if (interfaceEntry->isMulticast() && interfaceMatcher.matches(interfaceEntry->getName()))
+                // Most AODVv2 messages are sent with the IP destination address set to the link-local
+                // multicast address LL-MANET-Routers [RFC5498] unless otherwise specified. Therefore,
+                // all AODVv2 routers MUST subscribe to LL-MANET-Routers [RFC5498] to receiving AODVv2 messages.
+                addressPolicy->joinMulticastGroup(interfaceEntry, addressPolicy->getLinkLocalManetRoutersMulticastAddress());
         }
         // hook to network protocol
         networkProtocol->registerHook(0, this);
@@ -338,7 +335,7 @@ void xDYMO::processUDPPacket(UDPPacket * packet) {
 
 void xDYMO::sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const Address & nextHop, double delay) {
     // TODO: generalize networkProtocol->createControlInfo()
-    INetworkProtocolControlInfo * networkProtocolControlInfo = new IPv4ControlInfo();
+    INetworkProtocolControlInfo * networkProtocolControlInfo = addressPolicy->createNetworkProtocolControlInfo();
     // 5.4. AODVv2 Packet Header Fields and Information Elements
     // In addition, IP Protocol Number 138 has been reserved for MANET protocols [RFC5498].
     networkProtocolControlInfo->setProtocol(IP_PROT_MANET);
@@ -570,7 +567,7 @@ void xDYMO::sendRREQ(RREQ * rreq) {
     const Address & originator = rreq->getOriginatorNode().getAddress();
     rreq->setBitLength(computeRREQBitLength(rreq));
     DYMO_EV << "Sending RREQ: originator = " << originator << ", target = " << target << endl;
-    sendDYMOPacket(rreq, NULL, getLinkLocalManetRoutersMulticastAddress(), uniform(0, maxJitter).dbl());
+    sendDYMOPacket(rreq, NULL, addressPolicy->getLinkLocalManetRoutersMulticastAddress(), uniform(0, maxJitter).dbl());
 }
 
 void xDYMO::processRREQ(RREQ * rreqIncoming) {
@@ -676,7 +673,7 @@ void xDYMO::sendRREP(RREP * rrep) {
     const Address & originator = rrep->getOriginatorNode().getAddress();
     rrep->setBitLength(computeRREPBitLength(rrep));
     DYMO_EV << "Sending broadcast RREP: originator = " << originator << ", target = " << target << endl;
-    sendDYMOPacket(rrep, NULL, getLinkLocalManetRoutersMulticastAddress(), 0);
+    sendDYMOPacket(rrep, NULL, addressPolicy->getLinkLocalManetRoutersMulticastAddress(), 0);
 }
 
 void xDYMO::sendRREP(RREP * rrep, IGenericRoute * route) {
@@ -755,7 +752,7 @@ RERR * xDYMO::createRERR(std::vector<Address> & unreachableAddresses) {
 void xDYMO::sendRERR(RERR * rerr) {
     rerr->setBitLength(computeRERRBitLength(rerr));
     DYMO_EV << "Sending RERR: unreachableNodeCount = " << rerr->getUnreachableNodeArraySize() << endl;
-    sendDYMOPacket(rerr, NULL, getLinkLocalManetRoutersMulticastAddress(), 0);
+    sendDYMOPacket(rerr, NULL, addressPolicy->getLinkLocalManetRoutersMulticastAddress(), 0);
 }
 
 void xDYMO::sendRERRForUndeliverablePacket(const Address & destination) {
@@ -861,7 +858,7 @@ void xDYMO::processRERR(RERR * rerrIncoming) {
                     //    UnreachableNode.SeqNum (using signed 16-bit arithmetic).
                     if (unreachableAddress.isUnicast() &&
                         unreachableAddress == route->getDestination() &&
-                        route->getNextHop() == Address(networkProtocolControlInfo->getSourceAddress()) &&
+                        route->getNextHop() == networkProtocolControlInfo->getSourceAddress() &&
                         route->getInterface()->getInterfaceId() == networkProtocolControlInfo->getInterfaceId() &&
                         routeData->getSequenceNumber() <= addressBlock.getSequenceNumber())
                     {
@@ -996,6 +993,7 @@ void xDYMO::updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock) {
                 (routeData->getBroken() && isLoopFree(rteMsg, route)))
             {
                 // it's more recent, or it's not stale and is shorter, or it can safely repair a broken route
+                // TODO: should we simply update the route instead? only if the route change notification is sent exactly once
                 routingTable->removeRoute(route);
                 DYMO_EV << "Updating existing route: " << route << endl;
                 updateRoute(rteMsg, addressBlock, route);
@@ -1028,7 +1026,7 @@ void xDYMO::updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IGenericRo
     routeData->setSequenceNumber(sequenceNumber);
     targetAddressToSequenceNumber[address] = sequenceNumber;
     // Route.NextHopAddress := IP.SourceAddress (i.e., an address of the node from which the RteMsg was received)
-    route->setNextHop(Address(networkProtocolControlInfo->getSourceAddress()));
+    route->setNextHop(networkProtocolControlInfo->getSourceAddress());
     // Route.NextHopInterface is set to the interface on which RteMsg was received
     InterfaceEntry *interfaceEntry = interfaceTable->getInterfaceById(networkProtocolControlInfo->getInterfaceId());
     if (interfaceEntry)
@@ -1214,14 +1212,6 @@ void xDYMO::incrementSequenceNumber() {
     sequenceNumber++;
     if (sequenceNumber == 0)
         sequenceNumber = 1;
-}
-
-//
-// utilities
-//
-
-Address xDYMO::getLinkLocalManetRoutersMulticastAddress() {
-    return IPv4Address::LL_MANET_ROUTERS;
 }
 
 //

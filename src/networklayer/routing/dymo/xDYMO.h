@@ -9,6 +9,7 @@
 #include <map>
 #include <omnetpp.h>
 #include "INotifiable.h"
+#include "IAddressPolicy.h"
 #include "IGenericNetworkProtocol.h"
 #include "IGenericRoutingTable.h"
 #include "DYMOdefs.h"
@@ -65,6 +66,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
 
     // context
     NotificationBoard * notificationBoard;
+    IAddressPolicy * addressPolicy;
     IInterfaceTable * interfaceTable;
     IGenericRoutingTable * routingTable;
     IGenericNetworkProtocol * networkProtocol;
@@ -185,9 +187,6 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
 
     // sequence number
     void incrementSequenceNumber();
-
-    // utilities
-    Address getLinkLocalManetRoutersMulticastAddress();
 
     // generic network protocol
     virtual Result datagramPreRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
