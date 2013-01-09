@@ -34,6 +34,13 @@
 #endif
 
 
+Address IPvXAddressResolver::resolveXXX(const char *str, int addrType)
+{
+    // TODO:
+    IPvXAddress address = resolve(str, addrType);
+    return address.isIPv6() ? Address(address.get6()) : Address(address.get4());
+}
+
 IPvXAddress IPvXAddressResolver::resolve(const char *s, int addrType)
 {
     IPvXAddress addr;

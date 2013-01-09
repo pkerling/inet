@@ -24,6 +24,7 @@
 
 #include "INETDefs.h"
 
+#include "Address.h"
 #include "IPvXAddress.h"
 
 // Forward declarations:
@@ -49,6 +50,7 @@ class NotificationBoard;
  *    - routerId: "router1%routerId", "R1%routerId"
  *    - interface of a host or router toward defined another node: "client1>router"
  */
+// TODO: rename to AddressResolver and generalize to work with all kind of addresses
 class INET_API IPvXAddressResolver
 {
   protected:
@@ -76,6 +78,9 @@ class INET_API IPvXAddressResolver
   public:
     IPvXAddressResolver() {}
     virtual ~IPvXAddressResolver() {}
+
+    // TODO: KLUDGE: rename
+    virtual Address resolveXXX(const char *str, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Accepts dotted decimal notation ("127.0.0.1"), module name of the host
