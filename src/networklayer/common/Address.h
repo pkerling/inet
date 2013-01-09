@@ -24,6 +24,7 @@
 #include "IPv4Address.h"
 #include "IPv6Address.h"
 #include "MACAddress.h"
+#include "ModuleIdAddress.h"
 
 class IAddressPolicy;
 
@@ -37,19 +38,23 @@ class INET_API Address
         IPv4Address ipv4;
         IPv6Address ipv6;
         MACAddress mac;
+        ModuleIdAddress moduleId;
     public:
         Address() {}
         Address(const IPv4Address& addr) {set(addr);}
         Address(const IPv6Address& addr) {set(addr);}
         Address(const MACAddress& addr) {set(addr);}
+        Address(const ModuleIdAddress& addr) {set(addr);}
 
         void set(const IPv4Address& addr) {ipv4 = addr;}
         void set(const IPv6Address& addr) {ipv6 = addr;}
         void set(const MACAddress& addr) {mac = addr;}
+        void set(const ModuleIdAddress& addr) {moduleId = addr;}
 
         IPv4Address toIPv4() const {return ipv4;}   //XXX names are inconsistent with IPvXAddress (rename IPvXAddress methods?)
         IPv6Address toIPv6() const {return ipv6;}
-        MACAddress toMAC() const {return mac;};  // IEU-48
+        MACAddress toMAC() const {return mac;}  // IEU-48
+        ModuleIdAddress toModuleId() const {return moduleId;}
 
         //TODO add more functions: getType(), prefix matching, etc
         IAddressPolicy * getAddressPolicy() const;
