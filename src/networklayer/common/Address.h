@@ -33,23 +33,31 @@ class IAddressPolicy;
  */
 class INET_API Address
 {
+    public:
+        enum AddressType {
+            IPV4,
+            IPV6,
+            MAC,
+            MODULEID
+        };
     private:
+        AddressType type;
         //XXX this is a simplistic temporary implementation; TODO implement in 128 bits, using magic (use a reserved IPv6 range to store non-IPv6 addresses)
         IPv4Address ipv4;
         IPv6Address ipv6;
         MACAddress mac;
         ModuleIdAddress moduleId;
     public:
-        Address() {}
+        Address() : type(IPV4) {}
         Address(const IPv4Address& addr) {set(addr);}
         Address(const IPv6Address& addr) {set(addr);}
         Address(const MACAddress& addr) {set(addr);}
         Address(const ModuleIdAddress& addr) {set(addr);}
 
-        void set(const IPv4Address& addr) {ipv4 = addr;}
-        void set(const IPv6Address& addr) {ipv6 = addr;}
-        void set(const MACAddress& addr) {mac = addr;}
-        void set(const ModuleIdAddress& addr) {moduleId = addr;}
+        void set(const IPv4Address& addr) { type = IPV4; ipv4 = addr; }
+        void set(const IPv6Address& addr) { type = IPV6; ipv6 = addr; }
+        void set(const MACAddress& addr) { type = MAC; mac = addr; }
+        void set(const ModuleIdAddress& addr) { type = MODULEID;  moduleId = addr; }
 
         IPv4Address toIPv4() const {return ipv4;}   //XXX names are inconsistent with IPvXAddress (rename IPvXAddress methods?)
         IPv6Address toIPv6() const {return ipv6;}
@@ -57,15 +65,16 @@ class INET_API Address
         ModuleIdAddress toModuleId() const {return moduleId;}
 
         //TODO add more functions: getType(), prefix matching, etc
+        AddressType getType() const { return type; }
         IAddressPolicy * getAddressPolicy() const;
         int getPrefixLength() const { return 32; } //FIXME not good, remove!!!!!! IT DOES NOT DO WHAT YOU EXPECT
-        bool isUnspecified() const { return ipv4.isUnspecified(); }
-        bool isUnicast() const { return !ipv4.isMulticast() && !ipv4.isLimitedBroadcastAddress(); }
-        bool isMulticast() const { return ipv4.isMulticast(); }
-        bool isBroadcast() const { return ipv4.isLimitedBroadcastAddress(); }
-        bool operator<(const Address& address) const { return ipv4 < address.ipv4; }
-        bool operator==(const Address& address) const { return ipv4 == address.ipv4; }
-        bool operator!=(const Address& address) const { return ipv4 != address.ipv4; }
+        bool isUnspecified() const;
+        bool isUnicast() const;
+        bool isMulticast() const;
+        bool isBroadcast() const;
+        bool operator<(const Address& address) const;
+        bool operator==(const Address& address) const;
+        bool operator!=(const Address& address) const;
 
         bool matches(const Address& other, int prefixLength) const;
 
@@ -74,12 +83,18 @@ class INET_API Address
 
 inline std::ostream& operator<<(std::ostream& os, const Address& address)
 {
-    return os << address.toIPv4().str();
-}
-
-inline bool Address::matches(const Address& other, int prefixLength) const
-{
-    return IPv4Address::maskedAddrAreEqual(ipv4, other.ipv4, IPv4Address::makeNetmask(prefixLength)); //FIXME !!!!!
+    switch (address.getType()) {
+        case Address::IPV4:
+            return os << address.toIPv4().str();
+        case Address::IPV6:
+            return os << address.toIPv6().str();
+        case Address::MAC:
+            return os << address.toMAC().str();
+        case Address::MODULEID:
+            return os << address.toModuleId().str();
+        default:
+            throw cRuntimeError("Unknown type");
+    }
 }
 
 #endif

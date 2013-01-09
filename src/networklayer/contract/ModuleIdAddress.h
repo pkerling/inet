@@ -18,6 +18,9 @@
 #ifndef __INET_MODULEIDADDRESS_H
 #define __INET_MODULEIDADDRESS_H
 
+#include <string>
+#include <iostream>
+
 #include "INETDefs.h"
 
 class INET_API ModuleIdAddress
@@ -27,6 +30,34 @@ class INET_API ModuleIdAddress
     public:
         ModuleIdAddress() : id(0) { }
         ModuleIdAddress(int id) : id(id) { }
+
+        bool tryParse(const char *addr);
+
+        bool isUnspecified() const { return id == 0; }
+        bool isUnicast() const { return id > 0; }
+        bool isMulticast() const { return id < -1; }
+        bool isBroadcast() const { return id == -1; }
+
+        /**
+         * Returns equals(addr).
+         */
+        bool operator==(const ModuleIdAddress& addr1) const { return id == addr1.id; }
+
+        /**
+         * Returns !equals(addr).
+         */
+        bool operator!=(const ModuleIdAddress& addr1) const { return id != addr1.id; }
+
+        /**
+         * Compares two addresses.
+         */
+        bool operator<(const ModuleIdAddress& addr1) const { return id < addr1.id; }
+        bool operator<=(const ModuleIdAddress& addr1) const { return id <= addr1.id; }
+        bool operator>(const ModuleIdAddress& addr1) const { return id > addr1.id; }
+        bool operator>=(const ModuleIdAddress& addr1) const { return id >= addr1.id; }
+        static bool maskedAddrAreEqual(const ModuleIdAddress& addr1, const ModuleIdAddress& addr2, int prefixLength) { return addr1.id == addr2.id; }
+
+        std::string str() const { std::stringstream s; s << id; return s.str(); }
 };
 
 #endif

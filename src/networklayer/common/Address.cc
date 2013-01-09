@@ -21,3 +21,99 @@
 IAddressPolicy * Address::getAddressPolicy() const {
     return &IPv4AddressPolicy::INSTANCE;
 }
+
+bool Address::isUnspecified() const
+{
+    switch (type) {
+        case Address::IPV4:
+            return ipv4.isUnspecified();
+        case Address::MODULEID:
+            return moduleId.isUnspecified();
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::isUnicast() const
+{
+    switch (type) {
+        case Address::IPV4:
+            return !ipv4.isMulticast() && !ipv4.isLimitedBroadcastAddress();
+        case Address::MODULEID:
+            return moduleId.isUnicast();
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::isMulticast() const
+{
+    switch (type) {
+        case Address::IPV4:
+            return ipv4.isMulticast();
+        case Address::MODULEID:
+            return moduleId.isMulticast();
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::isBroadcast() const
+{
+    switch (type) {
+        case Address::IPV4:
+            return ipv4.isLimitedBroadcastAddress();
+        case Address::MODULEID:
+            return moduleId.isBroadcast();
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::operator<(const Address& address) const
+{
+    switch (type) {
+        case Address::IPV4:
+            return ipv4 < address.ipv4;
+        case Address::MODULEID:
+            return moduleId < address.moduleId;
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::operator==(const Address& address) const
+{
+    switch (type) {
+        case Address::IPV4:
+            return ipv4 == address.ipv4;
+        case Address::MODULEID:
+            return moduleId == address.moduleId;
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::operator!=(const Address& address) const
+{
+    switch (type) {
+        case Address::IPV4:
+            return ipv4 != address.ipv4;
+        case Address::MODULEID:
+            return moduleId != address.moduleId;
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
+
+bool Address::matches(const Address& other, int prefixLength) const
+{
+    switch (type) {
+        case Address::IPV4:
+            return IPv4Address::maskedAddrAreEqual(ipv4, other.ipv4, IPv4Address::makeNetmask(prefixLength)); //FIXME !!!!!
+        case Address::MODULEID:
+            return ModuleIdAddress::maskedAddrAreEqual(moduleId, other.moduleId, prefixLength);
+        default:
+            throw cRuntimeError("Unknown type");
+    }
+}
