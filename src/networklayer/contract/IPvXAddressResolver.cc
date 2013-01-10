@@ -22,6 +22,8 @@
 #include "IPvXAddressResolver.h"
 #include "IInterfaceTable.h"
 #include "NotificationBoard.h"
+#include "ModuleIdAddress.h"
+#include "ModulePathAddress.h"
 
 #ifdef WITH_IPv4
 #include "IRoutingTable.h"
@@ -33,21 +35,26 @@
 #include "RoutingTable6.h"
 #endif
 
-
-Address IPvXAddressResolver::resolveXXX(const char *str, int addrType)
+Address IPvXAddressResolver::resolveXXX(const char *s, int addrType)
 {
-    // TODO:
-    IPvXAddress address = resolve(str, addrType);
-    return address.isIPv6() ? Address(address.get6()) : Address(address.get4());
+    Address addr;
+    if (!tryResolve(s, addr, addrType))
+        throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
+    return addr;
 }
 
 IPvXAddress IPvXAddressResolver::resolve(const char *s, int addrType)
 {
-    IPvXAddress addr;
+    Address addr;
     if (!tryResolve(s, addr, addrType))
         throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
 
-    return addr;
+    if (addr.getType() == Address::IPv4)
+        return IPvXAddress(addr.toIPv4());
+    else if (addr.getType() == Address::IPv6)
+        return IPvXAddress(addr.toIPv6());
+    else
+        throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
 }
 
 std::vector<IPvXAddress> IPvXAddressResolver::resolve(std::vector<std::string> strs, int addrType)
@@ -60,10 +67,10 @@ std::vector<IPvXAddress> IPvXAddressResolver::resolve(std::vector<std::string> s
     return result;
 }
 
-bool IPvXAddressResolver::tryResolve(const char *s, IPvXAddress& result, int addrType)
+bool IPvXAddressResolver::tryResolve(const char *s, Address& result, int addrType)
 {
     // empty address
-    result = IPvXAddress();
+    result = Address();
     if (!s || !*s)
         return true;
 
@@ -151,29 +158,29 @@ bool IPvXAddressResolver::tryResolve(const char *s, IPvXAddress& result, int add
     else if (ifname.empty())
         result = addressOf(mod, addrType);
     else if (ifname == "routerId")
-        result = IPvXAddress(routerIdOf(mod)); // addrType is meaningless here, routerId is protocol independent
+        result = routerIdOf(mod); // addrType is meaningless here, routerId is protocol independent
     else
         result = addressOf(mod, ifname.c_str(), addrType);
     return !result.isUnspecified();
 }
 
-IPv4Address IPvXAddressResolver::routerIdOf(cModule *host)
+Address IPvXAddressResolver::routerIdOf(cModule *host)
 {
 #ifdef WITH_IPv4
     IRoutingTable *rt = routingTableOf(host);
-    return rt->getRouterId();
+    return Address(rt->getRouterId());
 #else
     throw cRuntimeError("INET was compiled without IPv4 support");
 #endif
 }
 
-IPvXAddress IPvXAddressResolver::addressOf(cModule *host, int addrType)
+Address IPvXAddressResolver::addressOf(cModule *host, int addrType)
 {
     IInterfaceTable *ift = interfaceTableOf(host);
     return getAddressFrom(ift, addrType);
 }
 
-IPvXAddress IPvXAddressResolver::addressOf(cModule *host, const char *ifname, int addrType)
+Address IPvXAddressResolver::addressOf(cModule *host, const char *ifname, int addrType)
 {
     IInterfaceTable *ift = interfaceTableOf(host);
     InterfaceEntry *ie = ift->getInterfaceByName(ifname);
@@ -183,7 +190,7 @@ IPvXAddress IPvXAddressResolver::addressOf(cModule *host, const char *ifname, in
     throw cRuntimeError("IPvXAddressResolver: no interface called `%s' in interface table of `%s'", ifname, host->getFullPath().c_str());
 }
 
-IPvXAddress IPvXAddressResolver::addressOf(cModule *host, cModule *destmod, int addrType)
+Address IPvXAddressResolver::addressOf(cModule *host, cModule *destmod, int addrType)
 {
     IInterfaceTable *ift = interfaceTableOf(host);
     for (int i=0; i < ift->getNumInterfaces(); i++)
@@ -200,9 +207,9 @@ IPvXAddress IPvXAddressResolver::addressOf(cModule *host, cModule *destmod, int 
     throw cRuntimeError("IPvXAddressResolver: no interface connected to `%s' module in interface table of `%s'", destmod->getFullPath().c_str(), host->getFullPath().c_str());
 }
 
-IPvXAddress IPvXAddressResolver::getAddressFrom(IInterfaceTable *ift, int addrType)
+Address IPvXAddressResolver::getAddressFrom(IInterfaceTable *ift, int addrType)
 {
-    IPvXAddress ret;
+    Address ret;
     bool netmask = addrType & ADDR_MASK;
 
     if (addrType & ADDR_IPv6)
@@ -231,9 +238,9 @@ IPvXAddress IPvXAddressResolver::getAddressFrom(IInterfaceTable *ift, int addrTy
     return ret;
 }
 
-IPvXAddress IPvXAddressResolver::getAddressFrom(InterfaceEntry *ie, int addrType)
+Address IPvXAddressResolver::getAddressFrom(InterfaceEntry *ie, int addrType)
 {
-    IPvXAddress ret;
+    Address ret;
     bool mask = addrType & ADDR_MASK;
 
     if (addrType & ADDR_IPv6)
@@ -256,7 +263,7 @@ IPvXAddress IPvXAddressResolver::getAddressFrom(InterfaceEntry *ie, int addrType
     return ret;
 }
 
-bool IPvXAddressResolver::getIPv4AddressFrom(IPvXAddress& retAddr, IInterfaceTable *ift, bool netmask)
+bool IPvXAddressResolver::getIPv4AddressFrom(Address& retAddr, IInterfaceTable *ift, bool netmask)
 {
     if (ift->getNumInterfaces()==0)
         throw cRuntimeError("IPvXAddressResolver: interface table `%s' has no interface registered "
@@ -276,7 +283,7 @@ bool IPvXAddressResolver::getIPv4AddressFrom(IPvXAddress& retAddr, IInterfaceTab
     return false;
 }
 
-bool IPvXAddressResolver::getIPv6AddressFrom(IPvXAddress& retAddr, IInterfaceTable *ift, bool netmask)
+bool IPvXAddressResolver::getIPv6AddressFrom(Address& retAddr, IInterfaceTable *ift, bool netmask)
 {
     // browse interfaces and pick a globally routable address
     if (ift->getNumInterfaces()==0)
@@ -306,7 +313,7 @@ bool IPvXAddressResolver::getIPv6AddressFrom(IPvXAddress& retAddr, IInterfaceTab
 #endif
 }
 
-bool IPvXAddressResolver::getInterfaceIPv6Address(IPvXAddress &ret, InterfaceEntry *ie, bool netmask)
+bool IPvXAddressResolver::getInterfaceIPv6Address(Address &ret, InterfaceEntry *ie, bool netmask)
 {
 #ifdef WITH_IPv6
     if (netmask)
@@ -316,7 +323,7 @@ bool IPvXAddressResolver::getInterfaceIPv6Address(IPvXAddress &ret, InterfaceEnt
         IPv6Address addr = ie->ipv6Data()->getPreferredAddress();
         if (!addr.isUnspecified())
         {
-            ret = addr;
+            ret.set(addr);
             return true;
         }
     }
@@ -324,7 +331,7 @@ bool IPvXAddressResolver::getInterfaceIPv6Address(IPvXAddress &ret, InterfaceEnt
     return false;
 }
 
-bool IPvXAddressResolver::getInterfaceIPv4Address(IPvXAddress &ret, InterfaceEntry *ie, bool netmask)
+bool IPvXAddressResolver::getInterfaceIPv4Address(Address &ret, InterfaceEntry *ie, bool netmask)
 {
 #ifdef WITH_IPv4
     if (ie->ipv4Data())
@@ -332,7 +339,7 @@ bool IPvXAddressResolver::getInterfaceIPv4Address(IPvXAddress &ret, InterfaceEnt
         IPv4Address addr = ie->ipv4Data()->getIPAddress();
         if (!addr.isUnspecified())
         {
-            ret = netmask ? ie->ipv4Data()->getNetmask() : addr;
+            ret.set(netmask ? ie->ipv4Data()->getNetmask() : addr);
             return true;
         }
     }

@@ -55,20 +55,22 @@ class INET_API IPvXAddressResolver
 {
   protected:
     // internal
-    virtual bool getIPv4AddressFrom(IPvXAddress &retAddr, IInterfaceTable *ift, bool netmask);
+    virtual bool getIPv4AddressFrom(Address &retAddr, IInterfaceTable *ift, bool netmask);
     // internal
-    virtual bool getIPv6AddressFrom(IPvXAddress &retAddr, IInterfaceTable *ift, bool netmask);
+    virtual bool getIPv6AddressFrom(Address &retAddr, IInterfaceTable *ift, bool netmask);
     // internal
-    virtual bool getInterfaceIPv4Address(IPvXAddress &ret, InterfaceEntry *ie, bool mask);
+    virtual bool getInterfaceIPv4Address(Address &ret, InterfaceEntry *ie, bool mask);
     // internal
-    virtual bool getInterfaceIPv6Address(IPvXAddress &ret, InterfaceEntry *ie, bool mask);
+    virtual bool getInterfaceIPv6Address(Address &ret, InterfaceEntry *ie, bool mask);
 
   public:
     enum {
         ADDR_IPv4 = 1,
         ADDR_IPv6 = 2,
-        ADDR_PREFER = 4,
-        ADDR_MASK = 8
+        ADDR_MODULEID = 4,
+        ADDR_MODULEPATH = 8,
+        ADDR_PREFER = 16,
+        ADDR_MASK = 32
     };
     enum {
         ADDR_PREFER_IPv4 = ADDR_IPv4 | ADDR_PREFER,
@@ -104,7 +106,7 @@ class INET_API IPvXAddressResolver
      * doesn't have an address assigned yet. (It still throws an error
      * on any other error condition).
      */
-    virtual bool tryResolve(const char *str, IPvXAddress& result, int addrType = ADDR_PREFER_IPv6);
+    virtual bool tryResolve(const char *str, Address& result, int addrType = ADDR_PREFER_IPv6);
 
     /** @name Utility functions supporting resolve() */
     //@{
@@ -114,12 +116,12 @@ class INET_API IPvXAddressResolver
      * This function uses routingTableOf() to find the IRoutingTable module,
      * then invokes getAddressFrom() to extract the IP address.
      */
-    virtual IPvXAddress addressOf(cModule *host, int addrType = ADDR_PREFER_IPv6);
+    virtual Address addressOf(cModule *host, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Similar to addressOf(), but only looks at the given interface
      */
-    virtual IPvXAddress addressOf(cModule *host, const char *ifname, int addrType = ADDR_PREFER_IPv6);
+    virtual Address addressOf(cModule *host, const char *ifname, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Returns IPv4 or IPv6 address of the given host or router.
@@ -127,24 +129,24 @@ class INET_API IPvXAddressResolver
      * This function find an interface of host connected to destmod
      * then invokes getAddressFrom() to extract the IP address.
      */
-    virtual IPvXAddress addressOf(cModule *host, cModule *destmod, int addrType = ADDR_PREFER_IPv6);
+    virtual Address addressOf(cModule *host, cModule *destmod, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Returns the router Id of the given router. Router Id is obtained from
      * the getRouterId() method of the IRoutingTable submodule.
      */
-    virtual IPv4Address routerIdOf(cModule *host);
+    virtual Address routerIdOf(cModule *host);
 
     /**
      * Returns the IPv4 or IPv6 address of the given host or router, given its IInterfaceTable
      * module. For IPv4, the first usable interface address is chosen.
      */
-    virtual IPvXAddress getAddressFrom(IInterfaceTable *ift, int addrType = ADDR_PREFER_IPv6);
+    virtual Address getAddressFrom(IInterfaceTable *ift, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Returns the IPv4 or IPv6 address of the given interface (of a host or router).
      */
-    virtual IPvXAddress getAddressFrom(InterfaceEntry *ie, int addrType = ADDR_PREFER_IPv6);
+    virtual Address getAddressFrom(InterfaceEntry *ie, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * The function tries to look up the IInterfaceTable module as submodule
