@@ -22,9 +22,7 @@
 
 #include "IPvXAddressResolver.h"
 #include "PingPayload_m.h"
-#include "IPv4ControlInfo.h"
-#include "IPv6ControlInfo.h"
-
+#include "IAddressPolicy.h"
 
 using std::cout;
 
@@ -91,8 +89,8 @@ void PingApp::handleMessage(cMessage *msg)
         // on first call we need to initialize
         if (sendSeqNo == 0)
         {
-            srcAddr = IPvXAddressResolver().resolve(par("srcAddr"));
-            destAddr = IPvXAddressResolver().resolve(par("destAddr"));
+            srcAddr = IPvXAddressResolver().resolveXXX(par("srcAddr"));
+            destAddr = IPvXAddressResolver().resolveXXX(par("destAddr"));
             ASSERT(!destAddr.isUnspecified());
 
             EV << "Starting up: dest=" << destAddr << "  src=" << srcAddr << "\n";
@@ -141,52 +139,28 @@ void PingApp::scheduleNextPing(cMessage *timer)
         delete timer;
 }
 
-void PingApp::sendToICMP(cMessage *msg, const IPvXAddress& destAddr, const IPvXAddress& srcAddr, int hopLimit)
+void PingApp::sendToICMP(cMessage *msg, const Address& destAddr, const Address& srcAddr, int hopLimit)
 {
-    if (!destAddr.isIPv6())
-    {
-        // send to IPv4
-        IPv4ControlInfo *ctrl = new IPv4ControlInfo();
-        ctrl->setSrcAddr(srcAddr.get4());
-        ctrl->setDestAddr(destAddr.get4());
-        ctrl->setTimeToLive(hopLimit);
-        msg->setControlInfo(ctrl);
-        send(msg, "pingOut");
-    }
-    else
-    {
-        // send to IPv6
-        IPv6ControlInfo *ctrl = new IPv6ControlInfo();
-        ctrl->setSrcAddr(srcAddr.get6());
-        ctrl->setDestAddr(destAddr.get6());
-        ctrl->setHopLimit(hopLimit);
-        msg->setControlInfo(ctrl);
-        send(msg, "pingv6Out");
-    }
+    IAddressPolicy * addressPolicy = destAddr.getAddressPolicy();
+    INetworkProtocolControlInfo * controlInfo = addressPolicy->createNetworkProtocolControlInfo();
+    controlInfo->setSourceAddress(srcAddr);
+    controlInfo->setDestinationAddress(destAddr);
+    controlInfo->setHopLimit(hopLimit);
+    // TODO: remove
+    controlInfo->setProtocol(1); // IP_PROT_ICMP);
+    msg->setControlInfo(dynamic_cast<cObject *>(controlInfo));
+    send(msg, "pingOut");
 }
 
 void PingApp::processPingResponse(PingPayload *msg)
 {
     // get src, hopCount etc from packet, and print them
-    IPvXAddress src, dest;
-    int msgHopCount = -1;
-
     ASSERT(msg->getOriginatorId() == getId());  // ICMP module error
 
-    if (dynamic_cast<IPv4ControlInfo *>(msg->getControlInfo()) != NULL)
-    {
-        IPv4ControlInfo *ctrl = (IPv4ControlInfo *)msg->getControlInfo();
-        src = ctrl->getSrcAddr();
-        dest = ctrl->getDestAddr();
-        msgHopCount = ctrl->getTimeToLive();
-    }
-    else if (dynamic_cast<IPv6ControlInfo *>(msg->getControlInfo()) != NULL)
-    {
-        IPv6ControlInfo *ctrl = (IPv6ControlInfo *)msg->getControlInfo();
-        src = ctrl->getSrcAddr();
-        dest = ctrl->getDestAddr();
-        msgHopCount = ctrl->getHopLimit();
-    }
+    INetworkProtocolControlInfo *ctrl = check_and_cast<INetworkProtocolControlInfo *>(msg->getControlInfo());
+    Address src = ctrl->getSourceAddress();
+    Address dest = ctrl->getDestinationAddress();
+    int msgHopLimit = ctrl->getHopLimit();
 
     // calculate the RTT time by looking up the the send time of the packet
     // if the send time is no longer available (i.e. the packet is very old and the
@@ -199,7 +173,7 @@ void PingApp::processPingResponse(PingPayload *msg)
     {
         cout << getFullPath() << ": reply of " << std::dec << msg->getByteLength()
              << " bytes from " << src
-             << " icmp_seq=" << msg->getSeqNo() << " ttl=" << msgHopCount
+             << " icmp_seq=" << msg->getSeqNo() << " ttl=" << msgHopLimit
              << " time=" << (rtt * 1000) << " msec"
              << " (" << msg->getName() << ")" << endl;
     }

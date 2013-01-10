@@ -18,7 +18,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 
 class PingPayload;
 
@@ -42,14 +42,14 @@ class INET_API PingApp : public cSimpleModule
   protected:
     virtual void sendPing();
     virtual void scheduleNextPing(cMessage *timer);
-    virtual void sendToICMP(cMessage *payload, const IPvXAddress& destAddr, const IPvXAddress& srcAddr, int hopLimit);
+    virtual void sendToICMP(cMessage *payload, const Address& destAddr, const Address& srcAddr, int hopLimit);
     virtual void processPingResponse(PingPayload *msg);
     virtual void countPingResponse(int bytes, long seqNo, simtime_t rtt);
 
   protected:
     // configuration
-    IPvXAddress destAddr;
-    IPvXAddress srcAddr;
+    Address destAddr;
+    Address srcAddr;
     int packetSize;
     cPar *sendIntervalp;
     int hopLimit;
