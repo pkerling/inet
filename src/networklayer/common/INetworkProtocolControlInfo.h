@@ -25,9 +25,9 @@ class INET_API INetworkProtocolControlInfo {
     virtual ~INetworkProtocolControlInfo() { }
     virtual short getProtocol() const = 0;
     virtual void setProtocol(short protocol) = 0;
-    virtual const Address getSourceAddress() const = 0;
+    virtual Address getSourceAddress() const = 0;
     virtual void setSourceAddress(const Address & address) = 0;
-    virtual const Address getDestinationAddress() const = 0;
+    virtual Address getDestinationAddress() const = 0;
     virtual void setDestinationAddress(const Address & address) = 0;
     virtual int getInterfaceId() const = 0;
     virtual void setInterfaceId(int interfaceId) = 0;

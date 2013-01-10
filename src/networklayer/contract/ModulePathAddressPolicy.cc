@@ -15,4 +15,6 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "GenericNetworkProtocolControlInfo.h"
+#include "ModulePathAddressPolicy.h"
+
+ModulePathAddressPolicy ModulePathAddressPolicy::INSTANCE;

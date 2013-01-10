@@ -15,22 +15,24 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-class noncobject Address;
-enum IPProtocolId;
-
 cplusplus {{
-#include "Address.h"
-#include "IPProtocolId_m.h"
+#include "INETDefs.h"
 }}
 
 //
-// Represents a generic datagram.
+// TODO
 //
-packet GenericDatagram
+enum SCMPType
 {
-    @customize(true);
-    Address sourceAddress @getter(_getSrcAddr);
-    Address destinationAddress @getter(_getDestAddr);
-    int transportProtocol enum(IPProtocolId) = IP_PROT_NONE;
-    short hopLimit;
+    SCMP_ECHO_REQUEST = 128;
+    SCMP_ECHO_REPLY = 129;
+}
+
+//
+// Simple Control Message Protocol
+// TODO
+//
+packet SCMPPacket
+{
+    int type enum(SCMPType);
 }

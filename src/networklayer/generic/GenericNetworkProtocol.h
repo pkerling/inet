@@ -19,19 +19,45 @@
 #ifndef __INET_GENERICNETWORKPROTOCOL_H
 #define __INET_GENERICNETWORKPROTOCOL_H
 
+#include <list>
+#include <map>
+
 #include "QueueBase.h"
 #include "InterfaceTableAccess.h"
+#include "IGenericNetworkProtocol.h"
 #include "GenericRoutingTable.h"
-#include "GenericControlInfo_m.h"
+#include "GenericNetworkProtocolControlInfo.h"
 #include "GenericDatagram.h"
 #include "ProtocolMap.h"
 
 /**
  * Implements a simple network protocol.
  */
-class INET_API GenericNetworkProtocol : public QueueBase
+class INET_API GenericNetworkProtocol : public QueueBase, public IGenericNetworkProtocol
 {
   protected:
+    /**
+     * Represents an GenericDatagram, queued by a Hook
+     */
+    struct QueuedDatagramForHook {
+      public:
+        enum HookType {
+          PREROUTING,
+          LOCALIN,
+          FORWARD,
+          POSTROUTING,
+          LOCALOUT
+        };
+
+        QueuedDatagramForHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, HookType hookType) : datagram(datagram), inIE(inIE), outIE(outIE), hookType(hookType) {}
+        virtual ~QueuedDatagramForHook() {}
+
+        GenericDatagram* datagram;
+        InterfaceEntry* inIE;
+        InterfaceEntry* outIE;
+        const HookType hookType;
+    };
+
     GenericRoutingTable *rt;  //TODO change to IGenericRoutingTable?
     IInterfaceTable *ift;
     cGate *queueOutGate;
@@ -41,6 +67,10 @@ class INET_API GenericNetworkProtocol : public QueueBase
 
     // working vars
     ProtocolMapping mapping; // where to send packets after decapsulation
+
+    // hooks
+    std::multimap<int, IHook*> hooks;
+    std::list<QueuedDatagramForHook> queuedDatagramsForHooks;
 
     // statistics
     int numLocalDeliver;
@@ -66,7 +96,7 @@ class INET_API GenericNetworkProtocol : public QueueBase
      * the given control info. Override if you subclassed controlInfo and/or
      * want to add options etc to the datagram.
      */
-    virtual GenericDatagram *encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE, GenericControlInfo *controlInfo);
+    virtual GenericDatagram *encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE, GenericNetworkProtocolControlInfo *controlInfo);
 
     /**
      * Creates a blank Generic datagram. Override when subclassing GenericDatagram is needed
@@ -105,7 +135,7 @@ class INET_API GenericNetworkProtocol : public QueueBase
     virtual void reassembleAndDeliver(GenericDatagram *datagram);
 
     /**
-     * Decapsulate and return encapsulated packet after attaching GenericControlInfo.
+     * Decapsulate and return encapsulated packet after attaching GenericNetworkProtocolControlInfo.
      */
     virtual cPacket *decapsulateGeneric(GenericDatagram *datagram);
 
@@ -120,8 +150,20 @@ class INET_API GenericNetworkProtocol : public QueueBase
      */
     virtual void sendDatagramToOutput(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr);
 
+    virtual void datagramLocalOut(GenericDatagram* datagram, InterfaceEntry* destIE);
+
+    virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE);
+    virtual IHook::Result datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE);
+    virtual IHook::Result datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE);
+
   public:
     GenericNetworkProtocol() {}
+
+    virtual void registerHook(int priority, IHook * hook);
+    virtual void unregisterHook(int priority, IHook * hook);
+    virtual void reinjectDatagram(const IGenericDatagram * datagram, IHook::Result verdict);
 
   protected:
     /**

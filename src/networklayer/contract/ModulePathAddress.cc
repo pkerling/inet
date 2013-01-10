@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2004, 2009 Andras Varga
+// Copyright (C) 2012 Opensim Ltd.
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License
@@ -15,22 +15,20 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-class noncobject Address;
-enum IPProtocolId;
+#include "ModulePathAddress.h"
 
-cplusplus {{
-#include "Address.h"
-#include "IPProtocolId_m.h"
-}}
+bool ModulePathAddress::tryParse(const char *addr) {
+    cModule * module = simulation.getSystemModule()->getModuleByRelativePath(addr);
+    if (module) {
+        id = module->getId();
+        return true;
+    }
+    else
+        return false;
+}
 
-//
-// Represents a generic datagram.
-//
-packet GenericDatagram
-{
-    @customize(true);
-    Address sourceAddress @getter(_getSrcAddr);
-    Address destinationAddress @getter(_getDestAddr);
-    int transportProtocol enum(IPProtocolId) = IP_PROT_NONE;
-    short hopLimit;
+std::string ModulePathAddress::str() const {
+    cModule * module = simulation.getModule(id);
+    std::string fullPath = module->getFullPath();
+    return strchr(fullPath.c_str(), '.') + 1;
 }

@@ -147,6 +147,11 @@ void GenericRoutingTable::configureRouterId()
 void GenericRoutingTable::configureInterface(InterfaceEntry *ie)
 {
     GenericNetworkProtocolInterfaceData *d = new GenericNetworkProtocolInterfaceData();
+    if (ie->getInterfaceModule())
+        // TODO: which one and why? should we store all so that we can use each one of  them
+        //d->setAddress(ie->getMacAddress());
+        //d->setAddress(ModuleIdAddress(ie->getInterfaceModule()->getParentModule()->getId()));
+        d->setAddress(ModulePathAddress(ie->getInterfaceModule()->getParentModule()->getId()));
     ie->setGenericNetworkProtocolData(d);
 
     // metric: some hints: OSPF cost (2e9/bps value), MS KB article Q299540, ...
@@ -278,7 +283,7 @@ Address GenericRoutingTable::getNextHopForDestination(const Address& dest) const
 
 bool GenericRoutingTable::isLocalMulticastAddress(const Address& dest) const
 {
-    return false; //TODO
+    return dest.isMulticast(); //TODO
 }
 
 IGenericMulticastRoute* GenericRoutingTable::findBestMatchingMulticastRoute(const Address& origin, const Address& group) const

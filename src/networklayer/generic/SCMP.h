@@ -15,22 +15,33 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-class noncobject Address;
-enum IPProtocolId;
+#ifndef __INET_SCMP_H
+#define __INET_SCMP_H
 
-cplusplus {{
+#include "INETDefs.h"
 #include "Address.h"
-#include "IPProtocolId_m.h"
-}}
+#include "SCMPPacket_m.h"
 
-//
-// Represents a generic datagram.
-//
-packet GenericDatagram
+class PingPayload;
+
+/**
+ * Simple Control Message Protocol
+ * TODO
+ */
+class INET_API SCMP : public cSimpleModule
 {
-    @customize(true);
-    Address sourceAddress @getter(_getSrcAddr);
-    Address destinationAddress @getter(_getDestAddr);
-    int transportProtocol enum(IPProtocolId) = IP_PROT_NONE;
-    short hopLimit;
-}
+  protected:
+    typedef std::map<long,int> PingMap;
+    PingMap pingMap;
+
+  protected:
+    virtual void processPacket(SCMPPacket * packet);
+    virtual void processEchoRequest(SCMPPacket * packet);
+    virtual void processEchoReply(SCMPPacket * packet);
+    virtual void sendEchoRequest(PingPayload * packet);
+
+  protected:
+    virtual void handleMessage(cMessage *msg);
+};
+
+#endif

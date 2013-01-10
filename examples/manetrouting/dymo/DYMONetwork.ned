@@ -2,12 +2,14 @@
 // This program is property of its copyright holder. All rights reserved.
 // 
 
-package inet.networklayer.routing.dymo;
+package inet.examples.manetrouting.dymo;
 
 import inet.networklayer.autorouting.ipv4.IPv4NetworkConfigurator;
 import inet.networklayer.ipv4.RoutingTableRecorder;
+import inet.networklayer.routing.dymo.xDYMO;
 import inet.nodes.inet.WirelessHost;
 import inet.world.radio.ChannelControl;
+
 
 //
 // TODO

@@ -59,10 +59,11 @@ cplusplus {{
 // ~IPv4 also puts the original datagram object into the control info, because
 // it may be needed by higher layers (for example, by ~ICMP for error reporting).
 //
-class GenericControlInfo  //TODO rename!!!!
+class GenericNetworkProtocolControlInfo  //TODO rename!!!!
 {
-    Address destinationAddress;   // destination address
-    Address sourceAddress;    // source address
+    @customize(true);
+    Address destinationAddress @getter(_getDestinationAddress);   // destination address
+    Address sourceAddress @getter(_getSourceAddress);    // source address
     int interfaceId = -1; // interface on which the datagram was received, or
                           // should be sent (see ~InterfaceTable)
     short protocol enum(IPProtocolId);  // encapsulated protocol

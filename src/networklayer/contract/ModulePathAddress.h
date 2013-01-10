@@ -15,21 +15,24 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_MODULEIDADDRESS_H
-#define __INET_MODULEIDADDRESS_H
+#ifndef __INET_MODULEPATHADDRESS_H
+#define __INET_MODULEPATHADDRESS_H
 
 #include <string>
 #include <iostream>
 
 #include "INETDefs.h"
 
-class INET_API ModuleIdAddress
+/**
+ * TODO: support partial paths for routing
+ */
+class INET_API ModulePathAddress
 {
     private:
         int id;
     public:
-        ModuleIdAddress() : id(0) { }
-        ModuleIdAddress(int id) : id(id) { }
+        ModulePathAddress() : id(0) { }
+        ModulePathAddress(int id) : id(id) { }
 
         int getId() const { return id; }
         bool tryParse(const char *addr);
@@ -42,22 +45,23 @@ class INET_API ModuleIdAddress
         /**
          * Returns equals(addr).
          */
-        bool operator==(const ModuleIdAddress& addr1) const { return id == addr1.id; }
+        bool operator==(const ModulePathAddress& addr1) const { return id == addr1.id; }
 
         /**
          * Returns !equals(addr).
          */
-        bool operator!=(const ModuleIdAddress& addr1) const { return id != addr1.id; }
+        bool operator!=(const ModulePathAddress& addr1) const { return id != addr1.id; }
 
         /**
          * Compares two addresses.
          */
-        bool operator<(const ModuleIdAddress& addr1) const { return id < addr1.id; }
-        bool operator<=(const ModuleIdAddress& addr1) const { return id <= addr1.id; }
-        bool operator>(const ModuleIdAddress& addr1) const { return id > addr1.id; }
-        bool operator>=(const ModuleIdAddress& addr1) const { return id >= addr1.id; }
+        bool operator<(const ModulePathAddress& addr1) const { return id < addr1.id; }
+        bool operator<=(const ModulePathAddress& addr1) const { return id <= addr1.id; }
+        bool operator>(const ModulePathAddress& addr1) const { return id > addr1.id; }
+        bool operator>=(const ModulePathAddress& addr1) const { return id >= addr1.id; }
+        static bool maskedAddrAreEqual(const ModulePathAddress& addr1, const ModulePathAddress& addr2, int prefixLength) { return addr1.id == addr2.id; }
 
-        std::string str() const { std::stringstream s; s << id; return s.str(); }
+        std::string str() const;
 };
 
 #endif

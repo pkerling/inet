@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2004, 2009 Andras Varga
+// Copyright (C) 2004 Andras Varga
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License
@@ -13,24 +13,19 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
-//
 
-class noncobject Address;
-enum IPProtocolId;
-
-cplusplus {{
-#include "Address.h"
-#include "IPProtocolId_m.h"
-}}
+package inet.networklayer.generic;
 
 //
-// Represents a generic datagram.
+// TODO
 //
-packet GenericDatagram
+simple GenericRoutingTable
 {
-    @customize(true);
-    Address sourceAddress @getter(_getSrcAddr);
-    Address destinationAddress @getter(_getDestAddr);
-    int transportProtocol enum(IPProtocolId) = IP_PROT_NONE;
-    short hopLimit;
+    parameters:
+        string routerId = default("auto"); // for routers, the router id using address dotted
+                          // notation; specify "auto" to select the highest
+                          // interface address; should be left empty ("") for hosts
+        bool forwardingEnabled = default(true);  // turns IP forwarding on/off
+        bool multicastForwardingEnabled = default(false); // turns multicast forwarding on/off
+        @display("i=block/table");
 }

@@ -178,7 +178,8 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     DYMORouteState getRouteState(DYMORouteData * routeData);
 
     // client address
-    const Address getSelfAddress();
+    std::string getHostName();
+    Address getSelfAddress();
     bool isClientAddress(const Address & address);
 
     // added node

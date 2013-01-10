@@ -15,22 +15,19 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-class noncobject Address;
-enum IPProtocolId;
-
-cplusplus {{
-#include "Address.h"
-#include "IPProtocolId_m.h"
-}}
+package inet.networklayer.generic;
 
 //
-// Represents a generic datagram.
+// Simple Control Message Protocol
+// TODO
 //
-packet GenericDatagram
+simple SCMP
 {
-    @customize(true);
-    Address sourceAddress @getter(_getSrcAddr);
-    Address destinationAddress @getter(_getDestAddr);
-    int transportProtocol enum(IPProtocolId) = IP_PROT_NONE;
-    short hopLimit;
+    parameters:
+        @display("i=block/control_s");
+    gates:
+        input localIn @labels(GenericNetworkProtocolControlInfo/up);
+        input pingIn[];  // ping requests from app
+        output pingOut[];  // result of ping
+        output sendOut @labels(GenericNetworkProtocolControlInfo/down);  // towards network
 }

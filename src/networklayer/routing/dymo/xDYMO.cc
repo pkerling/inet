@@ -16,7 +16,7 @@ DYMO_NAMESPACE_BEGIN
 
 Define_Module(DYMO::xDYMO);
 
-#define DYMO_EV EV << "DYMO at " << getSelfAddress() << " "
+#define DYMO_EV EV << "DYMO at " << getHostName() << " "
 
 //
 // construction
@@ -66,9 +66,9 @@ void xDYMO::initialize(int stage) {
         notificationBoard = NotificationBoardAccess().get(this);
         interfaceTable = InterfaceTableAccess().get(this);
         // KLUDGE: simplify this when RoutingTable implements IGenericRoutingTable
-        routingTable = check_and_cast<RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
+        routingTable = check_and_cast<IGenericRoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this));
+//        routingTable = check_and_cast<RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
         networkProtocol = check_and_cast<IGenericNetworkProtocol *>(findModuleWhereverInNode(networkProtocolModuleName, this));
-        addressPolicy = getSelfAddress().getAddressPolicy();
         // internal
         expungeTimer = new cMessage("ExpungeTimer");
         notificationBoard->subscribe(this, NF_LINK_BREAK);
@@ -86,6 +86,7 @@ void xDYMO::initialize(int stage) {
         }
     }
     else if (stage == 4) {
+        addressPolicy = getSelfAddress().getAddressPolicy();
         // join multicast groups
         cPatternMatcher interfaceMatcher(interfaces, false, true, false);
         for (int i = 0; i < interfaceTable->getNumInterfaces(); i++) {
@@ -1159,7 +1160,11 @@ DYMORouteState xDYMO::getRouteState(DYMORouteData * routeData) {
 // client address
 //
 
-const Address xDYMO::getSelfAddress() {
+std::string xDYMO::getHostName() {
+    return getParentModule()->getFullName();
+}
+
+Address xDYMO::getSelfAddress() {
     return routingTable->getRouterId();
 }
 

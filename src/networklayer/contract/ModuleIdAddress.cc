@@ -18,7 +18,7 @@
 #include "ModuleIdAddress.h"
 
 bool ModuleIdAddress::tryParse(const char *addr) {
-    id = atoi(addr);
-    // TODO: check if the whole string is processed
-    return true;
+    char * endp;
+    id = strtol(addr, &endp, 10);
+    return *endp == 0;
 }

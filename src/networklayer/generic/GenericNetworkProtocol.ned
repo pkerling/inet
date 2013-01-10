@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2004, 2009 Andras Varga
+// Copyright (C) 2004 Andras Varga
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License
@@ -15,22 +15,23 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-class noncobject Address;
-enum IPProtocolId;
-
-cplusplus {{
-#include "Address.h"
-#include "IPProtocolId_m.h"
-}}
+package inet.networklayer.generic;
 
 //
-// Represents a generic datagram.
+// TODO
 //
-packet GenericDatagram
+// @author Andras Varga
+//
+simple GenericNetworkProtocol
 {
-    @customize(true);
-    Address sourceAddress @getter(_getSrcAddr);
-    Address destinationAddress @getter(_getDestAddr);
-    int transportProtocol enum(IPProtocolId) = IP_PROT_NONE;
-    short hopLimit;
+    parameters:
+        double procDelay @unit("s") = default(0s);
+        int hopLimit = default(32);
+        string protocolMapping;
+        @display("i=block/routing");
+    gates:
+        input transportIn[] @labels(GenericNetworkProtocolControlInfo/down,TCPSegment,UDPPacket);
+        output transportOut[] @labels(GenericNetworkProtocolControlInfo/up,TCPSegment,UDPPacket);
+        input queueIn[] @labels(GenericDatagram);
+        output queueOut @labels(GenericDatagram);
 }
