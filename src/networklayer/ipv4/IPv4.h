@@ -20,7 +20,7 @@
 
 #include <omnetpp.h>
 #include "INETDefs.h"
-#include "IGenericNetworkProtocol.h"
+#include "INetworkProtocol.h"
 #include "ICMPAccess.h"
 #include "IPv4FragBuf.h"
 #include "ProtocolMap.h"
@@ -44,7 +44,7 @@ const int ICMP_FRAGMENTATION_ERROR_CODE = 4;
 /**
  * Implements the IPv4 protocol.
  */
-class INET_API IPv4 : public QueueBase, public IGenericNetworkProtocol
+class INET_API IPv4 : public QueueBase, public INetworkProtocol
 {
   public:
     /**
@@ -89,9 +89,9 @@ class INET_API IPv4 : public QueueBase, public IGenericNetworkProtocol
 
     class GenericHookAdapter : public Hook {
         private:
-            IGenericNetworkProtocol::IHook *hook;
+            INetworkProtocol::IHook *hook;
         public:
-            GenericHookAdapter(IGenericNetworkProtocol::IHook *hook) { this->hook = hook; }
+            GenericHookAdapter(INetworkProtocol::IHook *hook) { this->hook = hook; }
             virtual Result datagramPreRoutingHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry) { return (Result)hook->datagramPreRoutingHook(datagram, inputInterfaceEntry);}
             virtual Result datagramLocalInHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry) { return (Result)hook->datagramLocalInHook(datagram, inputInterfaceEntry); }
             virtual Result datagramForwardHook(IPv4Datagram * datagram, InterfaceEntry * inputInterfaceEntry, InterfaceEntry * outputInterfaceEntry, IPv4Address & nextHopAddress) { return (Result)hook->datagramForwardHook(datagram, inputInterfaceEntry, outputInterfaceEntry, nextHopAddress); }
@@ -327,9 +327,9 @@ class INET_API IPv4 : public QueueBase, public IGenericNetworkProtocol
      */
     void reinjectDatagram(const IPv4Datagram* datagram, IPv4::Hook::Result verdict);
 
-    virtual void registerHook(int priority, IGenericNetworkProtocol::IHook * hook) { registerHook(priority, new GenericHookAdapter(hook)); }
-    virtual void unregisterHook(int priority, IGenericNetworkProtocol::IHook * hook) { } // TODO: iterate
-    void reinjectDatagram(const IGenericDatagram * datagram, IGenericNetworkProtocol::IHook::Result verdict) { reinjectDatagram(dynamic_cast<const IPv4Datagram *>(datagram), (Hook::Result)verdict); }
+    virtual void registerHook(int priority, INetworkProtocol::IHook * hook) { registerHook(priority, new GenericHookAdapter(hook)); }
+    virtual void unregisterHook(int priority, INetworkProtocol::IHook * hook) { } // TODO: iterate
+    void reinjectDatagram(const INetworkDatagram * datagram, INetworkProtocol::IHook::Result verdict) { reinjectDatagram(dynamic_cast<const IPv4Datagram *>(datagram), (Hook::Result)verdict); }
 };
 
 #endif

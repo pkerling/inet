@@ -10,7 +10,7 @@
 #include <omnetpp.h>
 #include "INotifiable.h"
 #include "IAddressPolicy.h"
-#include "IGenericNetworkProtocol.h"
+#include "INetworkProtocol.h"
 #include "IGenericRoutingTable.h"
 #include "DYMOdefs.h"
 #include "DYMORouteData.h"
@@ -37,7 +37,7 @@ DYMO_NAMESPACE_BEGIN
  *  - 13.6. Message Aggregation
  *    RFC5148 add jitter to broadcasts
  */
-class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGenericNetworkProtocol::IHook {
+class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetworkProtocol::IHook {
   private:
     // context parameters
     const char * routingTableModuleName;
@@ -69,14 +69,14 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     IAddressPolicy * addressPolicy;
     IInterfaceTable * interfaceTable;
     IGenericRoutingTable * routingTable;
-    IGenericNetworkProtocol * networkProtocol;
+    INetworkProtocol * networkProtocol;
 
     // internal
     cMessage * expungeTimer;
     DYMOSequenceNumber sequenceNumber;
     std::map<Address, DYMOSequenceNumber> targetAddressToSequenceNumber;
     std::map<Address, RREQTimer *> targetAddressToRREQTimer;
-    std::multimap<Address, IGenericDatagram *> targetAddressToDelayedPackets;
+    std::multimap<Address, INetworkDatagram *> targetAddressToDelayedPackets;
     std::vector<std::pair<Address, int> > clientAddressAndPrefixLengthPairs; // 5.3.  Router Clients and Client Networks
 
   public:
@@ -101,9 +101,9 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     bool hasOngoingRouteDiscovery(const Address & target);
 
     // handling IP datagrams
-    void delayDatagram(IGenericDatagram * datagram);
-    void reinjectDelayedDatagram(IGenericDatagram * datagram);
-    void dropDelayedDatagram(IGenericDatagram * datagram);
+    void delayDatagram(INetworkDatagram * datagram);
+    void reinjectDelayedDatagram(INetworkDatagram * datagram);
+    void dropDelayedDatagram(INetworkDatagram * datagram);
     void eraseDelayedDatagrams(const Address & target);
     bool hasDelayedDatagrams(const Address & target);
 
@@ -149,9 +149,9 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
 
     // handling RREP packets
     RREP * createRREP(RteMsg * rteMsg);
-    RREP * createRREP(RteMsg * rteMsg, IGenericRoute * route);
+    RREP * createRREP(RteMsg * rteMsg, IRoute * route);
     void sendRREP(RREP * rrep);
-    void sendRREP(RREP * rrep, IGenericRoute * route);
+    void sendRREP(RREP * rrep, IRoute * route);
     void processRREP(RREP * rrep);
     int computeRREPBitLength(RREP * rrep);
 
@@ -164,11 +164,11 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     int computeRERRBitLength(RERR * rerr);
 
     // handling routes
-    IGenericRoute * createRoute(RteMsg * rteMsg, AddressBlock & addressBlock);
+    IRoute * createRoute(RteMsg * rteMsg, AddressBlock & addressBlock);
     void updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock);
-    void updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IGenericRoute * route);
+    void updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IRoute * route);
     int getLinkCost(InterfaceEntry * interfaceEntry, DYMOMetricType metricType);
-    bool isLoopFree(RteMsg * rteMsg, IGenericRoute * route);
+    bool isLoopFree(RteMsg * rteMsg, IRoute * route);
 
     // handling expunge timer
     void processExpungeTimer();
@@ -190,13 +190,13 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public IGeneric
     void incrementSequenceNumber();
 
     // generic network protocol
-    virtual Result datagramPreRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
-    virtual Result datagramLocalInHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { return ACCEPT; }
-    virtual Result datagramForwardHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
-    virtual Result datagramPostRoutingHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
-    virtual Result datagramLocalOutHook(IGenericDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramLocalOutHook"); return ensureRouteForDatagram(datagram); }
-    bool isDYMODatagram(IGenericDatagram * datagram);
-    Result ensureRouteForDatagram(IGenericDatagram * datagram);
+    virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
+    virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { return ACCEPT; }
+    virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
+    virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
+    virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramLocalOutHook"); return ensureRouteForDatagram(datagram); }
+    bool isDYMODatagram(INetworkDatagram * datagram);
+    Result ensureRouteForDatagram(INetworkDatagram * datagram);
 
     // notifications
     virtual void receiveChangeNotification(int category, const cObject * details);

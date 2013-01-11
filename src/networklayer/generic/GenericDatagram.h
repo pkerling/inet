@@ -20,7 +20,7 @@
 #define _INET_GENERICDATAGRAM_H_
 
 #include "INETDefs.h"
-#include "IGenericDatagram.h"
+#include "INetworkDatagram.h"
 #include "GenericDatagram_m.h"
 #include "IPProtocolId_m.h"
 
@@ -28,7 +28,7 @@
  * Represents a generic datagram. More info in the GenericDatagram.msg file
  * (and the documentation generated from it).
  */
-class INET_API GenericDatagram : public GenericDatagram_Base, public IGenericDatagram
+class INET_API GenericDatagram : public GenericDatagram_Base, public INetworkDatagram
 {
   public:
     GenericDatagram(const char *name = NULL, int kind = 0) : GenericDatagram_Base(name, kind) {}

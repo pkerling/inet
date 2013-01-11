@@ -60,7 +60,7 @@ const char *IPv6Route::routeSrcName(RouteSrc src)
     }
 }
 
-IGenericRoute *IPv6Route::asGeneric()
+IRoute *IPv6Route::asGeneric()
 {
     if (!adapter)
         adapter = new IPv6RouteAdapter(this);

@@ -269,7 +269,7 @@ InterfaceEntry* GenericRoutingTable::getOutputInterfaceForDestination(const Addr
 {
     //TODO Enter_Method("getInterfaceForDestAddr(%u.%u.%u.%u)", dest.getDByte(0), dest.getDByte(1), dest.getDByte(2), dest.getDByte(3)); // note: str().c_str() too slow here
 
-    const IGenericRoute *e = findBestMatchingRoute(dest);
+    const IRoute *e = findBestMatchingRoute(dest);
     return e ? e->getInterface() : NULL;
 }
 
@@ -277,7 +277,7 @@ Address GenericRoutingTable::getNextHopForDestination(const Address& dest) const
 {
     //TODO Enter_Method("getGatewayForDestAddr(%u.%u.%u.%u)", dest.getDByte(0), dest.getDByte(1), dest.getDByte(2), dest.getDByte(3)); // note: str().c_str() too slow here
 
-    const IGenericRoute *e = findBestMatchingRoute(dest);
+    const IRoute *e = findBestMatchingRoute(dest);
     return e ? e->getNextHop() : Address();
 }
 
@@ -286,7 +286,7 @@ bool GenericRoutingTable::isLocalMulticastAddress(const Address& dest) const
     return dest.isMulticast(); //TODO
 }
 
-IGenericMulticastRoute* GenericRoutingTable::findBestMatchingMulticastRoute(const Address& origin, const Address& group) const
+IMulticastRoute* GenericRoutingTable::findBestMatchingMulticastRoute(const Address& origin, const Address& group) const
 {
     return NULL; //TODO
 }
@@ -296,13 +296,13 @@ int GenericRoutingTable::getNumRoutes() const
     return routes.size();
 }
 
-IGenericRoute* GenericRoutingTable::getRoute(int k) const
+IRoute* GenericRoutingTable::getRoute(int k) const
 {
     ASSERT(k >= 0 && k < routes.size());
     return routes[k];
 }
 
-IGenericRoute* GenericRoutingTable::getDefaultRoute() const
+IRoute* GenericRoutingTable::getDefaultRoute() const
 {
     // if there is a default route entry, it is the last valid entry
     for (RouteVector::const_reverse_iterator i=routes.rbegin(); i!=routes.rend() && (*i)->getPrefixLength() == 0; ++i)
@@ -313,7 +313,7 @@ IGenericRoute* GenericRoutingTable::getDefaultRoute() const
     return NULL;
 }
 
-void GenericRoutingTable::addRoute(IGenericRoute* route)
+void GenericRoutingTable::addRoute(IRoute* route)
 {
     Enter_Method("addRoute(...)");
 
@@ -335,7 +335,7 @@ void GenericRoutingTable::addRoute(IGenericRoute* route)
     nb->fireChangeNotification(NF_GENERIC_ROUTE_ADDED, entry);
 }
 
-IGenericRoute* GenericRoutingTable::removeRoute(IGenericRoute* route)
+IRoute* GenericRoutingTable::removeRoute(IRoute* route)
 {
     Enter_Method("removeRoute(...)");
 
@@ -354,9 +354,9 @@ IGenericRoute* GenericRoutingTable::removeRoute(IGenericRoute* route)
     return NULL;
 }
 
-bool GenericRoutingTable::deleteRoute(IGenericRoute* entry)
+bool GenericRoutingTable::deleteRoute(IRoute* entry)
 {
-    IGenericRoute *route = removeRoute(entry);
+    IRoute *route = removeRoute(entry);
     delete route;
     return route != NULL;
 }
@@ -366,22 +366,22 @@ int GenericRoutingTable::getNumMulticastRoutes() const
     return 0; //TODO
 }
 
-IGenericMulticastRoute* GenericRoutingTable::getMulticastRoute(int k) const
+IMulticastRoute* GenericRoutingTable::getMulticastRoute(int k) const
 {
     return NULL; //TODO
 }
 
-void GenericRoutingTable::addMulticastRoute(IGenericMulticastRoute* entry)
+void GenericRoutingTable::addMulticastRoute(IMulticastRoute* entry)
 {
     //TODO
 }
 
-IGenericMulticastRoute* GenericRoutingTable::removeMulticastRoute(IGenericMulticastRoute* entry)
+IMulticastRoute* GenericRoutingTable::removeMulticastRoute(IMulticastRoute* entry)
 {
     return NULL; //TODO
 }
 
-bool GenericRoutingTable::deleteMulticastRoute(IGenericMulticastRoute* entry)
+bool GenericRoutingTable::deleteMulticastRoute(IMulticastRoute* entry)
 {
     return false; //TODO
 }
@@ -390,7 +390,7 @@ void GenericRoutingTable::purgeExpiredRoutes()
 {
 }
 
-IGenericRoute* GenericRoutingTable::createRoute()
+IRoute* GenericRoutingTable::createRoute()
 {
     return new GenericRoute();
 }

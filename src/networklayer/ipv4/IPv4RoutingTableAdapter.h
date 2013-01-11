@@ -30,10 +30,10 @@ class INET_API IPv4RoutingTableAdapter : public IGenericRoutingTable
 {
     private:
         IRoutingTable *rt;
-        static IGenericRoute *toGeneric(IPv4Route *e) {return e ? e->asGeneric() : NULL;}
-        static IGenericMulticastRoute *toGeneric(IPv4MulticastRoute *e) {return e ? e->asGeneric() : NULL;}
-        static IPv4Route *fromGeneric(IGenericRoute *e) {return e ? dynamic_cast<IPv4RouteAdapter*>(e)->getIPv4Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
-        static IPv4MulticastRoute *fromGeneric(IGenericMulticastRoute *e) {return e ? dynamic_cast<IPv4MulticastRouteAdapter*>(e)->getIPv4Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
+        static IRoute *toGeneric(IPv4Route *e) {return e ? e->asGeneric() : NULL;}
+        static IMulticastRoute *toGeneric(IPv4MulticastRoute *e) {return e ? e->asGeneric() : NULL;}
+        static IPv4Route *fromGeneric(IRoute *e) {return e ? dynamic_cast<IPv4RouteAdapter*>(e)->getIPv4Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
+        static IPv4MulticastRoute *fromGeneric(IMulticastRoute *e) {return e ? dynamic_cast<IPv4MulticastRouteAdapter*>(e)->getIPv4Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
     public:
         IPv4RoutingTableAdapter(IRoutingTable *routingTable) {rt = routingTable;}
         virtual bool isForwardingEnabled() const {return rt->isIPForwardingEnabled();} //XXX inconsistent names
@@ -41,24 +41,24 @@ class INET_API IPv4RoutingTableAdapter : public IGenericRoutingTable
         virtual Address getRouterId() const {return rt->getRouterId();}
         virtual bool isLocalAddress(const Address& dest) const {return rt->isLocalAddress(dest.toIPv4());}
         virtual InterfaceEntry *getInterfaceByAddress(const Address& address) const {return rt->getInterfaceByAddress(address.toIPv4());}
-        virtual IGenericRoute *findBestMatchingRoute(const Address& dest) const {return toGeneric(rt->findBestMatchingRoute(dest.toIPv4()));}
+        virtual IRoute *findBestMatchingRoute(const Address& dest) const {return toGeneric(rt->findBestMatchingRoute(dest.toIPv4()));}
         virtual InterfaceEntry *getOutputInterfaceForDestination(const Address& dest) const {return rt->getInterfaceForDestAddr(dest.toIPv4());} //XXX inconsistent names
         virtual Address getNextHopForDestination(const Address& dest) const {return rt->getGatewayForDestAddr(dest.toIPv4());}  //XXX inconsistent names
         virtual bool isLocalMulticastAddress(const Address& dest) const {return rt->isLocalMulticastAddress(dest.toIPv4());}
-        virtual IGenericMulticastRoute *findBestMatchingMulticastRoute(const Address &origin, const Address& group) const {return toGeneric(const_cast<IPv4MulticastRoute*>(rt->findBestMatchingMulticastRoute(origin.toIPv4(), group.toIPv4())));} //XXX remove 'const' from IPv4 method?
+        virtual IMulticastRoute *findBestMatchingMulticastRoute(const Address &origin, const Address& group) const {return toGeneric(const_cast<IPv4MulticastRoute*>(rt->findBestMatchingMulticastRoute(origin.toIPv4(), group.toIPv4())));} //XXX remove 'const' from IPv4 method?
         virtual int getNumRoutes() const {return rt->getNumRoutes();}
-        virtual IGenericRoute *getRoute(int k) const {return toGeneric(rt->getRoute(k));}
-        virtual IGenericRoute *getDefaultRoute() const {return toGeneric(rt->getDefaultRoute());}
-        virtual void addRoute(IGenericRoute *entry) {rt->addRoute(fromGeneric(entry));}
-        virtual IGenericRoute *removeRoute(IGenericRoute *entry) {rt->removeRoute(fromGeneric(entry)); return entry;}
-        virtual bool deleteRoute(IGenericRoute *entry) {return rt->deleteRoute(fromGeneric(entry));}
+        virtual IRoute *getRoute(int k) const {return toGeneric(rt->getRoute(k));}
+        virtual IRoute *getDefaultRoute() const {return toGeneric(rt->getDefaultRoute());}
+        virtual void addRoute(IRoute *entry) {rt->addRoute(fromGeneric(entry));}
+        virtual IRoute *removeRoute(IRoute *entry) {rt->removeRoute(fromGeneric(entry)); return entry;}
+        virtual bool deleteRoute(IRoute *entry) {return rt->deleteRoute(fromGeneric(entry));}
         virtual int getNumMulticastRoutes() const {return rt->getNumMulticastRoutes();}
-        virtual IGenericMulticastRoute *getMulticastRoute(int k) const {return toGeneric(rt->getMulticastRoute(k));}
-        virtual void addMulticastRoute(IGenericMulticastRoute *entry) {rt->addMulticastRoute(fromGeneric(entry));}
-        virtual IGenericMulticastRoute *removeMulticastRoute(IGenericMulticastRoute *entry) {rt->removeMulticastRoute(fromGeneric(entry)); return entry;}
-        virtual bool deleteMulticastRoute(IGenericMulticastRoute *entry) {return rt->deleteMulticastRoute(fromGeneric(entry));}
+        virtual IMulticastRoute *getMulticastRoute(int k) const {return toGeneric(rt->getMulticastRoute(k));}
+        virtual void addMulticastRoute(IMulticastRoute *entry) {rt->addMulticastRoute(fromGeneric(entry));}
+        virtual IMulticastRoute *removeMulticastRoute(IMulticastRoute *entry) {rt->removeMulticastRoute(fromGeneric(entry)); return entry;}
+        virtual bool deleteMulticastRoute(IMulticastRoute *entry) {return rt->deleteMulticastRoute(fromGeneric(entry));}
         virtual void purgeExpiredRoutes() {rt->purge();}  //XXX inconsistent names
-        virtual IGenericRoute *createRoute() { return (new IPv4Route())->asGeneric(); }
+        virtual IRoute *createRoute() { return (new IPv4Route())->asGeneric(); }
 };
 
 #endif

@@ -81,7 +81,7 @@ void IPv4Route::changed(int fieldCode)
         rt->routeChanged(this, fieldCode);
 }
 
-IGenericRoute *IPv4Route::asGeneric()
+IRoute *IPv4Route::asGeneric()
 {
     if (!adapter)
         adapter = new IPv4RouteAdapter(this);
@@ -129,7 +129,7 @@ std::string IPv4MulticastRoute::detailedInfo() const
     return info();
 }
 
-IGenericMulticastRoute *IPv4MulticastRoute::asGeneric()
+IMulticastRoute *IPv4MulticastRoute::asGeneric()
 {
     if (!adapter)
         adapter = new IPv4MulticastRouteAdapter(this);

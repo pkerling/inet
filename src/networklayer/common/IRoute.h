@@ -31,7 +31,7 @@ class IGenericRoutingTable;
  * @see IGenericRoutingTable, IPv4Route, IPv6Route
  */
 //TODO the "Generic" can be dropped from the name, once IGenericRoutingTable is renamed to RoutingTable
-class INET_API IGenericRoute
+class INET_API IRoute
 {
     public:
 //TODO maybe:
@@ -42,7 +42,7 @@ class INET_API IGenericRoute
 //    bool operator!=(const IGenericRoute& route) const { return !equals(route); }
 //    bool equals(const IGenericRoute& route) const;
 
-        virtual ~IGenericRoute() {}
+        virtual ~IRoute() {}
 
         /** The routing table in which this route is inserted, or NULL. */
         virtual IGenericRoutingTable *getRoutingTable() const = 0;
@@ -84,7 +84,7 @@ class INET_API IGenericRoute
 };
 
 // TODO: move into info()?
-inline std::ostream& operator<<(std::ostream& out, const IGenericRoute * route)
+inline std::ostream& operator<<(std::ostream& out, const IRoute * route)
 {
     out << "destination = " << route->getDestination();
     out << ", prefixLength = " << route->getPrefixLength();
@@ -117,14 +117,14 @@ inline std::ostream& operator<<(std::ostream& out, const IGenericRoute * route)
  */
 //TODO the "Generic" can be dropped from the name, once IGenericRoutingTable is renamed to RoutingTable
 //TODO decide whether IPv4Route should implement this or rather have a wrapper?
-class INET_API IGenericMulticastRoute
+class INET_API IMulticastRoute
 {
   public:
 //TODO maybe:
 //    virtual std::string info() const;
 //    virtual std::string detailedInfo() const;
 
-        virtual ~IGenericMulticastRoute() {}
+        virtual ~IMulticastRoute() {}
 
         /** The routing table in which this route is inserted, or NULL. */
         virtual IGenericRoutingTable *getRoutingTable() const = 0;
@@ -174,4 +174,3 @@ class INET_API IGenericMulticastRoute
 };
 
 #endif
-

@@ -146,7 +146,7 @@ class INET_API GenericRoutingTable : public cSimpleModule, public IGenericRoutin
         /**
          * Returns route for a multicast origin and group.
          */
-        virtual IGenericMulticastRoute *findBestMatchingMulticastRoute(const Address &origin, const Address& group) const;
+        virtual IMulticastRoute *findBestMatchingMulticastRoute(const Address &origin, const Address& group) const;
         //@}
 
         /** @name Route table manipulation */
@@ -160,32 +160,32 @@ class INET_API GenericRoutingTable : public cSimpleModule, public IGenericRoutin
         /**
          * Returns the kth route.
          */
-        virtual IGenericRoute *getRoute(int k) const;
+        virtual IRoute *getRoute(int k) const;
 
         /**
          * Finds and returns the default route, or NULL if it doesn't exist
          */
-        virtual IGenericRoute *getDefaultRoute() const;  //XXX is this a universal concept?
+        virtual IRoute *getDefaultRoute() const;  //XXX is this a universal concept?
 
         /**
          * Adds a route to the routing table. Routes are allowed to be modified
          * while in the routing table. (There is a notification mechanism that
          * allows routing table internals to be updated on a routing entry change.)
          */
-        virtual void addRoute(IGenericRoute *entry);
+        virtual void addRoute(IRoute *entry);
 
         /**
          * Removes the given route from the routing table, and returns it.
          * NULL is returned if the route was not in the routing table.
          */
-        virtual IGenericRoute *removeRoute(IGenericRoute *entry);
+        virtual IRoute *removeRoute(IRoute *entry);
 
         /**
          * Deletes the given route from the routing table.
          * Returns true if the route was deleted, and false if it was
          * not in the routing table.
          */
-        virtual bool deleteRoute(IGenericRoute *entry);
+        virtual bool deleteRoute(IRoute *entry);
 
         /**
          * Returns the total number of multicast routes.
@@ -195,27 +195,27 @@ class INET_API GenericRoutingTable : public cSimpleModule, public IGenericRoutin
         /**
          * Returns the kth multicast route.
          */
-        virtual IGenericMulticastRoute *getMulticastRoute(int k) const;
+        virtual IMulticastRoute *getMulticastRoute(int k) const;
 
         /**
          * Adds a multicast route to the routing table. Routes are allowed to be modified
          * while in the routing table. (There is a notification mechanism that
          * allows routing table internals to be updated on a routing entry change.)
          */
-        virtual void addMulticastRoute(IGenericMulticastRoute *entry);
+        virtual void addMulticastRoute(IMulticastRoute *entry);
 
         /**
          * Removes the given route from the routing table, and returns it.
          * NULL is returned of the route was not in the routing table.
          */
-        virtual IGenericMulticastRoute *removeMulticastRoute(IGenericMulticastRoute *entry);
+        virtual IMulticastRoute *removeMulticastRoute(IMulticastRoute *entry);
 
         /**
          * Deletes the given multicast route from the routing table.
          * Returns true if the route was deleted, and false if it was
          * not in the routing table.
          */
-        virtual bool deleteMulticastRoute(IGenericMulticastRoute *entry);
+        virtual bool deleteMulticastRoute(IMulticastRoute *entry);
 
         /**
          * Deletes invalid routes from the routing table. Invalid routes are those
@@ -224,7 +224,7 @@ class INET_API GenericRoutingTable : public cSimpleModule, public IGenericRoutin
         virtual void purgeExpiredRoutes();
         //@}
 
-        virtual IGenericRoute *createRoute();
+        virtual IRoute *createRoute();
 };
 
 

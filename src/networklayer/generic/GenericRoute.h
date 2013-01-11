@@ -20,7 +20,7 @@
 
 #include "INETDefs.h"
 #include "Address.h"
-#include "IGenericRoute.h"
+#include "IRoute.h"
 
 
 class InterfaceEntry;
@@ -29,7 +29,7 @@ class IGenericRoutingTable;
 /**
  * TODO
  */
-class INET_API GenericRoute : public cObject, public IGenericRoute
+class INET_API GenericRoute : public cObject, public IRoute
 {
     private:
         IGenericRoutingTable *owner;
@@ -49,7 +49,7 @@ class INET_API GenericRoute : public cObject, public IGenericRoute
         virtual std::string info() const;
         virtual std::string detailedInfo() const;
 
-        bool equals(const IGenericRoute& route) const;
+        bool equals(const IRoute& route) const;
 
         virtual void setRoutingTable(IGenericRoutingTable *owner) {this->owner = owner;}
         virtual void setEnabled(bool enabled) {this->enabled = enabled;}

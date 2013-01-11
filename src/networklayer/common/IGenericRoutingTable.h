@@ -20,7 +20,7 @@
 
 #include "INETDefs.h"
 #include "Address.h"
-#include "IGenericRoute.h"
+#include "IRoute.h"
 
 
 /**
@@ -67,7 +67,7 @@ class INET_API IGenericRoutingTable
          * destination address, and returns the resulting route. Returns NULL
          * if there is no matching route.
          */
-        virtual IGenericRoute *findBestMatchingRoute(const Address& dest) const = 0;
+        virtual IRoute *findBestMatchingRoute(const Address& dest) const = 0;
 
         /**
          * Convenience function based on findBestMatchingRoute().
@@ -99,7 +99,7 @@ class INET_API IGenericRoutingTable
         /**
          * Returns route for a multicast origin and group.
          */
-        virtual IGenericMulticastRoute *findBestMatchingMulticastRoute(const Address &origin, const Address& group) const = 0;
+        virtual IMulticastRoute *findBestMatchingMulticastRoute(const Address &origin, const Address& group) const = 0;
         //@}
 
         /** @name Route table manipulation */
@@ -113,32 +113,32 @@ class INET_API IGenericRoutingTable
         /**
          * Returns the kth route.
          */
-        virtual IGenericRoute *getRoute(int k) const = 0;
+        virtual IRoute *getRoute(int k) const = 0;
 
         /**
          * Finds and returns the default route, or NULL if it doesn't exist
          */
-        virtual IGenericRoute *getDefaultRoute() const = 0;  //XXX is this a universal concept?
+        virtual IRoute *getDefaultRoute() const = 0;  //XXX is this a universal concept?
 
         /**
          * Adds a route to the routing table. Routes are allowed to be modified
          * while in the routing table. (There is a notification mechanism that
          * allows routing table internals to be updated on a routing entry change.)
          */
-        virtual void addRoute(IGenericRoute *entry) = 0;
+        virtual void addRoute(IRoute *entry) = 0;
 
         /**
          * Removes the given route from the routing table, and returns it.
          * NULL is returned if the route was not in the routing table.
          */
-        virtual IGenericRoute *removeRoute(IGenericRoute *entry) = 0;
+        virtual IRoute *removeRoute(IRoute *entry) = 0;
 
         /**
          * Deletes the given route from the routing table.
          * Returns true if the route was deleted, and false if it was
          * not in the routing table.
          */
-        virtual bool deleteRoute(IGenericRoute *entry) = 0;
+        virtual bool deleteRoute(IRoute *entry) = 0;
 
         /**
          * Returns the total number of multicast routes.
@@ -148,27 +148,27 @@ class INET_API IGenericRoutingTable
         /**
          * Returns the kth multicast route.
          */
-        virtual IGenericMulticastRoute *getMulticastRoute(int k) const = 0;
+        virtual IMulticastRoute *getMulticastRoute(int k) const = 0;
 
         /**
          * Adds a multicast route to the routing table. Routes are allowed to be modified
          * while in the routing table. (There is a notification mechanism that
          * allows routing table internals to be updated on a routing entry change.)
          */
-        virtual void addMulticastRoute(IGenericMulticastRoute *entry) = 0;
+        virtual void addMulticastRoute(IMulticastRoute *entry) = 0;
 
         /**
          * Removes the given route from the routing table, and returns it.
          * NULL is returned of the route was not in the routing table.
          */
-        virtual IGenericMulticastRoute *removeMulticastRoute(IGenericMulticastRoute *entry) = 0;
+        virtual IMulticastRoute *removeMulticastRoute(IMulticastRoute *entry) = 0;
 
         /**
          * Deletes the given multicast route from the routing table.
          * Returns true if the route was deleted, and false if it was
          * not in the routing table.
          */
-        virtual bool deleteMulticastRoute(IGenericMulticastRoute *entry) = 0;
+        virtual bool deleteMulticastRoute(IMulticastRoute *entry) = 0;
 
         /**
          * Deletes invalid routes from the routing table. Invalid routes are those
@@ -177,7 +177,7 @@ class INET_API IGenericRoutingTable
         virtual void purgeExpiredRoutes() = 0;
         //@}
 
-        virtual IGenericRoute *createRoute() = 0;
+        virtual IRoute *createRoute() = 0;
 };
 
 #endif

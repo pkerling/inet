@@ -28,7 +28,7 @@
 class IInterfaceTable;
 class InterfaceEntry;
 class IGenericRoutingTable;
-class IGenericRoute;
+class IRoute;
 class IPv6RouteAdapter;
 //TODO class IPv6MulticastRouteAdapter;
 class IPv6RoutingTableAdapter;
@@ -80,7 +80,7 @@ class INET_API IPv6Route : public cObject
     virtual std::string detailedInfo() const;
     static const char *routeSrcName(RouteSrc src);
 
-    virtual IGenericRoute *asGeneric();
+    virtual IRoute *asGeneric();
 
     void setInterfaceId(int interfaceId)  {_interfaceID = interfaceId;}
     void setNextHop(const IPv6Address& nextHop)  {_nextHop = nextHop;}

@@ -18,12 +18,12 @@
 #ifndef __INET_IPv6ROUTEADAPTER_H
 #define __INET_IPv6ROUTEADAPTER_H
 
-#include "IGenericRoute.h"
+#include "IRoute.h"
 
 /**
  * TODO
  */
-class INET_API IPv6RouteAdapter : public IGenericRoute
+class INET_API IPv6RouteAdapter : public IRoute
 {
     private:
         IPv6Route *e;

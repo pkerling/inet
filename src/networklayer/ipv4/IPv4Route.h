@@ -25,8 +25,8 @@
 
 class InterfaceEntry;
 class IRoutingTable;
-class IGenericRoute;
-class IGenericMulticastRoute;
+class IRoute;
+class IMulticastRoute;
 
 
 /**
@@ -60,7 +60,7 @@ class INET_API IPv4Route : public cObject
     int metric;           ///< Metric ("cost" to reach the destination)
     cObject *sourceXXX;   ///< Object identifying the source
     cObject *protocolData; ///< Routing Protocol specific data
-    IGenericRoute *adapter;
+    IRoute *adapter;
 
   public:
     enum {F_DESTINATION, F_NETMASK, F_GATEWAY, F_IFACE, F_TYPE, F_SOURCE, F_METRIC, F_LAST}; // field codes for changed()
@@ -87,7 +87,7 @@ class INET_API IPv4Route : public cObject
     virtual void setRoutingTable(IRoutingTable *rt) {this->rt = rt;}
     IRoutingTable *getRoutingTable() const {return rt;}
 
-    virtual IGenericRoute *asGeneric();
+    virtual IRoute *asGeneric();
 
     /** test validity of route entry, e.g. check expiry */
     virtual bool isValid() const { return true; }
@@ -184,7 +184,7 @@ class INET_API IPv4MulticastRoute : public cObject
     ChildInterfaceVector children; ///< Child interfaces
     RouteSource source;            ///< manual, routing prot, etc.
     int metric;                    ///< Metric ("cost" to reach the source)
-    IGenericMulticastRoute *adapter;
+    IMulticastRoute *adapter;
 
   public:
     // field codes for changed()
@@ -208,7 +208,7 @@ class INET_API IPv4MulticastRoute : public cObject
     virtual void setRoutingTable(IRoutingTable *rt) {this->rt = rt;}
     IRoutingTable *getRoutingTable() const {return rt;}
 
-    virtual IGenericMulticastRoute *asGeneric();
+    virtual IMulticastRoute *asGeneric();
 
     /** test validity of route entry, e.g. check expiry */
     virtual bool isValid() const { return true; }

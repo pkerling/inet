@@ -18,12 +18,12 @@
 #ifndef __INET_IPv4ROUTEADAPTER_H
 #define __INET_IPv4ROUTEADAPTER_H
 
-#include "IGenericRoute.h"
+#include "IRoute.h"
 
 /**
  * TODO
  */
-class INET_API IPv4RouteAdapter : public IGenericRoute
+class INET_API IPv4RouteAdapter : public IRoute
 {
     private:
         IPv4Route *e;
@@ -55,7 +55,7 @@ class INET_API IPv4RouteAdapter : public IGenericRoute
 /**
  * TODO
  */
-class INET_API IPv4MulticastRouteAdapter : public IGenericMulticastRoute
+class INET_API IPv4MulticastRouteAdapter : public IMulticastRoute
 {
     private:
         IPv4MulticastRoute *e;

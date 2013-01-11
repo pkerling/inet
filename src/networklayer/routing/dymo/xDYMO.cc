@@ -68,7 +68,7 @@ void xDYMO::initialize(int stage) {
         // KLUDGE: simplify this when RoutingTable implements IGenericRoutingTable
         routingTable = check_and_cast<IGenericRoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this));
 //        routingTable = check_and_cast<RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
-        networkProtocol = check_and_cast<IGenericNetworkProtocol *>(findModuleWhereverInNode(networkProtocolModuleName, this));
+        networkProtocol = check_and_cast<INetworkProtocol *>(findModuleWhereverInNode(networkProtocolModuleName, this));
         // internal
         expungeTimer = new cMessage("ExpungeTimer");
         notificationBoard->subscribe(this, NF_LINK_BREAK);
@@ -154,9 +154,9 @@ void xDYMO::retryRouteDiscovery(const Address & target, int retryCount) {
 void xDYMO::completeRouteDiscovery(const Address & target) {
     DYMO_EV << "Completing route discovery: originator = " << getSelfAddress() << ", target = " << target << endl;
     ASSERT(hasOngoingRouteDiscovery(target));
-    std::multimap<Address, IGenericDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
-    std::multimap<Address, IGenericDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
-    for (std::multimap<Address, IGenericDatagram *>::iterator it = lt; it != ut; it++)
+    std::multimap<Address, INetworkDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
+    std::multimap<Address, INetworkDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
+    for (std::multimap<Address, INetworkDatagram *>::iterator it = lt; it != ut; it++)
         reinjectDelayedDatagram(it->second);
     eraseDelayedDatagrams(target);
 }
@@ -164,9 +164,9 @@ void xDYMO::completeRouteDiscovery(const Address & target) {
 void xDYMO::cancelRouteDiscovery(const Address & target) {
     DYMO_EV << "Canceling route discovery: originator = " << getSelfAddress() << ", target = " << target << endl;
     ASSERT(hasOngoingRouteDiscovery(target));
-    std::multimap<Address, IGenericDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
-    std::multimap<Address, IGenericDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
-    for (std::multimap<Address, IGenericDatagram *>::iterator it = lt; it != ut; it++)
+    std::multimap<Address, INetworkDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
+    std::multimap<Address, INetworkDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
+    for (std::multimap<Address, INetworkDatagram *>::iterator it = lt; it != ut; it++)
         dropDelayedDatagram(it->second);
     eraseDelayedDatagrams(target);
 }
@@ -179,25 +179,25 @@ bool xDYMO::hasOngoingRouteDiscovery(const Address & target) {
 // handling IP datagrams
 //
 
-void xDYMO::delayDatagram(IGenericDatagram * datagram) {
+void xDYMO::delayDatagram(INetworkDatagram * datagram) {
     DYMO_EV << "Queuing datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
     const Address & target = datagram->getDestinationAddress();
-    targetAddressToDelayedPackets.insert(std::pair<Address, IGenericDatagram *>(target, datagram));
+    targetAddressToDelayedPackets.insert(std::pair<Address, INetworkDatagram *>(target, datagram));
 }
 
-void xDYMO::reinjectDelayedDatagram(IGenericDatagram * datagram) {
+void xDYMO::reinjectDelayedDatagram(INetworkDatagram * datagram) {
     DYMO_EV << "Sending queued datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
-    networkProtocol->reinjectDatagram(const_cast<const IGenericDatagram *>(datagram), IHook::ACCEPT);
+    networkProtocol->reinjectDatagram(const_cast<const INetworkDatagram *>(datagram), IHook::ACCEPT);
 }
 
-void xDYMO::dropDelayedDatagram(IGenericDatagram * datagram) {
+void xDYMO::dropDelayedDatagram(INetworkDatagram * datagram) {
     DYMO_EV << "Dropping queued datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
-    networkProtocol->reinjectDatagram(const_cast<const IGenericDatagram *>(datagram), IHook::DROP);
+    networkProtocol->reinjectDatagram(const_cast<const INetworkDatagram *>(datagram), IHook::DROP);
 }
 
 void xDYMO::eraseDelayedDatagrams(const Address & target) {
-    std::multimap<Address, IGenericDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
-    std::multimap<Address, IGenericDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
+    std::multimap<Address, INetworkDatagram *>::iterator lt = targetAddressToDelayedPackets.lower_bound(target);
+    std::multimap<Address, INetworkDatagram *>::iterator ut = targetAddressToDelayedPackets.upper_bound(target);
     targetAddressToDelayedPackets.erase(lt, ut);
 }
 
@@ -595,7 +595,7 @@ void xDYMO::processRREQ(RREQ * rreqIncoming) {
             if (useMulticastRREP)
                 sendRREP(createRREP(rreqIncoming));
             else {
-                IGenericRoute * route = routingTable->findBestMatchingRoute(originator);
+                IRoute * route = routingTable->findBestMatchingRoute(originator);
                 RREP * rrep = createRREP(rreqIncoming, route);
                 sendRREP(rrep, route);
             }
@@ -629,7 +629,7 @@ RREP * xDYMO::createRREP(RteMsg * rteMsg) {
     return createRREP(rteMsg, NULL);
 }
 
-RREP * xDYMO::createRREP(RteMsg * rteMsg, IGenericRoute * route) {
+RREP * xDYMO::createRREP(RteMsg * rteMsg, IRoute * route) {
     DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
     RREP * rrep = new RREP("RREP");
     AddressBlock & originatorNode = rrep->getOriginatorNode();
@@ -677,7 +677,7 @@ void xDYMO::sendRREP(RREP * rrep) {
     sendDYMOPacket(rrep, NULL, addressPolicy->getLinkLocalManetRoutersMulticastAddress(), 0);
 }
 
-void xDYMO::sendRREP(RREP * rrep, IGenericRoute * route) {
+void xDYMO::sendRREP(RREP * rrep, IRoute * route) {
     const Address & target = rrep->getTargetNode().getAddress();
     const Address & originator = rrep->getOriginatorNode().getAddress();
     const Address & nextHop = route->getNextHop();
@@ -717,7 +717,7 @@ void xDYMO::processRREP(RREP * rrepIncoming) {
             if (useMulticastRREP)
                 sendRREP(rrepOutgoing);
             else {
-                IGenericRoute * route = routingTable->findBestMatchingRoute(originator);
+                IRoute * route = routingTable->findBestMatchingRoute(originator);
                 sendRREP(rrepOutgoing, route);
             }
         }
@@ -809,7 +809,7 @@ void xDYMO::sendRERRForBrokenLink(InterfaceEntry * interfaceEntry, const Address
     // zero.
     std::vector<Address> unreachableAddresses;
     for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-        IGenericRoute * route = routingTable->getRoute(i);
+        IRoute * route = routingTable->getRoute(i);
         if (route->getSource() == this) {
             DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
             DYMORouteState routeState = getRouteState(routeData);
@@ -846,7 +846,7 @@ void xDYMO::processRERR(RERR * rerrIncoming) {
         for (int i = 0; i < (int)rerrIncoming->getUnreachableNodeArraySize(); i++) {
             AddressBlock & addressBlock = rerrIncoming->getUnreachableNode(i);
             for (int j = 0; j < routingTable->getNumRoutes(); j++) {
-                IGenericRoute * route = routingTable->getRoute(j);
+                IRoute * route = routingTable->getRoute(j);
                 if (route->getSource() == this) {
                     DYMORouteData *routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
                     const Address & unreachableAddress = addressBlock.getAddress();
@@ -962,9 +962,9 @@ void xDYMO::updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock) {
         // 6.1. Evaluating Incoming Routing Information
         // HandRtr searches its route table to see if there is a route table
         // entry with the same MetricType of the RteMsg, matching RteMsg.Addr.
-        IGenericRoute * route = NULL;
+        IRoute * route = NULL;
         for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-            IGenericRoute * routeCandidate = routingTable->getRoute(i);
+            IRoute * routeCandidate = routingTable->getRoute(i);
             if (routeCandidate->getSource() == this) {
                 DYMORouteData *routeData = check_and_cast<DYMORouteData *>(routeCandidate->getProtocolData());
                 if (routeCandidate->getDestination() == address && routeData->getMetricType() == addressBlock.getMetricType()) {
@@ -978,7 +978,7 @@ void xDYMO::updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock) {
         // in RteMsg against the already stored routing information in the route table
         // entry (Route) for RteMsg.Addr, as described below.
         if (!route) {
-            IGenericRoute * route = createRoute(rteMsg, addressBlock);
+            IRoute * route = createRoute(rteMsg, addressBlock);
             DYMO_EV << "Adding new route: " << route << endl;
             routingTable->addRoute(route);
         }
@@ -1005,15 +1005,15 @@ void xDYMO::updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock) {
     }
 }
 
-IGenericRoute * xDYMO::createRoute(RteMsg * rteMsg, AddressBlock & addressBlock) {
-    IGenericRoute * route = routingTable->createRoute();
+IRoute * xDYMO::createRoute(RteMsg * rteMsg, AddressBlock & addressBlock) {
+    IRoute * route = routingTable->createRoute();
     route->setSource(this);
     route->setProtocolData(new DYMORouteData());
     updateRoute(rteMsg, addressBlock, route);
     return route;
 }
 
-void xDYMO::updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IGenericRoute * route) {
+void xDYMO::updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IRoute * route) {
     // 6.2. Applying Route Updates To Route Table Entries
     INetworkProtocolControlInfo * networkProtocolControlInfo = check_and_cast<INetworkProtocolControlInfo *>(rteMsg->getControlInfo());
     DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
@@ -1063,7 +1063,7 @@ int xDYMO::getLinkCost(InterfaceEntry * interfaceEntry, DYMOMetricType metricTyp
     }
 }
 
-bool xDYMO::isLoopFree(RteMsg * rteMsg, IGenericRoute * route) {
+bool xDYMO::isLoopFree(RteMsg * rteMsg, IRoute * route) {
     // TODO: implement
     return true;
 }
@@ -1101,7 +1101,7 @@ void xDYMO::expungeRoutes() {
     DYMO_EV << "Expunging routes from routing table: routeCount = " << routingTable->getNumRoutes() << endl;
     // 6.3. Route Table Entry Timeouts
     for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-        IGenericRoute * route = routingTable->getRoute(i);
+        IRoute * route = routingTable->getRoute(i);
         if (route->getSource() == this) {
             DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
             // An Active route MUST NOT be expunged
@@ -1124,7 +1124,7 @@ void xDYMO::expungeRoutes() {
 simtime_t xDYMO::getNextExpungeTime() {
     simtime_t nextExpirationTime = SimTime::getMaxTime();
     for (int i = 0; i < routingTable->getNumRoutes(); i++) {
-        IGenericRoute * route = routingTable->getRoute(i);
+        IRoute * route = routingTable->getRoute(i);
         if (route->getSource() == this) {
             DYMORouteData * routeData = check_and_cast<DYMORouteData *>(route->getProtocolData());
             const simtime_t & expirationTime = routeData->getExpirationTime();
@@ -1223,20 +1223,20 @@ void xDYMO::incrementSequenceNumber() {
 // generic network protocol
 //
 
-bool xDYMO::isDYMODatagram(IGenericDatagram * datagram) {
+bool xDYMO::isDYMODatagram(INetworkDatagram * datagram) {
     cPacket * packet = dynamic_cast<cPacket *>(datagram);
     INetworkProtocolControlInfo * networkProtocolControlInfo = dynamic_cast<INetworkProtocolControlInfo *>(packet->getControlInfo());
     return networkProtocolControlInfo && networkProtocolControlInfo->getProtocol() == IP_PROT_MANET;
 }
 
-IGenericNetworkProtocol::IHook::Result xDYMO::ensureRouteForDatagram(IGenericDatagram * datagram) {
+INetworkProtocol::IHook::Result xDYMO::ensureRouteForDatagram(INetworkDatagram * datagram) {
     const Address & source = datagram->getSourceAddress();
     const Address & destination = datagram->getDestinationAddress();
     if (destination.isMulticast() || destination.isBroadcast() || routingTable->isLocalAddress(destination) || isDYMODatagram(datagram))
         return ACCEPT;
     else {
         DYMO_EV << "Finding route: source = " << source << ", destination = " << destination << endl;
-        IGenericRoute * route = routingTable->findBestMatchingRoute(destination);
+        IRoute * route = routingTable->findBestMatchingRoute(destination);
         DYMORouteData * routeData = route ? dynamic_cast<DYMORouteData *>(route->getProtocolData()) : NULL;
         bool broken = routeData && routeData->getBroken();
         if (route && !route->getNextHop().isUnspecified() && !broken) {
@@ -1272,12 +1272,12 @@ void xDYMO::receiveChangeNotification(int category, const cObject *details) {
         DYMO_EV << "Received link break" << endl;
         Ieee80211Frame *ieee80211Frame = dynamic_cast<Ieee80211Frame *>(const_cast<cObject*>(details));
         if (ieee80211Frame) {
-            IGenericDatagram * datagram = dynamic_cast<IGenericDatagram *>(ieee80211Frame->getEncapsulatedPacket());
+            INetworkDatagram * datagram = dynamic_cast<INetworkDatagram *>(ieee80211Frame->getEncapsulatedPacket());
             if (datagram && !isDYMODatagram(datagram)) {
                 // TODO: get nexthop and interface from the packet
                 // INetworkProtocolControlInfo * networkProtocolControlInfo = dynamic_cast<INetworkProtocolControlInfo *>(datagram->getControlInfo());
                 const Address & destination = datagram->getDestinationAddress();
-                IGenericRoute * route = routingTable->findBestMatchingRoute(destination);
+                IRoute * route = routingTable->findBestMatchingRoute(destination);
                 if (route) {
                     const Address & nextHop = route->getNextHop();
                     sendRERRForBrokenLink(route->getInterface(), nextHop);

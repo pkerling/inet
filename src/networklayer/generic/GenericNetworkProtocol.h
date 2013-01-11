@@ -24,7 +24,7 @@
 
 #include "QueueBase.h"
 #include "InterfaceTableAccess.h"
-#include "IGenericNetworkProtocol.h"
+#include "INetworkProtocol.h"
 #include "GenericRoutingTable.h"
 #include "GenericNetworkProtocolControlInfo.h"
 #include "GenericDatagram.h"
@@ -33,7 +33,7 @@
 /**
  * Implements a simple network protocol.
  */
-class INET_API GenericNetworkProtocol : public QueueBase, public IGenericNetworkProtocol
+class INET_API GenericNetworkProtocol : public QueueBase, public INetworkProtocol
 {
   protected:
     /**
@@ -163,7 +163,7 @@ class INET_API GenericNetworkProtocol : public QueueBase, public IGenericNetwork
 
     virtual void registerHook(int priority, IHook * hook);
     virtual void unregisterHook(int priority, IHook * hook);
-    virtual void reinjectDatagram(const IGenericDatagram * datagram, IHook::Result verdict);
+    virtual void reinjectDatagram(const INetworkDatagram * datagram, IHook::Result verdict);
 
   protected:
     /**

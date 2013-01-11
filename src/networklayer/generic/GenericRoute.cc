@@ -27,7 +27,7 @@ std::string GenericRoute::detailedInfo() const
     return ""; //TODO
 }
 
-bool GenericRoute::equals(const IGenericRoute& route) const
+bool GenericRoute::equals(const IRoute& route) const
 {
     return false; //TODO
 }
