@@ -15,8 +15,8 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_IGENERICROUTINGTABLE_H
-#define __INET_IGENERICROUTINGTABLE_H
+#ifndef __INET_IROUTINGTABLE_H
+#define __INET_IROUTINGTABLE_H
 
 #include "INETDefs.h"
 #include "Address.h"
@@ -26,11 +26,11 @@
 /**
  * A C++ interface to abstract the functionality of a routing table, regardless of address type.
  */
-//TODO the "Generic" can be dropped from the name, once RoutingTable[6] is renamed to IPv[4|6]RoutingTable
-class INET_API IGenericRoutingTable
+//TODO the "Generic" can be dropped from the name, once IPv4RoutingTable[6] is renamed to IPv[4|6]IPv4RoutingTable
+class INET_API IRoutingTable
 {
     public:
-        virtual ~IGenericRoutingTable() {};
+        virtual ~IRoutingTable() {};
 
         /** @name Miscellaneous functions */
         //@{

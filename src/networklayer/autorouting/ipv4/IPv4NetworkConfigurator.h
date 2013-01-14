@@ -25,7 +25,7 @@
 #include "INETDefs.h"
 #include "Topology.h"
 #include "IInterfaceTable.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "IPv4Address.h"
 
 namespace inet { class PatternMatcher; }
@@ -56,7 +56,7 @@ class INET_API IPv4NetworkConfigurator : public cSimpleModule
             public:
                 cModule *module;
                 IInterfaceTable *interfaceTable;
-                IRoutingTable *routingTable;
+                IIPv4RoutingTable *routingTable;
                 std::vector<InterfaceInfo *> interfaceInfos;
 
             public:

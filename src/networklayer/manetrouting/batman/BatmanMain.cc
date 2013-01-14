@@ -4,7 +4,7 @@
 
 #include "IPv4ControlInfo.h"
 #include "IPv4InterfaceData.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "UDPPacket_m.h"
 
 Define_Module(Batman);
@@ -130,7 +130,7 @@ void Batman::initialize(int stage)
         throw cRuntimeError("Invalid 'originatorInterval' parameter");
 
     const char *preferedGateWay = par("preferedGateWay");
-    pref_gateway =  ManetAddress(IPvXAddressResolver().resolve(preferedGateWay, IPvXAddressResolver::ADDR_IPv4));
+    pref_gateway =  ManetAddress(AddressResolver().resolve(preferedGateWay, AddressResolver::ADDR_IPv4));
 
     routing_class = par("routingClass");
     if (routing_class < 0)
@@ -215,8 +215,8 @@ void Batman::initialize(int stage)
         if (addrPair.size() != 2)
             throw cRuntimeError("invalid 'announcedNetworks' parameter content: '%s'", token);
 
-        IPv4Address addr = IPvXAddressResolver().resolve(addrPair[0].c_str()).toIPv4();
-        IPv4Address mask = IPvXAddressResolver().resolve(addrPair[1].c_str(), IPvXAddressResolver::ADDR_MASK).toIPv4();
+        IPv4Address addr = AddressResolver().resolve(addrPair[0].c_str()).toIPv4();
+        IPv4Address mask = AddressResolver().resolve(addrPair[1].c_str(), AddressResolver::ADDR_MASK).toIPv4();
         addr.doAnd(mask);
 
         // add to HNA:

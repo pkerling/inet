@@ -62,7 +62,7 @@ void ExtInterface::initialize(int stage)
         WATCH(numRcvd);
         WATCH(numDropped);
 
-        // register our interface entry in RoutingTable
+        // register our interface entry in IPv4RoutingTable
         interfaceEntry = registerInterface();
 
         // if not connected, make it gray

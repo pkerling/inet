@@ -18,7 +18,7 @@
 
 #include "SCTPPeer.h"
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "SCTPAssociation.h"
 #include "SCTPCommand_m.h"
 #include "SCTPMessage_m.h"
@@ -82,7 +82,7 @@ void SCTPPeer::initialize()
 
     // parameters
     const char *addressesString = par("localAddress");
-    AddressVector addresses = IPvXAddressResolver().resolve(cStringTokenizer(addressesString).asVector());
+    AddressVector addresses = AddressResolver().resolve(cStringTokenizer(addressesString).asVector());
     int port = par("localPort");
     echo = par("echo");
     delay = par("echoDelay");
@@ -173,7 +173,7 @@ void SCTPPeer::connect()
     sctpEV3 << "issuing OPEN command\n";
     sctpEV3 << "Assoc " << clientSocket.getConnectionId() << "::connect to address " << connectAddress << ", port " << connectPort << "\n";
     numSessions++;
-    clientSocket.connect(IPvXAddressResolver().resolve(connectAddress, 1), connectPort, (uint32)par("numRequestsPerSession"));
+    clientSocket.connect(AddressResolver().resolve(connectAddress, 1), connectPort, (uint32)par("numRequestsPerSession"));
 
 }
 

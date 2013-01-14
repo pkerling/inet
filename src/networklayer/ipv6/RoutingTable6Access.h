@@ -22,16 +22,16 @@
 #include "INETDefs.h"
 
 #include "ModuleAccess.h"
-#include "RoutingTable6.h"
+#include "IPv6RoutingTable.h"
 
 
 /**
- * Gives access to RoutingTable6
+ * Gives access to IPv6RoutingTable
  */
-class INET_API RoutingTable6Access : public ModuleAccess<RoutingTable6>
+class INET_API RoutingTable6Access : public ModuleAccess<IPv6RoutingTable>
 {
     public:
-        RoutingTable6Access() : ModuleAccess<RoutingTable6>("routingTable6") {}
+        RoutingTable6Access() : ModuleAccess<IPv6RoutingTable>("routingTable6") {}
 };
 
 #endif

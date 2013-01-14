@@ -24,7 +24,7 @@
 
 
 class InterfaceEntry;
-class IGenericRoutingTable;
+class IRoutingTable;
 
 /**
  * TODO
@@ -32,7 +32,7 @@ class IGenericRoutingTable;
 class INET_API GenericRoute : public cObject, public IRoute
 {
     private:
-        IGenericRoutingTable *owner;
+        IRoutingTable *owner;
         bool enabled;
         int prefixLength;
         Address destination;
@@ -51,7 +51,7 @@ class INET_API GenericRoute : public cObject, public IRoute
 
         bool equals(const IRoute& route) const;
 
-        virtual void setRoutingTable(IGenericRoutingTable *owner) {this->owner = owner;}
+        virtual void setRoutingTable(IRoutingTable *owner) {this->owner = owner;}
         virtual void setEnabled(bool enabled) {this->enabled = enabled;}
         virtual void setDestination(const Address& dest) {this->destination = dest;}
         virtual void setPrefixLength(int l) {this->prefixLength = l;}
@@ -62,7 +62,7 @@ class INET_API GenericRoute : public cObject, public IRoute
         virtual void setProtocolData(cObject *protocolData) {this->protocolData = protocolData;}
 
         /** The routing table in which this route is inserted, or NULL. */
-        virtual IGenericRoutingTable *getRoutingTable() const {return owner;}
+        virtual IRoutingTable *getRoutingTable() const {return owner;}
 
         /** Disabled entries are ignored by routing until the became enabled again. */
         virtual bool isEnabled() const {return enabled;}
@@ -102,7 +102,7 @@ class INET_API GenericMulticastRoute : public cObject, public IGenericMulticastR
     private:
         struct Child { InterfaceEntry *ie; bool isLeaf; };
     private:
-        IGenericRoutingTable *owner;
+        IRoutingTable *owner;
         bool enabled;
         int prefixLength;
         Address origin;
@@ -131,7 +131,7 @@ class INET_API GenericMulticastRoute : public cObject, public IGenericMulticastR
         virtual void setMetric(int metric) {this->metric = metric;}
 
         /** The routing table in which this route is inserted, or NULL. */
-        virtual IGenericRoutingTable *getRoutingTable() {return owner;}
+        virtual IRoutingTable *getRoutingTable() {return owner;}
 
         /** Disabled entries are ignored by routing until the became enabled again. */
         virtual bool isEnabled() const {return enabled;}

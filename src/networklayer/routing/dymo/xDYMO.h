@@ -10,14 +10,14 @@
 #include <omnetpp.h>
 #include "INotifiable.h"
 #include "IAddressPolicy.h"
-#include "INetworkProtocol.h"
-#include "IGenericRoutingTable.h"
+#include "INetfilter.h"
+#include "IRoutingTable.h"
 #include "DYMOdefs.h"
 #include "DYMORouteData.h"
 #include "DYMO_m.h"
 
-// KLUDGE: kill this when RoutingTable implements IGenericRoutingTable
-#include "RoutingTable.h"
+// KLUDGE: kill this when IPv4RoutingTable implements IRoutingTable
+#include "IPv4RoutingTable.h"
 
 DYMO_NAMESPACE_BEGIN
 
@@ -37,7 +37,7 @@ DYMO_NAMESPACE_BEGIN
  *  - 13.6. Message Aggregation
  *    RFC5148 add jitter to broadcasts
  */
-class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetworkProtocol::IHook {
+class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilter::IHook {
   private:
     // context parameters
     const char * routingTableModuleName;
@@ -68,8 +68,8 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetwork
     NotificationBoard * notificationBoard;
     IAddressPolicy * addressPolicy;
     IInterfaceTable * interfaceTable;
-    IGenericRoutingTable * routingTable;
-    INetworkProtocol * networkProtocol;
+    IRoutingTable * routingTable;
+    INetfilter * networkProtocol;
 
     // internal
     cMessage * expungeTimer;

@@ -19,23 +19,23 @@
 #define __INET_IPv4ROUTINGTABLEADAPTER_H
 
 #include "INETDefs.h"
-#include "IGenericRoutingTable.h"
 #include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "IPv4RouteAdapter.h"
 
 /**
  * TODO
  */
-class INET_API IPv4RoutingTableAdapter : public IGenericRoutingTable
+class INET_API IPv4RoutingTableAdapter : public IRoutingTable
 {
     private:
-        IRoutingTable *rt;
+        IIPv4RoutingTable *rt;
         static IRoute *toGeneric(IPv4Route *e) {return e ? e->asGeneric() : NULL;}
         static IMulticastRoute *toGeneric(IPv4MulticastRoute *e) {return e ? e->asGeneric() : NULL;}
         static IPv4Route *fromGeneric(IRoute *e) {return e ? dynamic_cast<IPv4RouteAdapter*>(e)->getIPv4Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
         static IPv4MulticastRoute *fromGeneric(IMulticastRoute *e) {return e ? dynamic_cast<IPv4MulticastRouteAdapter*>(e)->getIPv4Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
     public:
-        IPv4RoutingTableAdapter(IRoutingTable *routingTable) {rt = routingTable;}
+        IPv4RoutingTableAdapter(IIPv4RoutingTable *routingTable) {rt = routingTable;}
         virtual bool isForwardingEnabled() const {return rt->isIPForwardingEnabled();} //XXX inconsistent names
         virtual bool isMulticastForwardingEnabled() const {return rt->isMulticastForwardingEnabled();}
         virtual Address getRouterId() const {return rt->getRouterId();}

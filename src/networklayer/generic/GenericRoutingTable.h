@@ -24,7 +24,7 @@
 
 #include "INotifiable.h"
 #include "GenericRoute.h"
-#include "IGenericRoutingTable.h"
+#include "IRoutingTable.h"
 
 class IInterfaceTable;
 class NotificationBoard;
@@ -33,8 +33,8 @@ class NotificationBoard;
 /**
  * A C++ interface to abstract the functionality of a routing table, regardless of address type.
  */
-//TODO the "Generic" can be dropped from the name, once RoutingTable[6] is renamed to IPv[4|6]RoutingTable
-class INET_API GenericRoutingTable : public cSimpleModule, public IGenericRoutingTable, public INotifiable
+//TODO the "Generic" can be dropped from the name, once IPv4RoutingTable[6] is renamed to IPv[4|6]IPv4RoutingTable
+class INET_API GenericRoutingTable : public cSimpleModule, public IRoutingTable, public INotifiable
 {
     private:
         IInterfaceTable *ift; // cached pointer

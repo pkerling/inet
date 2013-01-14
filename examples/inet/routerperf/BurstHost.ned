@@ -19,7 +19,7 @@
 package inet.examples.inet.routerperf;
 
 import inet.nodes.inet.NetworkLayer;
-import inet.networklayer.ipv4.RoutingTable;
+import inet.networklayer.ipv4.IPv4RoutingTable;
 import inet.networklayer.common.InterfaceTable;
 import inet.linklayer.IWiredNic;
 import inet.base.NotificationBoard;
@@ -50,7 +50,7 @@ module BurstHost
             parameters:
                 @display("p=83,136");
         }
-        routingTable: RoutingTable {
+        routingTable: IPv4RoutingTable {
             parameters:
                 IPForward = IPForward;
                 routerId = "";

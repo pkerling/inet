@@ -16,7 +16,7 @@
 //
 
 #include "BGPRouting.h"
-#include "RoutingTableAccess.h"
+#include "IPv4RoutingTableAccess.h"
 #include "OSPFRouting.h"
 #include "BGPSession.h"
 
@@ -36,9 +36,9 @@ BGPRouting::~BGPRouting(void)
 
 void BGPRouting::initialize(int stage)
 {
-    if (stage==4) // we must wait until RoutingTable is completely initialized
+    if (stage==4) // we must wait until IPv4RoutingTable is completely initialized
     {
-        _rt = RoutingTableAccess().get();
+        _rt = IPv4RoutingTableAccess().get();
         _inft = InterfaceTableAccess().get();
 
         // read BGP configuration
@@ -746,7 +746,7 @@ bool BGPRouting::deleteBGPRoutingEntry(BGP::RoutingTableEntry* entry){
 }
 
 /*return index of the IPv4 table if the route is found, -1 else*/
-int BGPRouting::isInRoutingTable(IRoutingTable* rtTable, IPv4Address addr)
+int BGPRouting::isInRoutingTable(IIPv4RoutingTable* rtTable, IPv4Address addr)
 {
     for (int i = 0; i < rtTable->getNumRoutes(); i++)
     {
@@ -817,7 +817,7 @@ bool BGPRouting::isInASList(std::vector<BGP::ASID> ASList, BGP::RoutingTableEntr
 }
 
 /*return true if OSPF exists, false else*/
-bool BGPRouting::ospfExist(IRoutingTable* rtTable)
+bool BGPRouting::ospfExist(IIPv4RoutingTable* rtTable)
 {
     for (int i=0; i<rtTable->getNumRoutes(); i++)
     {

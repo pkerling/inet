@@ -65,7 +65,7 @@ class INET_API Address
         void set(const ModuleIdAddress& addr) { type = MODULEID;  moduleId = addr; }
         void set(const ModulePathAddress& addr) { type = MODULEPATH;  modulePath = addr; }
 
-        IPv4Address toIPv4() const {return ipv4;}   //XXX names are inconsistent with IPvXAddress (rename IPvXAddress methods?)
+        IPv4Address toIPv4() const {return ipv4;}   //XXX names are inconsistent with Address (rename Address methods?)
         IPv6Address toIPv6() const {return ipv6;}
         MACAddress toMAC() const {return mac;}  // IEU-48
         ModuleIdAddress toModuleId() const {return moduleId;}

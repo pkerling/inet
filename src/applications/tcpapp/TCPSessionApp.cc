@@ -16,7 +16,7 @@
 
 #include "ByteArrayMessage.h"
 #include "GenericAppMsg_m.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 
 
 Define_Module(TCPSessionApp);
@@ -195,7 +195,7 @@ void TCPSessionApp::activity()
         getDisplayString().setTagArg("t", 0, active ? "connecting" : "listening");
 
     if (active)
-        socket.connect(IPvXAddressResolver().resolve(connectAddress), connectPort);
+        socket.connect(AddressResolver().resolve(connectAddress), connectPort);
     else
         socket.listenOnce();
 

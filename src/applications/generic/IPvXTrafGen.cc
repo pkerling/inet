@@ -19,7 +19,7 @@
 
 #include "IPvXTrafGen.h"
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "IPv4ControlInfo.h"
 #include "IPv6ControlInfo.h"
 
@@ -31,7 +31,7 @@ simsignal_t IPvXTrafGen::sentPkSignal = SIMSIGNAL_NULL;
 
 void IPvXTrafGen::initialize(int stage)
 {
-    // because of IPvXAddressResolver, we need to wait until interfaces are registered,
+    // because of AddressResolver, we need to wait until interfaces are registered,
     // address auto-assignment takes place etc.
     if (stage != 3)
         return;
@@ -50,7 +50,7 @@ void IPvXTrafGen::initialize(int stage)
     cStringTokenizer tokenizer(destAddrs);
     const char *token;
     while ((token = tokenizer.nextToken()) != NULL)
-        destAddresses.push_back(IPvXAddressResolver().resolve(token));
+        destAddresses.push_back(AddressResolver().resolve(token));
 
     packetLengthPar = &par("packetLength");
 

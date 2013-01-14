@@ -19,7 +19,7 @@
 
 #include "IPvXTrafGen.h"
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "IPv4ControlInfo.h"
 #include "IPv6ControlInfo.h"
 

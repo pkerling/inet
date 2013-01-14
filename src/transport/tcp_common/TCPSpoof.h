@@ -17,7 +17,7 @@
 #include "INETDefs.h"
 
 #include "TCPSegment.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 
 
 /**

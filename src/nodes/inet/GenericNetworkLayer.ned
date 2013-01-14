@@ -20,7 +20,7 @@ package inet.nodes.inet;
 
 import inet.networklayer.arp.GlobalARP;
 import inet.networklayer.generic.GenericNetworkProtocol;
-import inet.networklayer.generic.SCMP;
+import inet.networklayer.generic.EchoProtocol;
 
 
 //
@@ -64,7 +64,7 @@ module GenericNetworkLayer
                 transportOut[8];
                 queueIn[sizeof(ifIn)];
         }
-        scmp: SCMP {
+        echo: EchoProtocol {
             parameters:
                 @display("p=160,63");
         }
@@ -82,8 +82,8 @@ module GenericNetworkLayer
         ip.transportOut[1] --> { @display("m=n"); } --> udpOut;
         ip.transportIn[1] <-- { @display("m=n"); } <-- udpIn;
 
-        ip.transportOut[2] --> scmp.localIn;
-        ip.transportIn[2] <-- scmp.sendOut;
+        ip.transportOut[2] --> echo.localIn;
+        ip.transportIn[2] <-- echo.sendOut;
 
         ip.transportOut[4] --> { @display("m=n"); } --> rsvpOut;
         ip.transportIn[4] <-- { @display("m=n"); } <-- rsvpIn;
@@ -98,10 +98,10 @@ module GenericNetworkLayer
         ip.transportIn[7] <-- { @display("m=n"); } <-- manetIn;
 
         for i=0..sizeof(pingOut)-1 {
-            scmp.pingOut++ --> { @display("m=n"); } --> pingOut[i];
+            echo.pingOut++ --> { @display("m=n"); } --> pingOut[i];
         }
         for i=0..sizeof(pingIn)-1 {
-            scmp.pingIn++ <-- { @display("m=n"); } <-- pingIn[i];
+            echo.pingIn++ <-- { @display("m=n"); } <-- pingIn[i];
         }
 
         ip.queueOut --> arp.ipIn;

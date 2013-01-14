@@ -26,7 +26,7 @@
 #include "SCTPCommand_m.h"
 #include "SCTPMessage_m.h"
 #include "SCTPSocket.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 
 
 Define_Module(SCTPServer);
@@ -44,7 +44,7 @@ void SCTPServer::initialize()
     // parameters
     finishEndsSimulation = (bool)par("finishEndsSimulation");
     const char *addressesString = par("localAddress");
-    AddressVector addresses = IPvXAddressResolver().resolve(cStringTokenizer(addressesString).asVector());
+    AddressVector addresses = AddressResolver().resolve(cStringTokenizer(addressesString).asVector());
     int32 port = par("localPort");
     echo = par("echo");
     delay = par("echoDelay");

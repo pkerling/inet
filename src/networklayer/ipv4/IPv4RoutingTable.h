@@ -25,8 +25,8 @@
 //  Cleanup and rewrite: Andras Varga, 2004
 //
 
-#ifndef __ROUTINGTABLE_H
-#define __ROUTINGTABLE_H
+#ifndef __INET_IPV4ROUTINGTABLE_H
+#define __INET_IPV4ROUTINGTABLE_H
 
 #include <vector>
 
@@ -34,12 +34,12 @@
 
 #include "INotifiable.h"
 #include "IPv4Address.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 
 class IInterfaceTable;
 class NotificationBoard;
 class RoutingTableParser;
-class IGenericRoutingTable;
+class IRoutingTable;
 
 
 /**
@@ -72,12 +72,12 @@ class IGenericRoutingTable;
  *
  * @see InterfaceEntry, IPv4InterfaceData, IPv4Route
  */
-class INET_API RoutingTable: public cSimpleModule, public IRoutingTable, protected INotifiable
+class INET_API IPv4RoutingTable: public cSimpleModule, public IIPv4RoutingTable, protected INotifiable
 {
   protected:
     IInterfaceTable *ift; // cached pointer
     NotificationBoard *nb; // cached pointer
-    IGenericRoutingTable *adapter;
+    IRoutingTable *adapter;
 
     IPv4Address routerId;
     bool IPForward;
@@ -138,8 +138,8 @@ class INET_API RoutingTable: public cSimpleModule, public IRoutingTable, protect
     IPv4MulticastRoute *internalRemoveMulticastRoute(IPv4MulticastRoute *entry);
 
   public:
-    RoutingTable();
-    virtual ~RoutingTable();
+    IPv4RoutingTable();
+    virtual ~IPv4RoutingTable();
 
   protected:
     virtual int numInitStages() const  {return 4;}
@@ -175,7 +175,7 @@ class INET_API RoutingTable: public cSimpleModule, public IRoutingTable, protect
     /**
      * TODO
      */
-    virtual IGenericRoutingTable *asGeneric();
+    virtual IRoutingTable *asGeneric();
 
     /** @name Interfaces */
     //@{

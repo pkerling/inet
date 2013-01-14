@@ -15,8 +15,8 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_ROUTINGTABLE6_H
-#define __INET_ROUTINGTABLE6_H
+#ifndef __INET_IPV6ROUTINGTABLE_H
+#define __INET_IPV6ROUTINGTABLE_H
 
 #include <vector>
 
@@ -27,7 +27,7 @@
 
 class IInterfaceTable;
 class InterfaceEntry;
-class IGenericRoutingTable;
+class IRoutingTable;
 class IRoute;
 class IPv6RouteAdapter;
 //TODO class IPv6MulticastRouteAdapter;
@@ -53,7 +53,7 @@ class INET_API IPv6Route : public cObject
     IPv6Address _destPrefix;
     short _length;
     RouteSrc _src;
-    int _interfaceID;      //XXX IPv4 IRoutingTable uses interface pointer
+    int _interfaceID;      //XXX IPv4 IIPv4RoutingTable uses interface pointer
     IPv6Address _nextHop;  // unspecified means "direct"
     simtime_t _expiryTime; // if route is an advertised prefix: prefix lifetime
     int _metric;
@@ -111,7 +111,7 @@ class INET_API IPv6Route : public cObject
  * be read and modified during simulation, typically by routing protocol
  * implementations.
  */
-class INET_API RoutingTable6 : public cSimpleModule, protected INotifiable
+class INET_API IPv6RoutingTable : public cSimpleModule, protected INotifiable
 {
   protected:
     IInterfaceTable *ift; // cached pointer
@@ -168,8 +168,8 @@ class INET_API RoutingTable6 : public cSimpleModule, protected INotifiable
     virtual void updateDisplayString();
 
   public:
-    RoutingTable6();
-    virtual ~RoutingTable6();
+    IPv6RoutingTable();
+    virtual ~IPv6RoutingTable();
 
   protected:
     virtual int numInitStages() const  {return 5;}
@@ -199,7 +199,7 @@ class INET_API RoutingTable6 : public cSimpleModule, protected INotifiable
     /**
      * TODO
      */
-    virtual IGenericRoutingTable *asGeneric();
+    virtual IRoutingTable *asGeneric();
 
     /**
      * IP forwarding on/off

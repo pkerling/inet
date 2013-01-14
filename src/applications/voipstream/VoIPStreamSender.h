@@ -37,7 +37,7 @@ extern "C" {
 };
 
 #include "AudioOutFile.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "UDPSocket.h"
 #include "VoIPStreamPacket_m.h"
 
@@ -87,7 +87,7 @@ class INET_API VoIPStreamSender : public cSimpleModule
     // general parameters
     int localPort;
     int destPort;
-    IPvXAddress destAddress;
+    Address destAddress;
 
     int voipHeaderSize;
     int voipSilenceThreshold;       // the maximum amplitude of a silence packet

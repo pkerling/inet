@@ -42,7 +42,7 @@ class ExtInterface : public cSimpleModule
     uint8 buffer[1<<16];
     const char *device;
 
-    InterfaceEntry *interfaceEntry;  // points into RoutingTable
+    InterfaceEntry *interfaceEntry;  // points into IPv4RoutingTable
 
     // statistics
     int numSent;

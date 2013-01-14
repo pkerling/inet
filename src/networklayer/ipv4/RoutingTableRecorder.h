@@ -22,13 +22,13 @@
 
 #include <map>
 #include "INETDefs.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "INotifiable.h"
 
 /**
  * Records interface table and routing table changes into the eventlog.
   *
- * @see RoutingTable, IPv4Route
+ * @see IPv4RoutingTable, IPv4Route
  */
 class INET_API RoutingTableRecorder : public cSimpleModule, public cIndexedEventlogManager::cEventlogListener
 {

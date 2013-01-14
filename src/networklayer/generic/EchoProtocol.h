@@ -15,24 +15,32 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-cplusplus {{
+#ifndef __INET_ECHOPROTOCOL_H
+#define __INET_ECHOPROTOCOL_H
+
 #include "INETDefs.h"
-}}
+#include "Address.h"
+#include "EchoPacket_m.h"
 
-//
-// TODO
-//
-enum SCMPType
-{
-    SCMP_ECHO_REQUEST = 128;
-    SCMP_ECHO_REPLY = 129;
-}
+class PingPayload;
 
-//
-// Simple Control Message Protocol
-// TODO
-//
-packet SCMPPacket
+/**
+ * TODO
+ */
+class INET_API EchoProtocol : public cSimpleModule
 {
-    int type enum(SCMPType);
-}
+  protected:
+    typedef std::map<long,int> PingMap;
+    PingMap pingMap;
+
+  protected:
+    virtual void processPacket(EchoPacket * packet);
+    virtual void processEchoRequest(EchoPacket * packet);
+    virtual void processEchoReply(EchoPacket * packet);
+    virtual void sendEchoRequest(PingPayload * packet);
+
+  protected:
+    virtual void handleMessage(cMessage *msg);
+};
+
+#endif

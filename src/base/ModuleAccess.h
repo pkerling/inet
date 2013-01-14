@@ -59,7 +59,7 @@ INET_API cModule *findContainingNode(cModule *from);
 
 /**
  * Finds and returns the pointer to a module of type T and name N.
- * Uses findModuleWhereverInNode(). See usage e.g. at RoutingTableAccess.
+ * Uses findModuleWhereverInNode(). See usage e.g. at IPv4RoutingTableAccess.
  */
 template<typename T>
 class INET_API ModuleAccess

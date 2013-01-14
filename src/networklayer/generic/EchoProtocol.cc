@@ -17,43 +17,43 @@
 
 #include <string.h>
 
-#include "SCMP.h"
+#include "EchoProtocol.h"
 
 #include "GenericNetworkProtocolControlInfo.h"
 #include "PingPayload_m.h"
 
-Define_Module(SCMP);
+Define_Module(EchoProtocol);
 
-void SCMP::handleMessage(cMessage *msg)
+void EchoProtocol::handleMessage(cMessage *msg)
 {
     cGate *arrivalGate = msg->getArrivalGate();
     if (!strcmp(arrivalGate->getName(), "localIn"))
-        processPacket(check_and_cast<SCMPPacket *>(msg));
+        processPacket(check_and_cast<EchoPacket *>(msg));
     else if (!strcmp(arrivalGate->getName(), "pingIn"))
         sendEchoRequest(check_and_cast<PingPayload *>(msg));
 }
 
-void SCMP::processPacket(SCMPPacket *msg)
+void EchoProtocol::processPacket(EchoPacket *msg)
 {
     switch (msg->getType())
     {
-        case SCMP_ECHO_REQUEST:
+        case ECHO_PROTOCOL_REQUEST:
             processEchoRequest(msg);
             break;
-        case SCMP_ECHO_REPLY:
+        case ECHO_PROTOCOL_REPLY:
             processEchoReply(msg);
             break;
         default:
-            throw cRuntimeError("Unknown SCMP type %d", msg->getType());
+            throw cRuntimeError("Unknown type %d", msg->getType());
     }
 }
 
-void SCMP::processEchoRequest(SCMPPacket *request)
+void EchoProtocol::processEchoRequest(EchoPacket *request)
 {
     // turn request into a reply
-    SCMPPacket *reply = request;
+    EchoPacket *reply = request;
     reply->setName((std::string(request->getName()) + "-reply").c_str());
-    reply->setType(SCMP_ECHO_REPLY);
+    reply->setType(ECHO_PROTOCOL_REPLY);
     // swap src and dest
     // TBD check what to do if dest was multicast etc?
     GenericNetworkProtocolControlInfo *ctrl = check_and_cast<GenericNetworkProtocolControlInfo *>(reply->getControlInfo());
@@ -65,7 +65,7 @@ void SCMP::processEchoRequest(SCMPPacket *request)
     send(reply, "sendOut");
 }
 
-void SCMP::processEchoReply(SCMPPacket *reply)
+void EchoProtocol::processEchoReply(EchoPacket *reply)
 {
     GenericNetworkProtocolControlInfo *ctrl = check_and_cast<GenericNetworkProtocolControlInfo*>(reply->removeControlInfo());
     PingPayload *payload = check_and_cast<PingPayload *>(reply->decapsulate());
@@ -82,7 +82,7 @@ void SCMP::processEchoReply(SCMPPacket *reply)
     }
 }
 
-void SCMP::sendEchoRequest(PingPayload *msg)
+void EchoProtocol::sendEchoRequest(PingPayload *msg)
 {
     cGate *arrivalGate = msg->getArrivalGate();
     int i = arrivalGate->getIndex();
@@ -90,8 +90,8 @@ void SCMP::sendEchoRequest(PingPayload *msg)
 
     GenericNetworkProtocolControlInfo *ctrl = check_and_cast<GenericNetworkProtocolControlInfo*>(msg->removeControlInfo());
     ctrl->setProtocol(IP_PROT_ICMP);
-    SCMPPacket *request = new SCMPPacket(msg->getName());
-    request->setType(SCMP_ECHO_REQUEST);
+    EchoPacket *request = new EchoPacket(msg->getName());
+    request->setType(ECHO_PROTOCOL_REQUEST);
     request->encapsulate(msg);
     request->setControlInfo(ctrl);
     send(request, "sendOut");

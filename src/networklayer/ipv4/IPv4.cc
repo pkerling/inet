@@ -27,7 +27,7 @@
 #include "IPv4ControlInfo.h"
 #include "IPv4Datagram.h"
 #include "IPv4InterfaceData.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 
 
 Define_Module(IPv4);
@@ -41,7 +41,7 @@ void IPv4::initialize()
     QueueBase::initialize();
 
     ift = InterfaceTableAccess().get();
-    rt = RoutingTableAccess().get();
+    rt = IPv4RoutingTableAccess().get();
 
     queueOutGate = gate("queueOut");
 

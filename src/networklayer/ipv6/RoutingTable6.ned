@@ -26,7 +26,7 @@ package inet.networklayer.ipv6;
 //
 // @see ~IPv6, ~IPv6NeighbourDiscovery, ~ICMPv6
 //
-simple RoutingTable6
+simple IPv6RoutingTable
 {
     parameters:
         xml routingTable = default(xml("<routingTable/>"));

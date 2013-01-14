@@ -60,14 +60,14 @@ class INET_API TCP_lwIP : public cSimpleModule, public LwipTcpStackIf
 
     // sometime pcb is NULL (tipically when send a RESET )
     virtual void ip_output(LwipTcpLayer::tcp_pcb *pcb,
-            IPvXAddress const& src, IPvXAddress const& dest, void *tcpseg, int len);
+            Address const& src, Address const& dest, void *tcpseg, int len);
 
     virtual err_t lwip_tcp_event(void *arg, LwipTcpLayer::tcp_pcb *pcb,
             LwipTcpLayer::lwip_event event, struct pbuf *p, u16_t size, err_t err);
 
     virtual void lwip_free_pcb_event(LwipTcpLayer::tcp_pcb* pcb);
 
-    virtual netif* ip_route(IPvXAddress const & ipAddr);
+    virtual netif* ip_route(Address const & ipAddr);
 
     virtual void notifyAboutIncomingSegmentProcessing(LwipTcpLayer::tcp_pcb *pcb, uint32 seqNo,
             const void *dataptr, int len);

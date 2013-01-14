@@ -17,7 +17,7 @@
 
 package inet.nodes.ipv6;
 
-import inet.networklayer.ipv6.RoutingTable6;
+import inet.networklayer.ipv6.IPv6RoutingTable;
 import inet.networklayer.common.InterfaceTable;
 import inet.mobility.IMobility;
 import inet.linklayer.IWirelessNic;
@@ -67,7 +67,7 @@ module NodeBase6
                 @display("p=329,287;q=queue");
         }
 
-        routingTable6: RoutingTable6 {
+        routingTable6: IPv6RoutingTable {
             parameters:
                 @display("p=53,287");
                 isRouter = IPForward;

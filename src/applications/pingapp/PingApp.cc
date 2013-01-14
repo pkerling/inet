@@ -20,7 +20,7 @@
 
 #include "PingApp.h"
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "PingPayload_m.h"
 #include "IAddressPolicy.h"
 
@@ -38,7 +38,7 @@ void PingApp::initialize(int stage)
 {
     cSimpleModule::initialize(stage);
 
-    // because of IPvXAddressResolver, we need to wait until interfaces are registered,
+    // because of AddressResolver, we need to wait until interfaces are registered,
     // address auto-assignment takes place etc.
     if (stage != 3)
         return;
@@ -89,8 +89,8 @@ void PingApp::handleMessage(cMessage *msg)
         // on first call we need to initialize
         if (sendSeqNo == 0)
         {
-            srcAddr = IPvXAddressResolver().resolveXXX(par("srcAddr"));
-            destAddr = IPvXAddressResolver().resolveXXX(par("destAddr"));
+            srcAddr = AddressResolver().resolveXXX(par("srcAddr"));
+            destAddr = AddressResolver().resolveXXX(par("destAddr"));
             ASSERT(!destAddr.isUnspecified());
 
             EV << "Starting up: dest=" << destAddr << "  src=" << srcAddr << "\n";

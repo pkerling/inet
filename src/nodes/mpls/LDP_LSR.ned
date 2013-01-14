@@ -19,7 +19,7 @@ import inet.networklayer.ted.LinkStateRouting;
 import inet.networklayer.mpls.MPLS;
 import inet.networklayer.mpls.LIBTable;
 import inet.networklayer.ldp.LDP;
-import inet.networklayer.ipv4.RoutingTable;
+import inet.networklayer.ipv4.IPv4RoutingTable;
 import inet.networklayer.common.InterfaceTable;
 import inet.linklayer.IWiredNic;
 import inet.base.NotificationBoard;
@@ -43,7 +43,7 @@ module LDP_LSR extends LDP_ROUTER_BASE
             parameters:
                 @display("p=70,150");
         }
-        routingTable: RoutingTable {
+        routingTable: IPv4RoutingTable {
             parameters:
                 IPForward = true;
                 routerId = routerId;

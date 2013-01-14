@@ -15,14 +15,14 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_INETWORKPROTOCOL_H_
-#define __INET_INETWORKPROTOCOL_H_
+#ifndef __INET_INETFILTER_H_
+#define __INET_INETFILTER_H_
 
 #include <omnetpp.h>
 #include "InterfaceEntry.h"
 #include "INetworkDatagram.h"
 
-class INetworkProtocol {
+class INetfilter {
   public:
     class IHook {
       public:
@@ -41,7 +41,7 @@ class INetworkProtocol {
         virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry * outputInterfaceEntry) = 0;
     };
 
-    virtual ~INetworkProtocol() { }
+    virtual ~INetfilter() { }
     virtual void registerHook(int priority, IHook * hook) = 0;
     virtual void unregisterHook(int priority, IHook * hook) = 0;
     virtual void reinjectDatagram(const INetworkDatagram * datagram, IHook::Result verdict) = 0;

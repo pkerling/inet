@@ -34,7 +34,7 @@
 // Foreign declarations:
 class IInterfaceTable;
 class IPv6Datagram;
-class RoutingTable6;
+class IPv6RoutingTable;
 
 
 /**
@@ -56,7 +56,7 @@ class INET_API IPv6Tunneling : public cSimpleModule
 
     protected:
         IInterfaceTable* ift;
-        RoutingTable6* rt;
+        IPv6RoutingTable* rt;
 
         struct Tunnel
         {

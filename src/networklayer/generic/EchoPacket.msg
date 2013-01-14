@@ -15,19 +15,24 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-package inet.networklayer.generic;
+cplusplus {{
+#include "INETDefs.h"
+}}
+
+//
+// TODO
+//
+enum EchoProtocolType
+{
+    ECHO_PROTOCOL_REQUEST = 0;
+    ECHO_PROTOCOL_REPLY = 1;
+}
 
 //
 // Simple Control Message Protocol
 // TODO
 //
-simple SCMP
+packet EchoPacket
 {
-    parameters:
-        @display("i=block/control_s");
-    gates:
-        input localIn @labels(GenericNetworkProtocolControlInfo/up);
-        input pingIn[];  // ping requests from app
-        output pingOut[];  // result of ping
-        output sendOut @labels(GenericNetworkProtocolControlInfo/down);  // towards network
+    int type enum(EchoProtocolType);
 }

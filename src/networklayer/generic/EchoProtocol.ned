@@ -15,33 +15,18 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_SCMP_H
-#define __INET_SCMP_H
+package inet.networklayer.generic;
 
-#include "INETDefs.h"
-#include "Address.h"
-#include "SCMPPacket_m.h"
-
-class PingPayload;
-
-/**
- * Simple Control Message Protocol
- * TODO
- */
-class INET_API SCMP : public cSimpleModule
+//
+// TODO
+//
+simple EchoProtocol
 {
-  protected:
-    typedef std::map<long,int> PingMap;
-    PingMap pingMap;
-
-  protected:
-    virtual void processPacket(SCMPPacket * packet);
-    virtual void processEchoRequest(SCMPPacket * packet);
-    virtual void processEchoReply(SCMPPacket * packet);
-    virtual void sendEchoRequest(PingPayload * packet);
-
-  protected:
-    virtual void handleMessage(cMessage *msg);
-};
-
-#endif
+    parameters:
+        @display("i=block/control_s");
+    gates:
+        input localIn @labels(GenericNetworkProtocolControlInfo/up);
+        input pingIn[];  // ping requests from app
+        output pingOut[];  // result of ping
+        output sendOut @labels(GenericNetworkProtocolControlInfo/down);  // towards network
+}

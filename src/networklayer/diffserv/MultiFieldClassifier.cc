@@ -18,7 +18,7 @@
 
 #include "INETDefs.h"
 #include "Address.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 
 #ifdef WITH_IPv4
 #include "IPv4Datagram.h"
@@ -232,7 +232,7 @@ void MultiFieldClassifier::addFilter(const Filter &filter)
 
 void MultiFieldClassifier::configureFilters(cXMLElement *config)
 {
-    IPvXAddressResolver addressResolver;
+    AddressResolver addressResolver;
     cXMLElementList filterElements = config->getChildrenByTagName("filter");
     for (int i = 0; i < (int)filterElements.size(); i++)
     {

@@ -19,24 +19,24 @@
 #define __INET_IPv6ROUTINGTABLEADAPTER_H
 
 #include "INETDefs.h"
-#include "IGenericRoutingTable.h"
-#include "RoutingTable6.h"
+#include "IRoutingTable.h"
+#include "IPv6RoutingTable.h"
 #include "IPv6RouteAdapter.h"
 
 /**
  * TODO
  */
 //TODO nothing works, really...
-class INET_API IPv6RoutingTableAdapter : public IGenericRoutingTable
+class INET_API IPv6RoutingTableAdapter : public IRoutingTable
 {
     private:
-        RoutingTable6 *rt; //TODO IRoutingTable6 is missing!
+        IPv6RoutingTable *rt; //TODO IIPv6RoutingTable is missing!
         static IRoute *toGeneric(IPv6Route *e) {return e ? e->asGeneric() : NULL;}
         //TODO static IGenericMulticastRoute *toGeneric(IPv6MulticastRoute *e) {return e ? e->asGeneric() : NULL;}
         static IPv6Route *fromGeneric(IRoute *e) {return e ? dynamic_cast<IPv6RouteAdapter*>(e)->getIPv6Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
         //TODO static IPv6MulticastRoute *fromGeneric(IGenericMulticastRoute *e) {return e ? dynamic_cast<IPv6MulticastRouteAdapter*>(e)->getIPv6Route() : NULL;} //FIXME will crash if cast is unsuccessful!!!
     public:
-        IPv6RoutingTableAdapter(RoutingTable6 *routingTable) {rt = routingTable;}
+        IPv6RoutingTableAdapter(IPv6RoutingTable *routingTable) {rt = routingTable;}
         virtual bool isForwardingEnabled() const {return rt->isRouter();}  //XXX inconsistent names
         virtual bool isMulticastForwardingEnabled() const {return true; /*TODO rt->isMulticastForwardingEnabled();*/}
         virtual Address getRouterId() const {return Address(); /*TODO rt->getRouterId();*/}

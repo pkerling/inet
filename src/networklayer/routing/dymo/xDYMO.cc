@@ -7,7 +7,7 @@
 #include "UDPPacket.h"
 #include "IPProtocolId_m.h"
 #include "Ieee80211Frame_m.h"
-#include "IPvXAddressResolver.h" // TODO: rename
+#include "AddressResolver.h" // TODO: rename
 #include "INetworkProtocolControlInfo.h"
 #include "UDPControlInfo.h"
 #include "xDYMO.h"
@@ -65,14 +65,14 @@ void xDYMO::initialize(int stage) {
         // context
         notificationBoard = NotificationBoardAccess().get(this);
         interfaceTable = InterfaceTableAccess().get(this);
-        // KLUDGE: simplify this when RoutingTable implements IGenericRoutingTable
-        routingTable = check_and_cast<IGenericRoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this));
-//        routingTable = check_and_cast<RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
-        networkProtocol = check_and_cast<INetworkProtocol *>(findModuleWhereverInNode(networkProtocolModuleName, this));
+        // KLUDGE: simplify this when IPv4RoutingTable implements IRoutingTable
+        routingTable = check_and_cast<IRoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this));
+//        routingTable = check_and_cast<IPv4RoutingTable *>(findModuleWhereverInNode(routingTableModuleName, this))->asGeneric();
+        networkProtocol = check_and_cast<INetfilter *>(findModuleWhereverInNode(networkProtocolModuleName, this));
         // internal
         expungeTimer = new cMessage("ExpungeTimer");
         notificationBoard->subscribe(this, NF_LINK_BREAK);
-        IPvXAddressResolver addressResolver;
+        AddressResolver addressResolver;
         cStringTokenizer tokenizer(clientAddresses);
         while (tokenizer.hasMoreTokens()) {
             const char * clientAddress = tokenizer.nextToken();
@@ -1229,7 +1229,7 @@ bool xDYMO::isDYMODatagram(INetworkDatagram * datagram) {
     return networkProtocolControlInfo && networkProtocolControlInfo->getProtocol() == IP_PROT_MANET;
 }
 
-INetworkProtocol::IHook::Result xDYMO::ensureRouteForDatagram(INetworkDatagram * datagram) {
+INetfilter::IHook::Result xDYMO::ensureRouteForDatagram(INetworkDatagram * datagram) {
     const Address & source = datagram->getSourceAddress();
     const Address & destination = datagram->getDestinationAddress();
     if (destination.isMulticast() || destination.isBroadcast() || routingTable->isLocalAddress(destination) || isDYMODatagram(datagram))

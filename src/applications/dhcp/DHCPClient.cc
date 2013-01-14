@@ -22,7 +22,7 @@
 #include "IPv4InterfaceData.h"
 #include "ModuleAccess.h"
 #include "NotifierConsts.h"
-#include "RoutingTableAccess.h"
+#include "IPv4RoutingTableAccess.h"
 
 Define_Module(DHCPClient);
 
@@ -92,7 +92,7 @@ void DHCPClient::initialize(int stage)
         }
 
         // get the routing table to update and subscribe it to the blackboard
-        irt = RoutingTableAccess().get();
+        irt = IPv4RoutingTableAccess().get();
 
         // grab the interface mac address
         client_mac_address = ie->getMacAddress();

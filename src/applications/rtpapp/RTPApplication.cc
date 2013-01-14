@@ -18,7 +18,7 @@
 
 #include "RTPApplication.h"
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "RTPInterfacePacket_m.h"
 
 Define_Module(RTPApplication)
@@ -26,7 +26,7 @@ Define_Module(RTPApplication)
 
 void RTPApplication::initialize(int stage)
 {
-    // because of IPvXAddressResolver, we need to wait until interfaces are registered,
+    // because of AddressResolver, we need to wait until interfaces are registered,
     // address auto-assignment takes place etc.
     if (stage != 3)
         return;
@@ -43,7 +43,7 @@ void RTPApplication::initialize(int stage)
     _bandwidth = par("bandwidth");
 
     // the ip address to connect to (unicast or multicast)
-    _destinationAddress = IPvXAddressResolver().resolve(par("destinationAddress").stringValue()).toIPv4();
+    _destinationAddress = AddressResolver().resolve(par("destinationAddress").stringValue()).toIPv4();
 
     // port number which is to be used; to ports are actually used: one
     // for rtp and one for rtcp

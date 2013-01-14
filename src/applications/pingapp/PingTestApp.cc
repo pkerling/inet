@@ -21,7 +21,7 @@
 
 #include "InterfaceEntry.h"
 #include "IInterfaceTable.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "PingPayload_m.h"
 
 #ifdef WITH_IPv4
@@ -49,7 +49,7 @@ void PingTestApp::initialize(int stage)
 {
     cSimpleModule::initialize(stage);
 
-    // because of IPvXAddressResolver, we need to wait until interfaces are registered,
+    // because of AddressResolver, we need to wait until interfaces are registered,
     // address auto-assignment takes place etc.
     if (stage != 3)
         return;
@@ -88,7 +88,7 @@ void PingTestApp::initialize(int stage)
 
     if (strcmp(par("destAddresses").stringValue(), ""))
     {
-        srcAddr = IPvXAddressResolver().resolve(par("srcAddr"));
+        srcAddr = AddressResolver().resolve(par("srcAddr"));
         // schedule first ping (use empty destAddr to disable)
         cMessage *msg = new cMessage("sendPing");
         scheduleAt(startTime, msg);
@@ -113,7 +113,7 @@ void PingTestApp::handleMessage(cMessage *msg)
 
                 while ((token = tokenizer.nextToken()) != NULL)
                 {
-                    Address addr = IPvXAddressResolver().resolve(token);
+                    Address addr = AddressResolver().resolve(token);
                     destAddresses.push_back(addr);
                 }
             }

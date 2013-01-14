@@ -24,7 +24,7 @@
 #include "INETDefs.h"
 
 #include "IInterfaceTable.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "OSPFPacket_m.h"
 #include "OSPFRouter.h"
 
@@ -37,7 +37,7 @@ class OSPFRouting :  public cSimpleModule
 {
   private:
     IInterfaceTable* ift;        ///< Provides access to the interface table.
-    IRoutingTable*   rt;         ///< Provides access to the IP routing table.
+    IIPv4RoutingTable*   rt;         ///< Provides access to the IP routing table.
     OSPF::Router*    ospfRouter; ///< Root object of the OSPF data structure.
 
     int getIntAttrOrPar(const cXMLElement& ifConfig, const char *name) const;

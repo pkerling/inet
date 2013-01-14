@@ -16,7 +16,7 @@
 //
 
 cplusplus {{
-#include "IPvXAddress.h"
+#include "Address.h"
 }}
 
 
@@ -29,7 +29,7 @@ typedef cPacket *cPacketPtr;
 struct cPacketPtr;
 
 
-class noncobject IPvXAddress;
+class noncobject Address;
 
 message SCTPSimpleMessage extends cPacket
 {
@@ -73,7 +73,7 @@ message SCTPInitChunk extends SCTPChunk
      // Initial TSN
      uint32 initTSN;
      bool forwardTsn;
-     IPvXAddress addresses[];
+     Address addresses[];
      uint8 unrecognizedParameters[]; //Will be filled by the Parser, if unrecognized Parameters arrive.
 }
 
@@ -90,7 +90,7 @@ message SCTPInitAckChunk extends SCTPChunk
      // Initial TSN
      uint32 initTSN;
      bool forwardTsn;
-     IPvXAddress addresses[];
+     Address addresses[];
      char cookie[];
      uint8 unrecognizedParameters[];
      cPacketPtr stateCookie;
@@ -126,7 +126,7 @@ message SCTPDataMsg extends cPacket
     simtime_t enqueuingTime;
     simtime_t expiryTime;
     uint32 ppid;
-    IPvXAddress initialDestination;
+    Address initialDestination;
     uint32 msgNum;
     uint16 sid;
     bool ordered;
@@ -183,14 +183,14 @@ message SCTPAbortChunk extends SCTPChunk
 
 message SCTPHeartbeatChunk extends SCTPChunk
 {
-     IPvXAddress remoteAddr;
+     Address remoteAddr;
      simtime_t timeField;
      char info[];
 }
 
 message SCTPHeartbeatAckChunk extends SCTPChunk
 {
-     IPvXAddress remoteAddr;
+     Address remoteAddr;
      simtime_t timeField;
      char info[];
 }

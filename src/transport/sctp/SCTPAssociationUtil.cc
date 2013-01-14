@@ -26,8 +26,8 @@
 #include "SCTPCommand_m.h"
 #include "SCTPQueue.h"
 #include "SCTPAlgorithm.h"
-#include "RoutingTable.h"
-#include "RoutingTableAccess.h"
+#include "IPv4RoutingTable.h"
+#include "IPv4RoutingTableAccess.h"
 #include "InterfaceTable.h"
 #include "InterfaceTableAccess.h"
 #include "IPv6Address.h"
@@ -344,7 +344,7 @@ void SCTPAssociation::initAssociation(SCTPOpenCommand *openCmd)
 
 void SCTPAssociation::sendInit()
 {
-    //RoutingTableAccess routingTableAccess;
+    //IPv4RoutingTableAccess routingTableAccess;
     InterfaceTableAccess interfaceTableAccess;
     AddressVector adv;
     uint32 length = SCTP_INIT_CHUNK_LENGTH;
@@ -1967,7 +1967,7 @@ void SCTPAssociation::pmDataIsSentOn(SCTPPathVariables* path)
 
 void SCTPAssociation::pmStartPathManagement()
 {
-    RoutingTableAccess routingTableAccess;
+    IPv4RoutingTableAccess routingTableAccess;
     SCTPPathVariables* path;
     int32 i = 0;
     /* populate path structures !!! */

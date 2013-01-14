@@ -30,7 +30,7 @@ class INET_API IPv6RouteAdapter : public IRoute
     public:
         IPv6RouteAdapter(IPv6Route *route) {e = route;}
         IPv6Route *getIPv6Route() {return e;}
-        virtual IGenericRoutingTable *getRoutingTable() const {return NULL; /*TODO: e->getRoutingTable()->asGeneric();*/}
+        virtual IRoutingTable *getRoutingTable() const {return NULL; /*TODO: e->getRoutingTable()->asGeneric();*/}
 
         virtual void setEnabled(bool enabled) {/*TODO: e->setEnabled(enabled);*/}
         virtual void setDestination(const Address& dest) {/*TODO: e->setDestination(dest.toIPv6());*/}
@@ -63,7 +63,7 @@ class INET_API IPv6RouteAdapter : public IRoute
 //    public:
 //        IPv6MulticastRouteAdapter(IPv6MulticastRoute *route) {e = route;}
 //        IPv6MulticastRoute *getIPv6Route() {return e;}
-//        virtual IGenericRoutingTable *getRoutingTable() const {return e->getRoutingTable()->asGeneric();}
+//        virtual IRoutingTable *getRoutingTable() const {return e->getRoutingTable()->asGeneric();}
 //
 //        virtual void setEnabled(bool enabled) {/*TODO: e->setEnabled(enabled);*/}
 //        virtual void setOrigin(const Address& origin) {e->setOrigin(origin.toIPv6());}

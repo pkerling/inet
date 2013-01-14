@@ -75,7 +75,7 @@ Address ManetAddress::getIPvX() const
         return Address(_getIPv6());
     if (addrType == UNDEFINED)
         return Address(IPv4Address::UNSPECIFIED_ADDRESS);
-    throw cRuntimeError("ManetAddress is not an IPvXAddress");
+    throw cRuntimeError("ManetAddress is not an Address");
 }
 
 MACAddress ManetAddress::getMAC() const

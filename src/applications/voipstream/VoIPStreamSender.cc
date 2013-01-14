@@ -66,7 +66,7 @@ void VoIPStreamSender::initialize(int stage)
     pReSampleCtx = NULL;
     localPort = par("localPort");
     destPort = par("destPort");
-    destAddress = IPvXAddressResolver().resolve(par("destAddress").stringValue());
+    destAddress = AddressResolver().resolve(par("destAddress").stringValue());
     socket.setOutputGate(gate("udpOut"));
     socket.bind(localPort);
 

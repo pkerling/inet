@@ -5,7 +5,7 @@ package inet.transport.rtp;
 import ned.IdealChannel;
 import inet.transport.udp.UDP;
 import inet.nodes.inet.NetworkLayer;
-import inet.networklayer.ipv4.RoutingTable;
+import inet.networklayer.ipv4.IPv4RoutingTable;
 import inet.networklayer.common.InterfaceTable;
 import inet.linklayer.IWiredNic;
 import inet.base.NotificationBoard;
@@ -38,7 +38,7 @@ module RTPHost
         interfaceTable: InterfaceTable {
             @display("p=60,134");
         }
-        routingTable: RoutingTable {
+        routingTable: IPv4RoutingTable {
             parameters:
                 IPForward = IPForward;
                 routerId = "";

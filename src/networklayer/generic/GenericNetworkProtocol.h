@@ -24,7 +24,7 @@
 
 #include "QueueBase.h"
 #include "InterfaceTableAccess.h"
-#include "INetworkProtocol.h"
+#include "INetfilter.h"
 #include "GenericRoutingTable.h"
 #include "GenericNetworkProtocolControlInfo.h"
 #include "GenericDatagram.h"
@@ -33,7 +33,7 @@
 /**
  * Implements a simple network protocol.
  */
-class INET_API GenericNetworkProtocol : public QueueBase, public INetworkProtocol
+class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
 {
   protected:
     /**
@@ -58,7 +58,7 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetworkProtoco
         const HookType hookType;
     };
 
-    GenericRoutingTable *rt;  //TODO change to IGenericRoutingTable?
+    GenericRoutingTable *rt;  //TODO change to IRoutingTable?
     IInterfaceTable *ift;
     cGate *queueOutGate;
 

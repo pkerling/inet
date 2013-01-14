@@ -19,7 +19,7 @@
 
 #include "NotifierConsts.h"
 #include "NotificationBoard.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "IPv4Route.h"
 #include "IInterfaceTable.h"
 #include "IPv4InterfaceData.h"
@@ -114,7 +114,7 @@ void RoutingTableRecorder::recordSnapshot()
     }
     for (int id = 0; id < simulation.getLastModuleId(); id++) {
         cModule* module = simulation.getModule(id);
-        IRoutingTable *rt = dynamic_cast<IRoutingTable *>(module);
+        IIPv4RoutingTable *rt = dynamic_cast<IIPv4RoutingTable *>(module);
         if (rt) {
             cModule *host = module->getParentModule();
             for (int i = 0; i < rt->getNumRoutes(); i++)
@@ -156,7 +156,7 @@ void RoutingTableRecorder::recordInterface(cModule *host, InterfaceEntry *interf
 
 void RoutingTableRecorder::recordRoute(cModule *host,  IPv4Route *route, int category)
 {
-    IRoutingTable *rt = route->getRoutingTable(); // may be NULL! (route already removed from its routing table)
+    IIPv4RoutingTable *rt = route->getRoutingTable(); // may be NULL! (route already removed from its routing table)
     cEnvir* envir = simulation.getEnvir();
     // moduleId, routerID, dest, dest netmask, nexthop
     std::stringstream content;

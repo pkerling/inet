@@ -288,7 +288,7 @@ class INET_API TCPStateVariables : public cObject
  *
  * The "entry points" of TCPConnnection from TCP are:
  *  - processTimer(cMessage *msg): handle self-messages which belong to the connection
- *  - processTCPSegment(TCPSegment *tcpSeg, IPvXAddress srcAddr, IPvXAddress destAddr):
+ *  - processTCPSegment(TCPSegment *tcpSeg, Address srcAddr, Address destAddr):
  *    handle segment arrivals
  *  - processAppCommand(cMessage *msg): process commands which arrive from the
  *    application (TCP_C_xxx)

@@ -15,8 +15,8 @@
 // along with this program; if not, see <http://www.gnu.org/licenses/>.
 //
 
-#ifndef __INET_IROUTINGTABLE_H
-#define __INET_IROUTINGTABLE_H
+#ifndef __INET_IIPV4ROUTINGTABLE_H
+#define __INET_IIPV4ROUTINGTABLE_H
 
 #include <vector>
 
@@ -25,20 +25,20 @@
 #include "IPv4Address.h"
 #include "IPv4Route.h"  // not strictly required, but most clients will need it anyway
 
-class IGenericRoutingTable;
+class IRoutingTable;
 
 /**
- * A C++ interface to abstract the functionality of IRoutingTable.
- * Referring to IRoutingTable via this interface makes it possible to
- * transparently replace IRoutingTable with a different implementation,
+ * A C++ interface to abstract the functionality of IIPv4RoutingTable.
+ * Referring to IIPv4RoutingTable via this interface makes it possible to
+ * transparently replace IIPv4RoutingTable with a different implementation,
  * without any change to the base INET.
  *
- * @see IRoutingTable, IPv4Route
+ * @see IIPv4RoutingTable, IPv4Route
  */
-class INET_API IRoutingTable
+class INET_API IIPv4RoutingTable
 {
   public:
-    virtual ~IRoutingTable() {};
+    virtual ~IIPv4RoutingTable() {};
 
     /**
      * For debugging
@@ -58,7 +58,7 @@ class INET_API IRoutingTable
     /**
      * TODO
      */
-    virtual IGenericRoutingTable *asGeneric() = 0;
+    virtual IRoutingTable *asGeneric() = 0;
 
     /** @name Interfaces */
     //@{

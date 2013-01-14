@@ -19,7 +19,7 @@
 
 #include "SCTPClient.h"
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "SCTPAssociation.h"
 #include "SCTPCommand_m.h"
 
@@ -54,7 +54,7 @@ void SCTPClient::initialize()
 
     // parameters
     const char *addressesString = par("localAddress");
-    AddressVector addresses = IPvXAddressResolver().resolve(cStringTokenizer(addressesString).asVector());
+    AddressVector addresses = AddressResolver().resolve(cStringTokenizer(addressesString).asVector());
     int32 port = par("localPort");
     echo = par("echo").boolValue();
     ordered = par("ordered").boolValue();
@@ -128,7 +128,7 @@ void SCTPClient::connect()
     ev << "issuing OPEN command\n";
     setStatusString("connecting");
     ev << "connect to address " << connectAddress << "\n";
-    socket.connect(IPvXAddressResolver().resolve(connectAddress, 1), connectPort, (uint32)par("numRequestsPerSession"));
+    socket.connect(AddressResolver().resolve(connectAddress, 1), connectPort, (uint32)par("numRequestsPerSession"));
     numSessions++;
 }
 

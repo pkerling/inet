@@ -22,7 +22,7 @@
 #include "UDPBasicBurst.h"
 
 #include "UDPControlInfo_m.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 
 
 EXECUTE_ON_STARTUP(
@@ -58,7 +58,7 @@ UDPBasicBurst::~UDPBasicBurst()
 
 void UDPBasicBurst::initialize(int stage)
 {
-    // because of IPvXAddressResolver, we need to wait until interfaces are registered,
+    // because of AddressResolver, we need to wait until interfaces are registered,
     // address auto-assignment takes place etc.
     if (stage != 3)
         return;
@@ -103,14 +103,14 @@ void UDPBasicBurst::initialize(int stage)
     cStringTokenizer tokenizer(destAddrs);
     const char *token;
 
-    Address myAddr = IPvXAddressResolver().resolve(this->getParentModule()->getFullPath().c_str());
+    Address myAddr = AddressResolver().resolve(this->getParentModule()->getFullPath().c_str());
     while ((token = tokenizer.nextToken()) != NULL)
     {
         if (strstr(token, "Broadcast") != NULL)
             destAddresses.push_back(IPv4Address::ALLONES_ADDRESS);
         else
         {
-            Address addr = IPvXAddressResolver().resolve(token);
+            Address addr = AddressResolver().resolve(token);
             if (addr != myAddr)
                 destAddresses.push_back(addr);
         }

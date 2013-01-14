@@ -52,10 +52,10 @@ Define_Module(TCP_NSC);
 
 
 //static member variables:
-const IPvXAddress TCP_NSC::localInnerIpS("1.0.0.253");
-const IPvXAddress TCP_NSC::localInnerMaskS("255.255.255.0");
-const IPvXAddress TCP_NSC::localInnerGwS("1.0.0.254");
-const IPvXAddress TCP_NSC::remoteFirstInnerIpS("2.0.0.1");
+const Address TCP_NSC::localInnerIpS("1.0.0.253");
+const Address TCP_NSC::localInnerMaskS("255.255.255.0");
+const Address TCP_NSC::localInnerGwS("1.0.0.254");
+const Address TCP_NSC::remoteFirstInnerIpS("2.0.0.1");
 
 const char * TCP_NSC::stackNameParamNameS = "stackName";
 const char * TCP_NSC::bufferSizeParamNameS = "stackBufferSize";
@@ -165,7 +165,7 @@ TCP_NSC::TCP_NSC()
 
 // return mapped remote ip in host byte order
 // if addrP not exists in map, it's create a new nsc addr
-uint32_t TCP_NSC::mapRemote2Nsc(IPvXAddress const& addrP)
+uint32_t TCP_NSC::mapRemote2Nsc(Address const& addrP)
 {
     Remote2NscMap::iterator i = remote2NscMapM.find(addrP);
     if (i != remote2NscMapM.end())
@@ -194,7 +194,7 @@ uint32_t TCP_NSC::mapRemote2Nsc(IPvXAddress const& addrP)
 // return original remote ip from remote NSC IP
 // assert if  IP not exists in map
 // nscAddrP in host byte order!
-IPvXAddress const & TCP_NSC::mapNsc2Remote(uint32_t nscAddrP)
+Address const & TCP_NSC::mapNsc2Remote(uint32_t nscAddrP)
 {
     Nsc2RemoteMap::iterator i = nsc2RemoteMapM.find(nscAddrP);
 
@@ -830,7 +830,7 @@ void TCP_NSC::gettime(unsigned int *secP, unsigned int *usecP)
 
 void TCP_NSC::sendToIP(const void *dataP, int lenP)
 {
-    IPvXAddress src, dest;
+    Address src, dest;
     const nsc_iphdr *iph = (const nsc_iphdr *)dataP;
 
     int ipHdrLen = 4 * iph->ihl;

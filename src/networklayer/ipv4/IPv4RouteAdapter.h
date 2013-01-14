@@ -30,7 +30,7 @@ class INET_API IPv4RouteAdapter : public IRoute
     public:
         IPv4RouteAdapter(IPv4Route *route) {e = route;}
         IPv4Route *getIPv4Route() {return e;}
-        virtual IGenericRoutingTable *getRoutingTable() const {return e->getRoutingTable()->asGeneric();}
+        virtual IRoutingTable *getRoutingTable() const {return e->getRoutingTable()->asGeneric();}
 
         virtual void setEnabled(bool enabled) {/*TODO: e->setEnabled(enabled);*/}
         virtual void setDestination(const Address& dest) {e->setDestination(dest.toIPv4());}
@@ -62,7 +62,7 @@ class INET_API IPv4MulticastRouteAdapter : public IMulticastRoute
     public:
         IPv4MulticastRouteAdapter(IPv4MulticastRoute *route) {e = route;}
         IPv4MulticastRoute *getIPv4Route() {return e;}
-        virtual IGenericRoutingTable *getRoutingTable() const {return e->getRoutingTable()->asGeneric();}
+        virtual IRoutingTable *getRoutingTable() const {return e->getRoutingTable()->asGeneric();}
 
         virtual void setEnabled(bool enabled) {/*TODO: e->setEnabled(enabled);*/}
         virtual void setOrigin(const Address& origin) {e->setOrigin(origin.toIPv4());}

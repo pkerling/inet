@@ -19,45 +19,45 @@
 // @author Zoltan Bojthe
 //
 
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "IInterfaceTable.h"
 #include "NotificationBoard.h"
 #include "ModuleIdAddress.h"
 #include "ModulePathAddress.h"
 
 #ifdef WITH_IPv4
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "IPv4InterfaceData.h"
 #endif
 
 #ifdef WITH_IPv6
 #include "IPv6InterfaceData.h"
-#include "RoutingTable6.h"
+#include "IPv6RoutingTable.h"
 #endif
 
-Address IPvXAddressResolver::resolveXXX(const char *s, int addrType)
+Address AddressResolver::resolveXXX(const char *s, int addrType)
 {
     Address addr;
     if (!tryResolve(s, addr, addrType))
-        throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
+        throw cRuntimeError("AddressResolver: address `%s' not configured (yet?)", s);
     return addr;
 }
 
-Address IPvXAddressResolver::resolve(const char *s, int addrType)
+Address AddressResolver::resolve(const char *s, int addrType)
 {
     Address addr;
     if (!tryResolve(s, addr, addrType))
-        throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
+        throw cRuntimeError("AddressResolver: address `%s' not configured (yet?)", s);
 
     if (addr.getType() == Address::IPv4)
         return Address(addr.toIPv4());
     else if (addr.getType() == Address::IPv6)
         return Address(addr.toIPv6());
     else
-        throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
+        throw cRuntimeError("AddressResolver: address `%s' not configured (yet?)", s);
 }
 
-std::vector<Address> IPvXAddressResolver::resolve(std::vector<std::string> strs, int addrType)
+std::vector<Address> AddressResolver::resolve(std::vector<std::string> strs, int addrType)
 {
     std::vector<Address> result;
     int n = strs.size();
@@ -67,7 +67,7 @@ std::vector<Address> IPvXAddressResolver::resolve(std::vector<std::string> strs,
     return result;
 }
 
-bool IPvXAddressResolver::tryResolve(const char *s, Address& result, int addrType)
+bool AddressResolver::tryResolve(const char *s, Address& result, int addrType)
 {
     // empty address
     result = Address();
@@ -125,12 +125,12 @@ bool IPvXAddressResolver::tryResolve(const char *s, Address& result, int addrTyp
     }
 
     if (c)
-        throw cRuntimeError("IPvXAddressResolver: syntax error parsing address spec `%s'", s);
+        throw cRuntimeError("AddressResolver: syntax error parsing address spec `%s'", s);
 
     // find module
     cModule *mod = simulation.getModuleByPath(modname.c_str());
     if (!mod)
-        throw cRuntimeError("IPvXAddressResolver: module `%s' not found", modname.c_str());
+        throw cRuntimeError("AddressResolver: module `%s' not found", modname.c_str());
 
 
     // check protocol
@@ -141,7 +141,7 @@ bool IPvXAddressResolver::tryResolve(const char *s, Address& result, int addrTyp
         else if (protocol == "ipv6")
             addrType = ADDR_IPv6;
         else
-            throw cRuntimeError("IPvXAddressResolver: error parsing address spec `%s': address type must be `(ipv4)' or `(ipv6)'", s);
+            throw cRuntimeError("AddressResolver: error parsing address spec `%s': address type must be `(ipv4)' or `(ipv6)'", s);
     }
     if (netmask)
         addrType |= ADDR_MASK;
@@ -152,7 +152,7 @@ bool IPvXAddressResolver::tryResolve(const char *s, Address& result, int addrTyp
     {
         cModule *destnode = simulation.getModuleByPath(destnodename.c_str());
         if (!destnode)
-            throw cRuntimeError("IPvXAddressResolver: destination module `%s' not found", destnodename.c_str());
+            throw cRuntimeError("AddressResolver: destination module `%s' not found", destnodename.c_str());
         result = addressOf(mod, destnode, addrType);
     }
     else if (ifname.empty())
@@ -164,33 +164,33 @@ bool IPvXAddressResolver::tryResolve(const char *s, Address& result, int addrTyp
     return !result.isUnspecified();
 }
 
-Address IPvXAddressResolver::routerIdOf(cModule *host)
+Address AddressResolver::routerIdOf(cModule *host)
 {
 #ifdef WITH_IPv4
-    IRoutingTable *rt = routingTableOf(host);
+    IIPv4RoutingTable *rt = routingTableOf(host);
     return Address(rt->getRouterId());
 #else
     throw cRuntimeError("INET was compiled without IPv4 support");
 #endif
 }
 
-Address IPvXAddressResolver::addressOf(cModule *host, int addrType)
+Address AddressResolver::addressOf(cModule *host, int addrType)
 {
     IInterfaceTable *ift = interfaceTableOf(host);
     return getAddressFrom(ift, addrType);
 }
 
-Address IPvXAddressResolver::addressOf(cModule *host, const char *ifname, int addrType)
+Address AddressResolver::addressOf(cModule *host, const char *ifname, int addrType)
 {
     IInterfaceTable *ift = interfaceTableOf(host);
     InterfaceEntry *ie = ift->getInterfaceByName(ifname);
     if (ie)
         return getAddressFrom(ie, addrType);
 
-    throw cRuntimeError("IPvXAddressResolver: no interface called `%s' in interface table of `%s'", ifname, host->getFullPath().c_str());
+    throw cRuntimeError("AddressResolver: no interface called `%s' in interface table of `%s'", ifname, host->getFullPath().c_str());
 }
 
-Address IPvXAddressResolver::addressOf(cModule *host, cModule *destmod, int addrType)
+Address AddressResolver::addressOf(cModule *host, cModule *destmod, int addrType)
 {
     IInterfaceTable *ift = interfaceTableOf(host);
     for (int i=0; i < ift->getNumInterfaces(); i++)
@@ -204,10 +204,10 @@ Address IPvXAddressResolver::addressOf(cModule *host, cModule *destmod, int addr
                     return getAddressFrom(ie, addrType);
         }
     }
-    throw cRuntimeError("IPvXAddressResolver: no interface connected to `%s' module in interface table of `%s'", destmod->getFullPath().c_str(), host->getFullPath().c_str());
+    throw cRuntimeError("AddressResolver: no interface connected to `%s' module in interface table of `%s'", destmod->getFullPath().c_str(), host->getFullPath().c_str());
 }
 
-Address IPvXAddressResolver::getAddressFrom(IInterfaceTable *ift, int addrType)
+Address AddressResolver::getAddressFrom(IInterfaceTable *ift, int addrType)
 {
     Address ret;
     bool netmask = addrType & ADDR_MASK;
@@ -232,13 +232,13 @@ Address IPvXAddressResolver::getAddressFrom(IInterfaceTable *ift, int addrType)
     }
     else
     {
-        throw cRuntimeError("IPvXAddressResolver: unknown addrType %d", addrType);
+        throw cRuntimeError("AddressResolver: unknown addrType %d", addrType);
     }
 
     return ret;
 }
 
-Address IPvXAddressResolver::getAddressFrom(InterfaceEntry *ie, int addrType)
+Address AddressResolver::getAddressFrom(InterfaceEntry *ie, int addrType)
 {
     Address ret;
     bool mask = addrType & ADDR_MASK;
@@ -257,16 +257,16 @@ Address IPvXAddressResolver::getAddressFrom(InterfaceEntry *ie, int addrType)
     }
     else
     {
-        throw cRuntimeError("IPvXAddressResolver: unknown addrType %d", addrType);
+        throw cRuntimeError("AddressResolver: unknown addrType %d", addrType);
     }
 
     return ret;
 }
 
-bool IPvXAddressResolver::getIPv4AddressFrom(Address& retAddr, IInterfaceTable *ift, bool netmask)
+bool AddressResolver::getIPv4AddressFrom(Address& retAddr, IInterfaceTable *ift, bool netmask)
 {
     if (ift->getNumInterfaces()==0)
-        throw cRuntimeError("IPvXAddressResolver: interface table `%s' has no interface registered "
+        throw cRuntimeError("AddressResolver: interface table `%s' has no interface registered "
                   "(yet? try in a later init stage!)", ift->getFullPath().c_str());
 
 #ifdef WITH_IPv4
@@ -283,11 +283,11 @@ bool IPvXAddressResolver::getIPv4AddressFrom(Address& retAddr, IInterfaceTable *
     return false;
 }
 
-bool IPvXAddressResolver::getIPv6AddressFrom(Address& retAddr, IInterfaceTable *ift, bool netmask)
+bool AddressResolver::getIPv6AddressFrom(Address& retAddr, IInterfaceTable *ift, bool netmask)
 {
     // browse interfaces and pick a globally routable address
     if (ift->getNumInterfaces()==0)
-        throw cRuntimeError("IPvXAddressResolver: interface table `%s' has no interface registered "
+        throw cRuntimeError("AddressResolver: interface table `%s' has no interface registered "
                   "(yet? try in a later init stage!)", ift->getFullPath().c_str());
 
 #ifndef WITH_IPv6
@@ -313,7 +313,7 @@ bool IPvXAddressResolver::getIPv6AddressFrom(Address& retAddr, IInterfaceTable *
 #endif
 }
 
-bool IPvXAddressResolver::getInterfaceIPv6Address(Address &ret, InterfaceEntry *ie, bool netmask)
+bool AddressResolver::getInterfaceIPv6Address(Address &ret, InterfaceEntry *ie, bool netmask)
 {
 #ifdef WITH_IPv6
     if (netmask)
@@ -331,7 +331,7 @@ bool IPvXAddressResolver::getInterfaceIPv6Address(Address &ret, InterfaceEntry *
     return false;
 }
 
-bool IPvXAddressResolver::getInterfaceIPv4Address(Address &ret, InterfaceEntry *ie, bool netmask)
+bool AddressResolver::getInterfaceIPv4Address(Address &ret, InterfaceEntry *ie, bool netmask)
 {
 #ifdef WITH_IPv4
     if (ie->ipv4Data())
@@ -347,74 +347,74 @@ bool IPvXAddressResolver::getInterfaceIPv4Address(Address &ret, InterfaceEntry *
     return false;
 }
 
-IInterfaceTable *IPvXAddressResolver::interfaceTableOf(cModule *host)
+IInterfaceTable *AddressResolver::interfaceTableOf(cModule *host)
 {
     // find IInterfaceTable
     cModule *mod = host->getSubmodule("interfaceTable");
     if (!mod)
-        throw cRuntimeError("IPvXAddressResolver: IInterfaceTable not found as submodule "
+        throw cRuntimeError("AddressResolver: IInterfaceTable not found as submodule "
                   " `interfaceTable' in host/router `%s'", host->getFullPath().c_str());
 
     return check_and_cast<IInterfaceTable *>(mod);
 }
 
-IRoutingTable *IPvXAddressResolver::routingTableOf(cModule *host)
+IIPv4RoutingTable *AddressResolver::routingTableOf(cModule *host)
 {
-    IRoutingTable *mod = findRoutingTableOf(host);
+    IIPv4RoutingTable *mod = findRoutingTableOf(host);
     if (!mod)
-        throw cRuntimeError("IPvXAddressResolver: IRoutingTable not found as submodule "
+        throw cRuntimeError("AddressResolver: IIPv4RoutingTable not found as submodule "
                   " `routingTable' in host/router `%s'", host->getFullPath().c_str());
     return mod;
 }
 
-RoutingTable6 *IPvXAddressResolver::routingTable6Of(cModule *host)
+IPv6RoutingTable *AddressResolver::routingTable6Of(cModule *host)
 {
-    // find RoutingTable6
-    RoutingTable6 *mod = findRoutingTable6Of(host);
+    // find IPv6RoutingTable
+    IPv6RoutingTable *mod = findRoutingTable6Of(host);
     if (!mod)
-        throw cRuntimeError("IPvXAddressResolver: RoutingTable6 not found as submodule "
+        throw cRuntimeError("AddressResolver: IPv6RoutingTable not found as submodule "
                   " `routingTable6' in host/router `%s'", host->getFullPath().c_str());
     return mod;
 }
 
-NotificationBoard *IPvXAddressResolver::notificationBoardOf(cModule *host)
+NotificationBoard *AddressResolver::notificationBoardOf(cModule *host)
 {
     // find NotificationBoard
     cModule *mod = host->getSubmodule("notificationBoard");
     if (!mod)
-        throw cRuntimeError("IPvXAddressResolver: NotificationBoard not found as submodule "
+        throw cRuntimeError("AddressResolver: NotificationBoard not found as submodule "
                   " notificationBoard' in host/router `%s'", host->getFullPath().c_str());
 
     return check_and_cast<NotificationBoard *>(mod);
 }
 
-IInterfaceTable *IPvXAddressResolver::findInterfaceTableOf(cModule *host)
+IInterfaceTable *AddressResolver::findInterfaceTableOf(cModule *host)
 {
     cModule *mod = host->getSubmodule("interfaceTable");
     return dynamic_cast<IInterfaceTable *>(mod);
 }
 
-IRoutingTable *IPvXAddressResolver::findRoutingTableOf(cModule *host)
+IIPv4RoutingTable *AddressResolver::findRoutingTableOf(cModule *host)
 {
 #ifdef WITH_IPv4
     cModule *mod = host->getSubmodule("routingTable");
-    return dynamic_cast<IRoutingTable *>(mod);
+    return dynamic_cast<IIPv4RoutingTable *>(mod);
 #else
     return NULL;
 #endif
 }
 
-RoutingTable6 *IPvXAddressResolver::findRoutingTable6Of(cModule *host)
+IPv6RoutingTable *AddressResolver::findRoutingTable6Of(cModule *host)
 {
 #ifdef WITH_IPv6
     cModule *mod = host->getSubmodule("routingTable6");
-    return dynamic_cast<RoutingTable6 *>(mod);
+    return dynamic_cast<IPv6RoutingTable *>(mod);
 #else
     return NULL;
 #endif
 }
 
-NotificationBoard *IPvXAddressResolver::findNotificationBoardOf(cModule *host)
+NotificationBoard *AddressResolver::findNotificationBoardOf(cModule *host)
 {
     cModule *mod = host->getSubmodule("notificationBoard");
     return dynamic_cast<NotificationBoard *>(mod);

@@ -27,7 +27,7 @@
 #include "SCTPCommand_m.h"
 #include "SCTPQueue.h"
 #include "SCTPAlgorithm.h"
-#include "RoutingTableAccess.h"
+#include "IPv4RoutingTableAccess.h"
 
 
 
@@ -63,7 +63,7 @@ SCTPPathVariables::SCTPPathVariables(const Address& addr, SCTPAssociation* assoc
     queuedBytes = 0;
     outstandingBytes = 0;
 
-    RoutingTableAccess routingTableAccess;
+    IPv4RoutingTableAccess routingTableAccess;
     const InterfaceEntry* rtie = routingTableAccess.get()->getInterfaceForDestAddr(remoteAddress.toIPv4());
 
     if (rtie == NULL) {

@@ -22,15 +22,15 @@
 #include "Address.h"
 #include "InterfaceEntry.h"
 
-class IGenericRoutingTable;
+class IRoutingTable;
 
 /**
  * C++ interface for accessing unicast routing table entries of various protocols (IPv4, IPv6, etc)
  * in a uniform way.
  *
- * @see IGenericRoutingTable, IPv4Route, IPv6Route
+ * @see IRoutingTable, IPv4Route, IPv6Route
  */
-//TODO the "Generic" can be dropped from the name, once IGenericRoutingTable is renamed to RoutingTable
+//TODO the "Generic" can be dropped from the name, once IRoutingTable is renamed to IPv4RoutingTable
 class INET_API IRoute
 {
     public:
@@ -45,7 +45,7 @@ class INET_API IRoute
         virtual ~IRoute() {}
 
         /** The routing table in which this route is inserted, or NULL. */
-        virtual IGenericRoutingTable *getRoutingTable() const = 0;
+        virtual IRoutingTable *getRoutingTable() const = 0;
 
         virtual void setEnabled(bool enabled) = 0;
         virtual void setDestination(const Address& dest) = 0;
@@ -96,7 +96,7 @@ inline std::ostream& operator<<(std::ostream& out, const IRoute * route)
 };
 
 /**
- * Generic multicast route in an IGenericRoutingTable.
+ * Generic multicast route in an IRoutingTable.
  *
  * Multicast datagrams are forwarded along the edges of a multicast tree.
  * The tree might depend on the multicast group and the source (origin) of
@@ -113,9 +113,9 @@ inline std::ostream& operator<<(std::ostream& out, const IRoute * route)
  * routing tree), then the datagram is forwarded only if there are listeners
  * of the multicast group on that link (TRPB routing).
  *
- * @see IGenericRoutingTable, IPv4MulticastRoute, IPv6MulticastRoute
+ * @see IRoutingTable, IPv4MulticastRoute, IPv6MulticastRoute
  */
-//TODO the "Generic" can be dropped from the name, once IGenericRoutingTable is renamed to RoutingTable
+//TODO the "Generic" can be dropped from the name, once IRoutingTable is renamed to IPv4RoutingTable
 //TODO decide whether IPv4Route should implement this or rather have a wrapper?
 class INET_API IMulticastRoute
 {
@@ -127,7 +127,7 @@ class INET_API IMulticastRoute
         virtual ~IMulticastRoute() {}
 
         /** The routing table in which this route is inserted, or NULL. */
-        virtual IGenericRoutingTable *getRoutingTable() const = 0;
+        virtual IRoutingTable *getRoutingTable() const = 0;
 
         virtual void setEnabled(bool enabled) = 0;
         virtual void setOrigin(const Address& origin) = 0;

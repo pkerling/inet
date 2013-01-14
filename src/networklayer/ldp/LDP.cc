@@ -25,7 +25,7 @@
 #include "LIBTable.h"
 #include "InterfaceTableAccess.h"
 #include "IPv4InterfaceData.h"
-#include "RoutingTableAccess.h"
+#include "IPv4RoutingTableAccess.h"
 #include "LIBTableAccess.h"
 #include "TEDAccess.h"
 #include "NotifierConsts.h"
@@ -109,7 +109,7 @@ void LDP::initialize(int stage)
     helloInterval = par("helloInterval").doubleValue();
 
     ift = InterfaceTableAccess().get();
-    rt = RoutingTableAccess().get();
+    rt = IPv4RoutingTableAccess().get();
     lt = LIBTableAccess().get();
     tedmod = TEDAccess().get();
     nb = NotificationBoardAccess().get();

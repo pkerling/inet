@@ -28,7 +28,7 @@
 
 #include "compatibility.h"
 #include "Coord.h"
-#include "IRoutingTable.h"
+#include "IIPv4RoutingTable.h"
 #include "NotificationBoard.h"
 #include "IInterfaceTable.h"
 #include "Address.h"
@@ -73,7 +73,7 @@ class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, prot
     static bool createInternalStore;
     static GlobalRouteMap *globalRouteMap;
 
-    IRoutingTable *inet_rt;
+    IIPv4RoutingTable *inet_rt;
     IInterfaceTable *inet_ift;
     NotificationBoard *nb;
     ICMP *icmpModule;

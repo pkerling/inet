@@ -22,7 +22,7 @@
 #include <string.h>
 #include "INETDefs.h"
 #include "UDPSocket.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 
 /**
  * Implements a simple VoIP source. See the NED file for more information.

@@ -44,7 +44,7 @@ class TCPStatusInfo;
  *
  * <pre>
  *   TCPSocket socket;
- *   socket.connect(IPvXAddress("10.0.0.2"), 2000);
+ *   socket.connect(Address("10.0.0.2"), 2000);
  *
  *   msg = new cMessage("data1");
  *   msg->setByteLength(16*1024);  // 16K

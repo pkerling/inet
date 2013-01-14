@@ -18,7 +18,7 @@
 
 
 #include "UDPControlInfo_m.h"
-#include "IPvXAddressResolver.h"
+#include "AddressResolver.h"
 #include "InterfaceTableAccess.h"
 #include "InterfaceTable.h"
 #include "IPv4InterfaceData.h"

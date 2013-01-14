@@ -25,7 +25,7 @@
 #include "DHCP_m.h"
 #include "DHCPLease.h"
 #include "InterfaceTable.h"
-#include "RoutingTable.h"
+#include "IPv4RoutingTable.h"
 #include "UDPSocket.h"
 #include "INotifiable.h"
 
@@ -65,7 +65,7 @@ class INET_API DHCPClient : public cSimpleModule, public INotifiable
 
         NotificationBoard* nb; // Notification board
         InterfaceEntry* ie; // interface to configure
-        IRoutingTable* irt; // Routing table to update
+        IIPv4RoutingTable* irt; // Routing table to update
 
         DHCPLease* lease; // leased ip information
 
