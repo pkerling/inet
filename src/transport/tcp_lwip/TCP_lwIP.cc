@@ -607,8 +607,8 @@ void TCP_lwIP::ip_output(LwipTcpLayer::tcp_pcb *pcb, IPvXAddress const& srcP,
         // send over IPv4
         IPv4ControlInfo *controlInfo = new IPv4ControlInfo();
         controlInfo->setProtocol(IP_PROT_TCP);
-        controlInfo->setSrcAddr(srcP.get4());
-        controlInfo->setDestAddr(destP.get4());
+        controlInfo->setSrcAddr(srcP.toIPv4());
+        controlInfo->setDestAddr(destP.toIPv4());
         tcpseg->setControlInfo(controlInfo);
 
         output = "ipOut";
@@ -618,8 +618,8 @@ void TCP_lwIP::ip_output(LwipTcpLayer::tcp_pcb *pcb, IPvXAddress const& srcP,
         // send over IPv6
         IPv6ControlInfo *controlInfo = new IPv6ControlInfo();
         controlInfo->setProtocol(IP_PROT_TCP);
-        controlInfo->setSrcAddr(srcP.get6());
-        controlInfo->setDestAddr(destP.get6());
+        controlInfo->setSrcAddr(srcP.toIPv6());
+        controlInfo->setDestAddr(destP.toIPv6());
         tcpseg->setControlInfo(controlInfo);
 
         output = "ipv6Out";

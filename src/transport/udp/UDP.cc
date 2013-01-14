@@ -198,7 +198,7 @@ void UDP::processCommandFromApp(cMessage *msg)
             else if (dynamic_cast<UDPJoinMulticastGroupsCommand*>(ctrl))
             {
                 UDPJoinMulticastGroupsCommand *cmd = (UDPJoinMulticastGroupsCommand*)ctrl;
-                std::vector<IPvXAddress> addresses;
+                std::vector<Address> addresses;
                 std::vector<int> interfaceIds;
                 for (int i = 0; i < (int)cmd->getMulticastAddrArraySize(); i++)
                     addresses.push_back(cmd->getMulticastAddr(i));
@@ -209,7 +209,7 @@ void UDP::processCommandFromApp(cMessage *msg)
             else if (dynamic_cast<UDPLeaveMulticastGroupsCommand*>(ctrl))
             {
                 UDPLeaveMulticastGroupsCommand *cmd = (UDPLeaveMulticastGroupsCommand*)ctrl;
-                std::vector<IPvXAddress> addresses;
+                std::vector<Address> addresses;
                 for (int i = 0; i < (int)cmd->getMulticastAddrArraySize(); i++)
                     addresses.push_back(cmd->getMulticastAddr(i));
                 leaveMulticastGroups(sd, addresses);
@@ -231,7 +231,7 @@ void UDP::processPacketFromApp(cPacket *appData)
     UDPSendCommand *ctrl = check_and_cast<UDPSendCommand *>(appData->removeControlInfo());
 
     SockDesc *sd = getOrCreateSocket(ctrl->getSockId(), appData->getArrivalGate()->getIndex());
-    const IPvXAddress& destAddr = ctrl->getDestAddr().isUnspecified() ? sd->remoteAddr : ctrl->getDestAddr();
+    const Address& destAddr = ctrl->getDestAddr().isUnspecified() ? sd->remoteAddr : ctrl->getDestAddr();
     int destPort = ctrl->getDestPort() == -1 ? sd->remotePort : ctrl->getDestPort();
     if (destAddr.isUnspecified() || destPort == -1)
         error("send: missing destination address or port when sending over unconnected port");
@@ -239,7 +239,7 @@ void UDP::processPacketFromApp(cPacket *appData)
     int interfaceId = ctrl->getInterfaceId();
     if (interfaceId == -1 && destAddr.isMulticast())
     {
-        std::map<IPvXAddress,int>::iterator it = sd->multicastAddrs.find(destAddr);
+        std::map<Address,int>::iterator it = sd->multicastAddrs.find(destAddr);
         interfaceId = (it != sd->multicastAddrs.end() && it->second != -1) ? it->second : sd->multicastOutputInterfaceId;
     }
     sendDown(appData, sd->localAddr, sd->localPort, destAddr, destPort, interfaceId, sd->multicastLoop, sd->ttl, sd->typeOfService);
@@ -264,8 +264,8 @@ void UDP::processUDPPacket(UDPPacket *udpPacket)
         return;
     }
 
-    IPvXAddress srcAddr;
-    IPvXAddress destAddr;
+    Address srcAddr;
+    Address destAddr;
     bool isMulticast, isBroadcast;
     int srcPort = udpPacket->getSourcePort();
     int destPort = udpPacket->getDestinationPort();
@@ -352,7 +352,7 @@ void UDP::processICMPError(cPacket *pk)
 {
     // extract details from the error message, then try to notify socket that sent bogus packet
     int type, code;
-    IPvXAddress localAddr, remoteAddr;
+    Address localAddr, remoteAddr;
     ushort localPort, remotePort;
 
 #ifdef WITH_IPv4
@@ -458,7 +458,7 @@ void UDP::processUndeliverablePacket(UDPPacket *udpPacket, cObject *ctrl)
     }
 }
 
-void UDP::bind(int sockId, int gateIndex, const IPvXAddress& localAddr, int localPort)
+void UDP::bind(int sockId, int gateIndex, const Address& localAddr, int localPort)
 {
     if (sockId == -1)
         error("sockId in BIND message not filled in");
@@ -494,7 +494,7 @@ void UDP::bind(int sockId, int gateIndex, const IPvXAddress& localAddr, int loca
     }
 }
 
-void UDP::connect(int sockId, int gateIndex, const IPvXAddress& remoteAddr, int remotePort)
+void UDP::connect(int sockId, int gateIndex, const Address& remoteAddr, int remotePort)
 {
     if (remoteAddr.isUnspecified())
         error("connect: unspecified remote address");
@@ -509,7 +509,7 @@ void UDP::connect(int sockId, int gateIndex, const IPvXAddress& remoteAddr, int 
     EV << "Socket connected: " << *sd << "\n";
 }
 
-UDP::SockDesc *UDP::createSocket(int sockId, int gateIndex, const IPvXAddress& localAddr, int localPort)
+UDP::SockDesc *UDP::createSocket(int sockId, int gateIndex, const Address& localAddr, int localPort)
 {
     // create and fill in SockDesc
     SockDesc *sd = new SockDesc(sockId, gateIndex);
@@ -570,7 +570,7 @@ ushort UDP::getEphemeralPort()
     return lastEphemeralPort;
 }
 
-UDP::SockDesc *UDP::findSocketByLocalAddress(const IPvXAddress& localAddr, ushort localPort)
+UDP::SockDesc *UDP::findSocketByLocalAddress(const Address& localAddr, ushort localPort)
 {
     SocketsByPortMap::iterator it = socketsByPortMap.find(localPort);
     if (it == socketsByPortMap.end())
@@ -586,7 +586,7 @@ UDP::SockDesc *UDP::findSocketByLocalAddress(const IPvXAddress& localAddr, ushor
     return NULL;
 }
 
-UDP::SockDesc *UDP::findSocketForUnicastPacket(const IPvXAddress& localAddr, ushort localPort, const IPvXAddress& remoteAddr, ushort remotePort)
+UDP::SockDesc *UDP::findSocketForUnicastPacket(const Address& localAddr, ushort localPort, const Address& remoteAddr, ushort remotePort)
 {
     SocketsByPortMap::iterator it = socketsByPortMap.find(localPort);
     if (it == socketsByPortMap.end())
@@ -606,7 +606,7 @@ UDP::SockDesc *UDP::findSocketForUnicastPacket(const IPvXAddress& localAddr, ush
     return NULL;
 }
 
-std::vector<UDP::SockDesc*> UDP::findSocketsForMcastBcastPacket(const IPvXAddress& localAddr, ushort localPort, const IPvXAddress& remoteAddr, ushort remotePort, bool isMulticast, bool isBroadcast)
+std::vector<UDP::SockDesc*> UDP::findSocketsForMcastBcastPacket(const Address& localAddr, ushort localPort, const Address& remoteAddr, ushort remotePort, bool isMulticast, bool isBroadcast)
 {
     ASSERT(isMulticast || isBroadcast);
     std::vector<SockDesc*> result;
@@ -640,7 +640,7 @@ std::vector<UDP::SockDesc*> UDP::findSocketsForMcastBcastPacket(const IPvXAddres
     return result;
 }
 
-void UDP::sendUp(cPacket *payload, SockDesc *sd, const IPvXAddress& srcAddr, ushort srcPort, const IPvXAddress& destAddr, ushort destPort, int interfaceId, int ttl, unsigned char tos)
+void UDP::sendUp(cPacket *payload, SockDesc *sd, const Address& srcAddr, ushort srcPort, const Address& destAddr, ushort destPort, int interfaceId, int ttl, unsigned char tos)
 {
     EV << "Sending payload up to socket sockId=" << sd->sockId << "\n";
 
@@ -662,7 +662,7 @@ void UDP::sendUp(cPacket *payload, SockDesc *sd, const IPvXAddress& srcAddr, ush
     numPassedUp++;
 }
 
-void UDP::sendUpErrorIndication(SockDesc *sd, const IPvXAddress& localAddr, ushort localPort, const IPvXAddress& remoteAddr, ushort remotePort)
+void UDP::sendUpErrorIndication(SockDesc *sd, const Address& localAddr, ushort localPort, const Address& remoteAddr, ushort remotePort)
 {
     cMessage *notifyMsg = new cMessage("ERROR", UDP_I_ERROR);
     UDPErrorIndication *udpCtrl = new UDPErrorIndication();
@@ -676,7 +676,7 @@ void UDP::sendUpErrorIndication(SockDesc *sd, const IPvXAddress& localAddr, usho
     send(notifyMsg, "appOut", sd->appGateIndex);
 }
 
-void UDP::sendDown(cPacket *appData, const IPvXAddress& srcAddr, ushort srcPort, const IPvXAddress& destAddr, ushort destPort,
+void UDP::sendDown(cPacket *appData, const Address& srcAddr, ushort srcPort, const Address& destAddr, ushort destPort,
                     int interfaceId, bool multicastLoop, int ttl, unsigned char tos)
 {
     if (destAddr.isUnspecified())
@@ -692,14 +692,14 @@ void UDP::sendDown(cPacket *appData, const IPvXAddress& srcAddr, ushort srcPort,
     udpPacket->setSourcePort(srcPort);
     udpPacket->setDestinationPort(destPort);
 
-    if (!destAddr.isIPv6())
+    if (destAddr.getType() == Address::IPv4)
     {
         // send to IPv4
         EV << "Sending app packet " << appData->getName() << " over IPv4.\n";
         IPv4ControlInfo *ipControlInfo = new IPv4ControlInfo();
         ipControlInfo->setProtocol(IP_PROT_UDP);
-        ipControlInfo->setSrcAddr(srcAddr.get4());
-        ipControlInfo->setDestAddr(destAddr.get4());
+        ipControlInfo->setSrcAddr(srcAddr.toIPv4());
+        ipControlInfo->setDestAddr(destAddr.toIPv4());
         ipControlInfo->setInterfaceId(interfaceId);
         ipControlInfo->setMulticastLoop(multicastLoop);
         ipControlInfo->setTimeToLive(ttl);
@@ -709,14 +709,14 @@ void UDP::sendDown(cPacket *appData, const IPvXAddress& srcAddr, ushort srcPort,
         emit(sentPkSignal, udpPacket);
         send(udpPacket, "ipOut");
     }
-    else
+    else if (destAddr.getType() == Address::IPv6)
     {
         // send to IPv6
         EV << "Sending app packet " << appData->getName() << " over IPv6.\n";
         IPv6ControlInfo *ipControlInfo = new IPv6ControlInfo();
         ipControlInfo->setProtocol(IP_PROT_UDP);
-        ipControlInfo->setSrcAddr(srcAddr.get6());
-        ipControlInfo->setDestAddr(destAddr.get6());
+        ipControlInfo->setSrcAddr(srcAddr.toIPv6());
+        ipControlInfo->setDestAddr(destAddr.toIPv6());
         ipControlInfo->setInterfaceId(interfaceId);
         ipControlInfo->setMulticastLoop(multicastLoop);
         ipControlInfo->setHopLimit(ttl);
@@ -726,6 +726,8 @@ void UDP::sendDown(cPacket *appData, const IPvXAddress& srcAddr, ushort srcPort,
         emit(sentPkSignal, udpPacket);
         send(udpPacket, "ipv6Out");
     }
+    else
+        throw cRuntimeError("Unknown address type");
     numSent++;
 }
 
@@ -752,7 +754,7 @@ UDP::SockDesc *UDP::getOrCreateSocket(int sockId, int gateIndex)
     if (it != socketsByIdMap.end())
         return it->second;
 
-    return createSocket(sockId, gateIndex, IPvXAddress(), -1);
+    return createSocket(sockId, gateIndex, Address(), -1);
 }
 
 void UDP::setTimeToLive(SockDesc *sd, int ttl)
@@ -780,13 +782,13 @@ void UDP::setMulticastLoop(SockDesc *sd, bool loop)
     sd->multicastLoop = loop;
 }
 
-void UDP::joinMulticastGroups(SockDesc *sd, const std::vector<IPvXAddress>& multicastAddresses, const std::vector<int> interfaceIds)
+void UDP::joinMulticastGroups(SockDesc *sd, const std::vector<Address>& multicastAddresses, const std::vector<int> interfaceIds)
 {
     int multicastAddressesLen = multicastAddresses.size();
     int interfaceIdsLen = interfaceIds.size();
     for (int k = 0; k < multicastAddressesLen; k++)
     {
-        const IPvXAddress &multicastAddr = multicastAddresses[k];
+        const Address &multicastAddr = multicastAddresses[k];
         int interfaceId = k < interfaceIdsLen ? interfaceIds[k] : -1;
         ASSERT(multicastAddr.isMulticast());
         sd->multicastAddrs[multicastAddr] = interfaceId;
@@ -809,23 +811,25 @@ void UDP::joinMulticastGroups(SockDesc *sd, const std::vector<IPvXAddress>& mult
     }
 }
 
-void UDP::addMulticastAddressToInterface(InterfaceEntry *ie, const IPvXAddress& multicastAddr)
+void UDP::addMulticastAddressToInterface(InterfaceEntry *ie, const Address& multicastAddr)
 {
-    if (!multicastAddr.isIPv6())
+    if (multicastAddr.getType() == Address::IPv4)
     {
 #ifdef WITH_IPv4
-        ie->ipv4Data()->joinMulticastGroup(multicastAddr.get4());
+        ie->ipv4Data()->joinMulticastGroup(multicastAddr.toIPv4());
+#endif
+    }
+    else if (multicastAddr.getType() == Address::IPv6)
+    {
+#ifdef WITH_IPv6
+        ie->ipv6Data()->assignAddress(multicastAddr.toIPv6(), false, SimTime::getMaxTime(), SimTime::getMaxTime());
 #endif
     }
     else
-    {
-#ifdef WITH_IPv6
-        ie->ipv6Data()->assignAddress(multicastAddr.get6(), false, SimTime::getMaxTime(), SimTime::getMaxTime());
-#endif
-    }
+        throw cRuntimeError("Unknown address type");
 }
 
-void UDP::leaveMulticastGroups(SockDesc *sd, const std::vector<IPvXAddress>& multicastAddresses)
+void UDP::leaveMulticastGroups(SockDesc *sd, const std::vector<Address>& multicastAddresses)
 {
     for (unsigned int i = 0; i < multicastAddresses.size(); i++)
         sd->multicastAddrs.erase(multicastAddresses[i]);

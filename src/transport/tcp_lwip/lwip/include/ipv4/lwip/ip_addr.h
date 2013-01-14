@@ -36,7 +36,7 @@
 
 #include "lwip/inet.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 
 #ifdef __cplusplus
 //extern "C" {

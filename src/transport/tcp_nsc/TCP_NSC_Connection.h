@@ -27,7 +27,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 
 // forward declarations:
 class TCPConnectInfo;

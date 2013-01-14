@@ -154,7 +154,7 @@ void BGPRouting::processMessageFromTCP(cMessage *msg)
         socket = new TCPSocket(msg);
         socket->readDataTransferModePar(*this);
         socket->setOutputGate(gate("tcpOut"));
-        IPv4Address peerAddr = socket->getRemoteAddress().get4();
+        IPv4Address peerAddr = socket->getRemoteAddress().toIPv4();
         BGP::SessionID i = findIdFromPeerAddr(_BGPSessions, peerAddr);
         if (i == (BGP::SessionID)-1)
         {

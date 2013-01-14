@@ -73,7 +73,7 @@ void UDPVideoStreamCli::requestStream()
     int svrPort = par("serverPort");
     int localPort = par("localPort");
     const char *address = par("serverAddress");
-    IPvXAddress svrAddr = IPvXAddressResolver().resolve(address);
+    Address svrAddr = IPvXAddressResolver().resolve(address);
 
     if (svrAddr.isUnspecified())
     {

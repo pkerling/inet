@@ -25,7 +25,7 @@
 #include "INETDefs.h"
 
 #include "Address.h"
-#include "IPvXAddress.h"
+#include "Address.h"
 
 // Forward declarations:
 class IInterfaceTable;
@@ -91,14 +91,14 @@ class INET_API IPvXAddressResolver
      * looked up using <tt>simulation.getModuleByPath()</tt>, and then
      * addressOf() will be called to determine its IP address.
      */
-    virtual IPvXAddress resolve(const char *str, int addrType = ADDR_PREFER_IPv6);
+    virtual Address resolve(const char *str, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Utility function: Calls resolve() for each item in the string vector, and
      * returns the result in an address vector. The string vector may come e.g.
      * from cStringTokenizer::asVector().
      */
-    virtual std::vector<IPvXAddress> resolve(std::vector<std::string> strs, int addrType = ADDR_PREFER_IPv6);
+    virtual std::vector<Address> resolve(std::vector<std::string> strs, int addrType = ADDR_PREFER_IPv6);
 
     /**
      * Similar to resolve(), but returns false (instead of throwing an error)

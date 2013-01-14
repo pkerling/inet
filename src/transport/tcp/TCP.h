@@ -24,7 +24,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "TCPCommand_m.h"
 
 // Forward declarations:
@@ -118,8 +118,8 @@ class INET_API TCP : public cSimpleModule
     };
     struct SockPair
     {
-        IPvXAddress localAddr;
-        IPvXAddress remoteAddr;
+        Address localAddr;
+        Address remoteAddr;
         int localPort;   // -1: unspec
         int remotePort;  // -1: unspec
 
@@ -151,9 +151,9 @@ class INET_API TCP : public cSimpleModule
     virtual TCPConnection *createConnection(int appGateIndex, int connId);
 
     // utility methods
-    virtual TCPConnection *findConnForSegment(TCPSegment *tcpseg, IPvXAddress srcAddr, IPvXAddress destAddr);
+    virtual TCPConnection *findConnForSegment(TCPSegment *tcpseg, Address srcAddr, Address destAddr);
     virtual TCPConnection *findConnForApp(int appGateIndex, int connId);
-    virtual void segmentArrivalWhileClosed(TCPSegment *tcpseg, IPvXAddress src, IPvXAddress dest);
+    virtual void segmentArrivalWhileClosed(TCPSegment *tcpseg, Address src, Address dest);
     virtual void removeConnection(TCPConnection *conn);
     virtual void updateDisplayString();
 
@@ -177,19 +177,19 @@ class INET_API TCP : public cSimpleModule
      * To be called from TCPConnection when a new connection gets created,
      * during processing of OPEN_ACTIVE or OPEN_PASSIVE.
      */
-    virtual void addSockPair(TCPConnection *conn, IPvXAddress localAddr, IPvXAddress remoteAddr, int localPort, int remotePort);
+    virtual void addSockPair(TCPConnection *conn, Address localAddr, Address remoteAddr, int localPort, int remotePort);
 
     /**
      * To be called from TCPConnection when socket pair (key for TcpConnMap) changes
      * (e.g. becomes fully qualified).
      */
-    virtual void updateSockPair(TCPConnection *conn, IPvXAddress localAddr, IPvXAddress remoteAddr, int localPort, int remotePort);
+    virtual void updateSockPair(TCPConnection *conn, Address localAddr, Address remoteAddr, int localPort, int remotePort);
 
     /**
      * Update conn's socket pair, and register newConn (which'll keep LISTENing).
      * Also, conn will get a new connId (and newConn will live on with its old connId).
      */
-    virtual void addForkedConnection(TCPConnection *conn, TCPConnection *newConn, IPvXAddress localAddr, IPvXAddress remoteAddr, int localPort, int remotePort);
+    virtual void addForkedConnection(TCPConnection *conn, TCPConnection *newConn, Address localAddr, Address remoteAddr, int localPort, int remotePort);
 
     /**
      * To be called from TCPConnection: reserves an ephemeral port for the connection.

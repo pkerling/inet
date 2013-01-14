@@ -359,7 +359,7 @@ DHCPLease* DHCPServer::getAvailableLease()
     return (NULL);
 }
 
-void DHCPServer::sendToUDP(cPacket *msg, int srcPort, const IPvXAddress& destAddr, int destPort)
+void DHCPServer::sendToUDP(cPacket *msg, int srcPort, const Address& destAddr, int destPort)
 {
     // Overwrite the sendToUDP in order to add the interface to use to allow the packet be routed by the IP stack
     msg->setKind(UDP_C_DATA);

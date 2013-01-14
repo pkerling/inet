@@ -52,7 +52,7 @@ class SimpleVoIPSender : public cSimpleModule
     simtime_t timestamp;
     int localPort;
     int destPort;
-    IPvXAddress destAddress;
+    Address destAddress;
     simtime_t stopTime;
 
     void talkspurt(simtime_t dur);

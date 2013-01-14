@@ -51,7 +51,7 @@ void SCTP::printInfoConnMap()
             assoc = i->second;
             key = i->first;
 
-                sctpEV3<<"assocId: "<<assoc->assocId<<"  assoc: "<<assoc<<" src: "<<IPvXAddress(key.localAddr)<<" dst: "<<IPvXAddress(key.remoteAddr)<<" lPort: "<<key.localPort<<" rPort: "<<key.remotePort<<"\n";
+                sctpEV3<<"assocId: "<<assoc->assocId<<"  assoc: "<<assoc<<" src: "<<Address(key.localAddr)<<" dst: "<<Address(key.remoteAddr)<<" lPort: "<<key.localPort<<" rPort: "<<key.remotePort<<"\n";
 
         }
 
@@ -135,8 +135,8 @@ SCTP::~SCTP()
 
 void SCTP::handleMessage(cMessage *msg)
 {
-    IPvXAddress destAddr;
-    IPvXAddress srcAddr;
+    Address destAddr;
+    Address srcAddr;
     bool findListen = false;
     bool bitError = false;
 
@@ -316,7 +316,7 @@ void SCTP::handleMessage(cMessage *msg)
         updateDisplayString();
 }
 
-void SCTP::sendAbortFromMain(SCTPMessage* sctpmsg, IPvXAddress srcAddr, IPvXAddress destAddr)
+void SCTP::sendAbortFromMain(SCTPMessage* sctpmsg, Address srcAddr, Address destAddr)
 {
     SCTPMessage *msg = new SCTPMessage();
 
@@ -352,14 +352,14 @@ void SCTP::sendAbortFromMain(SCTPMessage* sctpmsg, IPvXAddress srcAddr, IPvXAddr
     {
         IPv4ControlInfo *controlInfo = new IPv4ControlInfo();
         controlInfo->setProtocol(IP_PROT_SCTP);
-        controlInfo->setSrcAddr(srcAddr.get4());
-        controlInfo->setDestAddr(destAddr.get4());
+        controlInfo->setSrcAddr(srcAddr.toIPv4());
+        controlInfo->setDestAddr(destAddr.toIPv4());
         msg->setControlInfo(controlInfo);
         send(msg, "to_ip");
     }
 }
 
-void SCTP::sendShutdownCompleteFromMain(SCTPMessage* sctpmsg, IPvXAddress srcAddr, IPvXAddress destAddr)
+void SCTP::sendShutdownCompleteFromMain(SCTPMessage* sctpmsg, Address srcAddr, Address destAddr)
 {
     SCTPMessage *msg = new SCTPMessage();
 
@@ -379,8 +379,8 @@ void SCTP::sendShutdownCompleteFromMain(SCTPMessage* sctpmsg, IPvXAddress srcAdd
     msg->addChunk(scChunk);
     IPv4ControlInfo *controlInfo = new IPv4ControlInfo();
     controlInfo->setProtocol(IP_PROT_SCTP);
-    controlInfo->setSrcAddr(srcAddr.get4());
-    controlInfo->setDestAddr(destAddr.get4());
+    controlInfo->setSrcAddr(srcAddr.toIPv4());
+    controlInfo->setDestAddr(destAddr.toIPv4());
     msg->setControlInfo(controlInfo);
     send(msg, "to_ip");
 }
@@ -457,7 +457,7 @@ SCTPAssociation *SCTP::findAssocWithVTag(uint32 peerVTag, uint32 remotePort, uin
     return NULL;
 }
 
-SCTPAssociation *SCTP::findAssocForMessage(IPvXAddress srcAddr, IPvXAddress destAddr, uint32 srcPort, uint32 destPort, bool findListen)
+SCTPAssociation *SCTP::findAssocForMessage(Address srcAddr, Address destAddr, uint32 srcPort, uint32 destPort, bool findListen)
 {
     SockPair key;
 
@@ -477,7 +477,7 @@ SCTPAssociation *SCTP::findAssocForMessage(IPvXAddress srcAddr, IPvXAddress dest
 
 
     // try with localAddr missing (only localPort specified in passive/active open)
-    key.localAddr.set("0.0.0.0");
+    key.localAddr.set(IPv4Address("0.0.0.0"));
 
     i = sctpConnMap.find(key);
     if (i!=sctpConnMap.end())
@@ -502,7 +502,7 @@ SCTPAssociation *SCTP::findAssocForMessage(IPvXAddress srcAddr, IPvXAddress dest
 
         // try fully qualified local socket + blank remote socket (for incoming SYN)
         key = save;
-        key.remoteAddr.set("0.0.0.0");
+        key.remoteAddr.set(IPv4Address("0.0.0.0"));
         key.remotePort = 0;
         i = sctpConnMap.find(key);
         if (i!=sctpConnMap.end())
@@ -515,7 +515,7 @@ SCTPAssociation *SCTP::findAssocForMessage(IPvXAddress srcAddr, IPvXAddress dest
 
 
         // try with blank remote socket, and localAddr missing (for incoming SYN)
-        key.localAddr.set("0.0.0.0");
+        key.localAddr.set(IPv4Address("0.0.0.0"));
         i = sctpConnMap.find(key);
         if (i!=sctpConnMap.end())
         {
@@ -549,7 +549,7 @@ uint16 SCTP::getEphemeralPort()
     return nextEphemeralPort++;
 }
 
-void SCTP::updateSockPair(SCTPAssociation *conn, IPvXAddress localAddr, IPvXAddress remoteAddr, int32 localPort, int32 remotePort)
+void SCTP::updateSockPair(SCTPAssociation *conn, Address localAddr, Address remoteAddr, int32 localPort, int32 remotePort)
 {
     SockPair key;
     sctpEV3<<"updateSockPair:   localAddr: "<<localAddr<<"   remoteAddr="<<remoteAddr<<"    localPort="<<localPort<<" remotePort="<<remotePort<<"\n";
@@ -577,7 +577,7 @@ void SCTP::updateSockPair(SCTPAssociation *conn, IPvXAddress localAddr, IPvXAddr
     printInfoConnMap();
 }
 
-void SCTP::addLocalAddress(SCTPAssociation *conn, IPvXAddress address)
+void SCTP::addLocalAddress(SCTPAssociation *conn, Address address)
 {
 
         //sctpEV3<<"Add local address: "<<address<<"\n";
@@ -602,7 +602,7 @@ void SCTP::addLocalAddress(SCTPAssociation *conn, IPvXAddress address)
         else
             sctpEV3<<"no actual sockPair found\n";
         key.localAddr = address;
-        //key.localAddr = address.get4().getInt();
+        //key.localAddr = address.toIPv4().getInt();
         // //sctpEV3<<"laddr="<<key.localAddr<<"    lp="<<key.localPort<<"  raddr="<<key.remoteAddr<<" rPort="<<key.remotePort<<"\n";
         sctpConnMap[key] = conn;
         sizeConnMap = sctpConnMap.size();
@@ -611,7 +611,7 @@ void SCTP::addLocalAddress(SCTPAssociation *conn, IPvXAddress address)
         printInfoConnMap();
 }
 
-void SCTP::addLocalAddressToAllRemoteAddresses(SCTPAssociation *conn, IPvXAddress address, std::vector<IPvXAddress> remAddresses)
+void SCTP::addLocalAddressToAllRemoteAddresses(SCTPAssociation *conn, Address address, std::vector<Address> remAddresses)
 {
 
         //sctpEV3<<"Add local address: "<<address<<"\n";
@@ -649,7 +649,7 @@ void SCTP::addLocalAddressToAllRemoteAddresses(SCTPAssociation *conn, IPvXAddres
         }
 }
 
-void SCTP::removeLocalAddressFromAllRemoteAddresses(SCTPAssociation *conn, IPvXAddress address, std::vector<IPvXAddress> remAddresses)
+void SCTP::removeLocalAddressFromAllRemoteAddresses(SCTPAssociation *conn, Address address, std::vector<Address> remAddresses)
 {
 
         //sctpEV3<<"Remove local address: "<<address<<"\n";
@@ -680,7 +680,7 @@ void SCTP::removeLocalAddressFromAllRemoteAddresses(SCTPAssociation *conn, IPvXA
         }
 }
 
-void SCTP::removeRemoteAddressFromAllConnections(SCTPAssociation *conn, IPvXAddress address, std::vector<IPvXAddress> locAddresses)
+void SCTP::removeRemoteAddressFromAllConnections(SCTPAssociation *conn, Address address, std::vector<Address> locAddresses)
 {
 
         //sctpEV3<<"Remove remote address: "<<address<<"\n";
@@ -711,7 +711,7 @@ void SCTP::removeRemoteAddressFromAllConnections(SCTPAssociation *conn, IPvXAddr
         }
 }
 
-void SCTP::addRemoteAddress(SCTPAssociation *conn, IPvXAddress localAddress, IPvXAddress remoteAddress)
+void SCTP::addRemoteAddress(SCTPAssociation *conn, Address localAddress, Address remoteAddress)
 {
 
     sctpEV3<<"Add remote Address: "<<remoteAddress<<" to local Address "<<localAddress<<"\n";
@@ -740,7 +740,7 @@ void SCTP::addRemoteAddress(SCTPAssociation *conn, IPvXAddress localAddress, IPv
     printInfoConnMap();
 }
 
-void SCTP::addForkedAssociation(SCTPAssociation *assoc, SCTPAssociation *newAssoc, IPvXAddress localAddr, IPvXAddress remoteAddr, int32 localPort, int32 remotePort)
+void SCTP::addForkedAssociation(SCTPAssociation *assoc, SCTPAssociation *newAssoc, Address localAddr, Address remoteAddr, int32 localPort, int32 remotePort)
 {
     SockPair keyAssoc;
 

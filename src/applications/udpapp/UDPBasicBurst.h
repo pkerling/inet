@@ -45,8 +45,8 @@ class INET_API UDPBasicBurst : public cSimpleModule
     int localPort, destPort;
 
     ChooseDestAddrMode chooseDestAddrMode;
-    std::vector<IPvXAddress> destAddresses;
-    IPvXAddress destAddr;
+    std::vector<Address> destAddresses;
+    Address destAddr;
     int destAddrRNG;
 
     typedef std::map<int,int> SourceSequence;
@@ -81,7 +81,7 @@ class INET_API UDPBasicBurst : public cSimpleModule
     static simsignal_t dropPkSignal;
 
     // chooses random destination address
-    virtual IPvXAddress chooseDestAddr();
+    virtual Address chooseDestAddr();
     virtual cPacket *createPacket();
     virtual void processPacket(cPacket *msg);
     virtual void generateBurst();

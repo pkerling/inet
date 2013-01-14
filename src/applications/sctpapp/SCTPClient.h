@@ -70,10 +70,10 @@ class INET_API SCTPClient : public cSimpleModule, public SCTPSocket::CallbackInt
         {
             bool active;
             bool primaryPath;
-            IPvXAddress  pid;
+            Address  pid;
         };
 
-        typedef std::map<IPvXAddress,pathStatus> SCTPPathStatus;
+        typedef std::map<Address,pathStatus> SCTPPathStatus;
         SCTPPathStatus sctpPathStatus;
 
         /**
@@ -146,7 +146,7 @@ class INET_API SCTPClient : public cSimpleModule, public SCTPSocket::CallbackInt
         void shutdownReceivedArrived(int32 connId);
         void sendqueueFullArrived(int32 connId);
         void sendqueueAbatedArrived(int32 connId, uint64 buffer);
-        void addressAddedArrived(int32 assocId, IPvXAddress remoteAddr);
+        void addressAddedArrived(int32 assocId, Address remoteAddr);
 };
 
 #endif

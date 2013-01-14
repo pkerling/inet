@@ -21,7 +21,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "IPv4Address.h"
 #include "SCTP.h"
 //#include "RoutingTable.h"
@@ -49,7 +49,7 @@ class SCTPSendStream;
 class SCTPAlgorithm;
 class SCTP;
 
-typedef std::vector<IPvXAddress> AddressVector;
+typedef std::vector<Address> AddressVector;
 
 enum SctpState
 {
@@ -197,11 +197,11 @@ inline double max(const double a, const double b) { return (a < b) ? b : a; }
 class INET_API SCTPPathVariables : public cObject
 {
     public:
-        SCTPPathVariables(const IPvXAddress& addr, SCTPAssociation* assoc);
+        SCTPPathVariables(const Address& addr, SCTPAssociation* assoc);
         ~SCTPPathVariables();
 
         SCTPAssociation*     association;
-        IPvXAddress          remoteAddress;
+        Address          remoteAddress;
 
         // ====== Path Management =============================================
         bool                activePath;
@@ -286,7 +286,7 @@ class INET_API SCTPDataVariables : public cObject
         inline void setInitialDestination(SCTPPathVariables* path) {
             initialDestination = path;
         }
-        inline const IPvXAddress& getInitialDestination() const {
+        inline const Address& getInitialDestination() const {
             if (initialDestination != NULL) {
                 return (initialDestination->remoteAddress);
             }
@@ -299,7 +299,7 @@ class INET_API SCTPDataVariables : public cObject
         inline void setLastDestination(SCTPPathVariables* path) {
             lastDestination = path;
         }
-        inline const IPvXAddress& getLastDestination() const {
+        inline const Address& getLastDestination() const {
             if (lastDestination != NULL) {
                 return (lastDestination->remoteAddress);
             }
@@ -312,7 +312,7 @@ class INET_API SCTPDataVariables : public cObject
         inline void setNextDestination(SCTPPathVariables* path) {
             nextDestination = path;
         }
-        inline const IPvXAddress& getNextDestination() const {
+        inline const Address& getNextDestination() const {
             if (nextDestination != NULL) {
                 return (nextDestination->remoteAddress);
             }
@@ -348,7 +348,7 @@ class INET_API SCTPDataVariables : public cObject
         uint32              allowedNoRetransmissions;
 
     public:
-        static const IPvXAddress zeroAddress;
+        static const Address zeroAddress;
 
     private:
         SCTPPathVariables* initialDestination;
@@ -367,7 +367,7 @@ class INET_API SCTPStateVariables : public cObject
         inline void setPrimaryPath(SCTPPathVariables* path) {
             primaryPath = path;
         }
-        inline const IPvXAddress& getPrimaryPathIndex() const {
+        inline const Address& getPrimaryPathIndex() const {
             if (primaryPath != NULL) {
                 return (primaryPath->remoteAddress);
             }
@@ -404,8 +404,8 @@ class INET_API SCTPStateVariables : public cObject
         bool                        inOut;
         bool                        noMoreOutstanding;
         uint32                      numGapReports;
-        IPvXAddress                 initialPrimaryPath;
-        IPvXAddress                 lastDataSourceAddress;
+        Address                 initialPrimaryPath;
+        Address                 lastDataSourceAddress;
         AddressVector               localAddresses;
         std::list<uint32>           dupList;
         uint32                      errorCount;           // overall error counter
@@ -485,9 +485,9 @@ class INET_API SCTPAssociation : public cObject
     friend class SCTPPathVariables;
 
     // map for storing the path parameters
-    typedef std::map<IPvXAddress,SCTPPathVariables*> SCTPPathMap;
+    typedef std::map<Address,SCTPPathVariables*> SCTPPathMap;
     // map for storing the queued bytes per path
-    typedef std::map<IPvXAddress, uint32> CounterMap;
+    typedef std::map<Address, uint32> CounterMap;
     typedef struct counter {
         uint64    roomSumSendStreams;
         uint64    bookedSumSendStreams;
@@ -516,8 +516,8 @@ class INET_API SCTPAssociation : public cObject
         // connection identification by apps: appgateIndex+assocId
         int32                   appGateIndex; // Application gate index
         int32                   assocId;        // Identifies connection within the app
-        IPvXAddress             remoteAddr; // Remote address from last message
-        IPvXAddress             localAddr;      // Local address from last message
+        Address             remoteAddr; // Remote address from last message
+        Address             localAddr;      // Local address from last message
         uint16                  localPort;      // Remote port from last message
         uint16                  remotePort; // Local port from last message
         uint32                  localVTag;      // Local verification tag
@@ -583,7 +583,7 @@ class INET_API SCTPAssociation : public cObject
         static const char* indicationName(const int32 code);
 
         /** Utility: return IPv4 or IPv6 address level */
-        static int getAddressLevel(const IPvXAddress& addr);
+        static int getAddressLevel(const Address& addr);
 
         /* @name Various getters */
         //@{
@@ -613,7 +613,7 @@ class INET_API SCTPAssociation : public cObject
         * of false means that the connection structure must be deleted by the
         * caller (SCTP).
         */
-        bool processSCTPMessage(SCTPMessage* sctpmsg, const IPvXAddress& srcAddr, const IPvXAddress& destAddr);
+        bool processSCTPMessage(SCTPMessage* sctpmsg, const Address& srcAddr, const Address& destAddr);
         /**
         * Process commands from the application.
         * Normally returns true. A return value of false means that the
@@ -621,11 +621,11 @@ class INET_API SCTPAssociation : public cObject
         */
         bool processAppCommand(cPacket* msg);
         void removePath();
-        void removePath(const IPvXAddress& addr);
+        void removePath(const Address& addr);
         void deleteStreams();
         void stopTimer(cMessage* timer);
         void stopTimers();
-        inline SCTPPathVariables* getPath(const IPvXAddress& pathId) const {
+        inline SCTPPathVariables* getPath(const Address& pathId) const {
             SCTPPathMap::const_iterator iterator = sctpPathMap.find(pathId);
             if (iterator != sctpPathMap.end()) {
                 return iterator->second;
@@ -658,13 +658,13 @@ class INET_API SCTPAssociation : public cObject
 
         /** @name Processing SCTP message arrivals. Invoked from processSCTPMessage(). */
         //@{
-        bool process_RCV_Message(SCTPMessage* sctpseg, const IPvXAddress& src, const IPvXAddress& dest);
+        bool process_RCV_Message(SCTPMessage* sctpseg, const Address& src, const Address& dest);
         /**
         * Process incoming SCTP packets. Invoked from process_RCV_Message
         */
         bool processInitArrived(SCTPInitChunk* initChunk, int32 sport, int32 dport);
         bool processInitAckArrived(SCTPInitAckChunk* initAckChunk);
-        bool processCookieEchoArrived(SCTPCookieEchoChunk* cookieEcho, IPvXAddress addr);
+        bool processCookieEchoArrived(SCTPCookieEchoChunk* cookieEcho, Address addr);
         bool processCookieAckArrived();
         SCTPEventCode processDataArrived(SCTPDataChunk* dataChunk);
         SCTPEventCode processSackArrived(SCTPSackChunk* sackChunk);
@@ -701,15 +701,15 @@ class INET_API SCTPAssociation : public cObject
         void sendInit();
         void sendInitAck(SCTPInitChunk* initchunk);
         void sendCookieEcho(SCTPInitAckChunk* initackchunk);
-        void sendCookieAck(const IPvXAddress& dest);
+        void sendCookieAck(const Address& dest);
         void sendAbort();
         void sendHeartbeat(const SCTPPathVariables* path);
         void sendHeartbeatAck(const SCTPHeartbeatChunk* heartbeatChunk,
-                                     const IPvXAddress&         src,
-                                     const IPvXAddress&         dest);
+                                     const Address&         src,
+                                     const Address&         dest);
         void sendSack();
         void sendShutdown();
-        void sendShutdownAck(const IPvXAddress& dest);
+        void sendShutdownAck(const Address& dest);
         void sendShutdownComplete();
         SCTPSackChunk* createSack();
         /** Retransmitting chunks */
@@ -719,11 +719,11 @@ class INET_API SCTPAssociation : public cObject
         void retransmitShutdownAck();
 
         /** Utility: adds control info to message and sends it to IP */
-        void sendToIP(SCTPMessage* sctpmsg, const IPvXAddress& dest, const bool qs = false);
+        void sendToIP(SCTPMessage* sctpmsg, const Address& dest, const bool qs = false);
         inline void sendToIP(SCTPMessage* sctpmsg, const bool qs = false) {
             sendToIP(sctpmsg, remoteAddr, qs);
         }
-        void recordInPathVectors(SCTPMessage* pMsg, const IPvXAddress& rDest);
+        void recordInPathVectors(SCTPMessage* pMsg, const Address& rDest);
         void scheduleSack();
         /** Utility: signal to user that connection timed out */
         void signalConnectionTimeout();
@@ -758,9 +758,9 @@ class INET_API SCTPAssociation : public cObject
         /** Utility: returns name of SCTP_E_xxx constants */
         static const char* eventName(const int32 event);
 
-        void addPath(const IPvXAddress& addr);
+        void addPath(const Address& addr);
         SCTPPathVariables* getNextPath(const SCTPPathVariables* oldPath) const;
-        inline const IPvXAddress& getNextAddress(const SCTPPathVariables* oldPath) const {
+        inline const Address& getNextAddress(const SCTPPathVariables* oldPath) const {
             const SCTPPathVariables* nextPath = getNextPath(oldPath);
             if (nextPath != NULL) {
                 return (nextPath->remoteAddress);

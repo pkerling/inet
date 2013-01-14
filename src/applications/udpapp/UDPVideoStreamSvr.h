@@ -45,7 +45,7 @@ class INET_API UDPVideoStreamSvr : public cSimpleModule
      */
     struct VideoStreamData
     {
-        IPvXAddress clientAddr;   ///< client address
+        Address clientAddr;   ///< client address
         int clientPort;           ///< client UDP port
         long videoSize;           ///< total size of video
         long bytesLeft;           ///< bytes left to transmit

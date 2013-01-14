@@ -198,7 +198,7 @@ SCTPAssociation* SCTPAssociation::cloneAssociation()
 }
 
 void SCTPAssociation::recordInPathVectors(SCTPMessage* pMsg,
-                                          const IPvXAddress& rDest)
+                                          const Address& rDest)
 {
     uint32 n_chunks = pMsg->getChunksArraySize();
     if (n_chunks == 0)
@@ -222,7 +222,7 @@ void SCTPAssociation::recordInPathVectors(SCTPMessage* pMsg,
 }
 
 void SCTPAssociation::sendToIP(SCTPMessage*       sctpmsg,
-                                         const IPvXAddress& dest,
+                                         const Address& dest,
                                          const bool           qs)
 {
     // Final touches on the segment before sending
@@ -248,19 +248,19 @@ void SCTPAssociation::sendToIP(SCTPMessage*       sctpmsg,
         sctpMain->udpSocket.sendTo(sctpmsg, remoteAddr, SCTP_UDP_PORT);
     }
     else {
-        if (dest.isIPv6()) {
+        if (dest.getType() == Address::IPv6) {
             IPv6ControlInfo* controlInfo = new IPv6ControlInfo();
             controlInfo->setProtocol(IP_PROT_SCTP);
             controlInfo->setSrcAddr(IPv6Address());
-            controlInfo->setDestAddr(dest.get6());
+            controlInfo->setDestAddr(dest.toIPv6());
             sctpmsg->setControlInfo(controlInfo);
             sctpMain->send(sctpmsg, "to_ipv6");
         }
-        else {
+        else if (dest.getType() == Address::IPv4) {
             IPv4ControlInfo* controlInfo = new IPv4ControlInfo();
             controlInfo->setProtocol(IP_PROT_SCTP);
             controlInfo->setSrcAddr(IPv4Address("0.0.0.0"));
-            controlInfo->setDestAddr(dest.get4());
+            controlInfo->setDestAddr(dest.toIPv4());
             sctpmsg->setControlInfo(controlInfo);
             sctpMain->send(sctpmsg, "to_ip");
         }
@@ -375,7 +375,7 @@ void SCTPAssociation::sendInit()
     initTsn = initChunk->getInitTSN();
     IInterfaceTable *ift = interfaceTableAccess.get();
     sctpEV3<<"add local address\n";
-    if (localAddressList.front() == IPvXAddress("0.0.0.0"))
+    if (localAddressList.front() == Address("0.0.0.0"))
     {
         for (int32 i=0; i<ift->getNumInterfaces(); ++i)
         {
@@ -407,7 +407,7 @@ void SCTPAssociation::sendInit()
     }
     uint32 addrNum = 0;
     bool friendly = false;
-    if (remoteAddr.isIPv6())
+    if (remoteAddr.getType() == Address::IPv6)
     {
         for (AddressVector::iterator i=adv.begin(); i!=adv.end(); ++i)
         {
@@ -423,7 +423,7 @@ void SCTPAssociation::sendInit()
                 localAddr = (*i);
         }
     }
-    else
+    else if (remoteAddr.getType() == Address::IPv4)
     {
         int rlevel = getAddressLevel(remoteAddr);
         sctpEV3<<"level of remote address="<<rlevel<<"\n";
@@ -438,14 +438,14 @@ void SCTPAssociation::sendInit()
                 length += 8;
                 sctpMain->addLocalAddress(this, (*i));
                 state->localAddresses.push_back((*i));
-                if (localAddr.get4().getInt()==0)
+                if (localAddr.toIPv4().getInt()==0)
                     localAddr = (*i);
             }
             else if (rlevel==4 && addressLevel==3 && friendly)
             {
                 sctpMain->addLocalAddress(this, (*i));
                 state->localAddresses.push_back((*i));
-                if (localAddr.get4().getInt()==0)
+                if (localAddr.toIPv4().getInt()==0)
                     localAddr = (*i);
             }
         }
@@ -707,8 +707,8 @@ void SCTPAssociation::sendHeartbeat(const SCTPPathVariables* path)
 }
 
 void SCTPAssociation::sendHeartbeatAck(const SCTPHeartbeatChunk* heartbeatChunk,
-                                                    const IPvXAddress&        src,
-                                                    const IPvXAddress&        dest)
+                                                    const Address&        src,
+                                                    const Address&        dest)
 {
     SCTPMessage*                 sctpHeartbeatAck = new SCTPMessage();
     sctpHeartbeatAck->setBitLength(SCTP_COMMON_HEADER*8);
@@ -732,7 +732,7 @@ void SCTPAssociation::sendHeartbeatAck(const SCTPHeartbeatChunk* heartbeatChunk,
     sendToIP(sctpHeartbeatAck, dest);
 }
 
-void SCTPAssociation::sendCookieAck(const IPvXAddress& dest)
+void SCTPAssociation::sendCookieAck(const Address& dest)
 {
     SCTPMessage *sctpcookieack = new SCTPMessage();
     sctpcookieack->setBitLength(SCTP_COMMON_HEADER*8);
@@ -748,7 +748,7 @@ void SCTPAssociation::sendCookieAck(const IPvXAddress& dest)
     sendToIP(sctpcookieack, dest);
 }
 
-void SCTPAssociation::sendShutdownAck(const IPvXAddress& dest)
+void SCTPAssociation::sendShutdownAck(const Address& dest)
 {
     sendOnAllPaths(getPath(dest));
     if (getOutstandingBytes() == 0) {
@@ -1166,7 +1166,7 @@ SCTPDataChunk* SCTPAssociation::transformDataChunk(SCTPDataVariables* chunk)
     return dataChunk;
 }
 
-void SCTPAssociation::addPath(const IPvXAddress& addr)
+void SCTPAssociation::addPath(const Address& addr)
 {
     sctpEV3<<"Add Path remote address: "<<addr<<"\n";
 
@@ -1183,7 +1183,7 @@ void SCTPAssociation::addPath(const IPvXAddress& addr)
     sctpEV3<<"path added\n";
 }
 
-void SCTPAssociation::removePath(const IPvXAddress& addr)
+void SCTPAssociation::removePath(const Address& addr)
 {
     SCTPPathMap::iterator pathIterator = sctpPathMap.find(addr);
     if (pathIterator != sctpPathMap.end())
@@ -1977,7 +1977,7 @@ void SCTPAssociation::pmStartPathManagement()
     {
         path = piter->second;
         path->pathErrorCount = 0;
-        InterfaceEntry *rtie = routingTableAccess.get()->getInterfaceForDestAddr(path->remoteAddress.get4());
+        InterfaceEntry *rtie = routingTableAccess.get()->getInterfaceForDestAddr(path->remoteAddress.toIPv4());
         path->pmtu = rtie->getMTU();
         sctpEV3 << "Path MTU of Interface "<< i << " = " << path->pmtu <<"\n";
         if (path->pmtu < state->assocPmtu)
@@ -2113,11 +2113,11 @@ void SCTPAssociation::disposeOf(SCTPMessage* sctpmsg)
     delete sctpmsg;
 }
 
-int SCTPAssociation::getAddressLevel(const IPvXAddress& addr)
+int SCTPAssociation::getAddressLevel(const Address& addr)
 {
-    if (addr.isIPv6())
+    if (addr.getType() == Address::IPv6)
     {
-        switch(addr.get6().getScope())
+        switch(addr.toIPv6().getScope())
         {
             case IPv6Address::UNSPECIFIED:
             case IPv6Address::MULTICAST:
@@ -2136,12 +2136,12 @@ int SCTPAssociation::getAddressLevel(const IPvXAddress& addr)
                 return 4;
 
             default:
-                throw cRuntimeError("Unknown IPv6 scope: %d", (int)(addr.get6().getScope()));
+                throw cRuntimeError("Unknown IPv6 scope: %d", (int)(addr.toIPv6().getScope()));
         }
     }
-    else
+    else if (addr.getType() == Address::IPv4)
     {
-        switch(addr.get4().getAddressCategory())
+        switch(addr.toIPv4().getAddressCategory())
         {
             case IPv4Address::UNSPECIFIED:
             case IPv4Address::THIS_NETWORK:
@@ -2167,7 +2167,7 @@ int SCTPAssociation::getAddressLevel(const IPvXAddress& addr)
                 return 4;
 
             default:
-                throw cRuntimeError("Unknown IPv4 address category: %d", (int)(addr.get4().getAddressCategory()));
+                throw cRuntimeError("Unknown IPv4 address category: %d", (int)(addr.toIPv4().getAddressCategory()));
         }
     }
 }

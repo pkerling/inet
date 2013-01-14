@@ -31,7 +31,7 @@
 #include "IRoutingTable.h"
 #include "NotificationBoard.h"
 #include "IInterfaceTable.h"
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "ManetAddress.h"
 #include "ManetIPv4Hook.h"
 #include "NotifierConsts.h"

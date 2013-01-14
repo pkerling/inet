@@ -509,17 +509,17 @@ void SCTPClient::setPrimaryPath(const char* str)
 
     if (strcmp(str, "") != 0)
     {
-        pinfo->setRemoteAddress(IPvXAddress(str));
+        pinfo->setRemoteAddress(Address(str));
     }
     else
     {
         str = (const char*)par("newPrimary");
         if (strcmp(str, "") != 0)
-            pinfo->setRemoteAddress(IPvXAddress(str));
+            pinfo->setRemoteAddress(Address(str));
         else
         {
             str = (const char*)par("connectAddress");
-            pinfo->setRemoteAddress(IPvXAddress(str));
+            pinfo->setRemoteAddress(Address(str));
         }
     }
 
@@ -566,7 +566,7 @@ void SCTPClient::sendqueueAbatedArrived(int32 assocId, uint64 buffer)
     }
 }
 
-void SCTPClient::addressAddedArrived(int32 assocId, IPvXAddress remoteAddr)
+void SCTPClient::addressAddedArrived(int32 assocId, Address remoteAddr)
 {
 }
 

@@ -43,7 +43,7 @@ void RTPApplication::initialize(int stage)
     _bandwidth = par("bandwidth");
 
     // the ip address to connect to (unicast or multicast)
-    _destinationAddress = IPvXAddressResolver().resolve(par("destinationAddress").stringValue()).get4();
+    _destinationAddress = IPvXAddressResolver().resolve(par("destinationAddress").stringValue()).toIPv4();
 
     // port number which is to be used; to ports are actually used: one
     // for rtp and one for rtcp

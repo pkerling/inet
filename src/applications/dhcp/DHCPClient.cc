@@ -597,7 +597,7 @@ cModule *DHCPClient::getContainingNode()
 }
 
 // Overwrite the sendToUDP in order to add the interface to use to allow the packet be routed by the IP stack
-void DHCPClient::sendToUDP(cPacket *msg, int srcPort, const IPvXAddress& destAddr, int destPort)
+void DHCPClient::sendToUDP(cPacket *msg, int srcPort, const Address& destAddr, int destPort)
 {
 
     EV << "Sending packet: ";

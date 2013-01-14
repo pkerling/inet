@@ -137,7 +137,7 @@ int32 SCTPSerializer::serialize(const SCTPMessage *msg, unsigned char *buf, uint
                             struct init_ipv4_address_parameter *ipv4addr = (struct init_ipv4_address_parameter*) (((unsigned char *)ic) + size_init_chunk + parPtr);
                             ipv4addr->type = htons(INIT_PARAM_IPV4);
                             ipv4addr->length = htons(8);
-                            ipv4addr->address = htonl(initChunk->getAddresses(i).get4().getInt());
+                            ipv4addr->address = htonl(initChunk->getAddresses(i).toIPv4().getInt());
                             parPtr += sizeof(struct init_ipv4_address_parameter);
                     }
                     ic->length = htons(SCTP_INIT_CHUNK_LENGTH+parPtr);
@@ -175,7 +175,7 @@ int32 SCTPSerializer::serialize(const SCTPMessage *msg, unsigned char *buf, uint
                         struct init_ipv4_address_parameter *ipv4addr = (struct init_ipv4_address_parameter*) (((unsigned char *)iac) + size_init_chunk + parPtr);
                         ipv4addr->type = htons(INIT_PARAM_IPV4);
                         ipv4addr->length = htons(8);
-                        ipv4addr->address = htonl(initAckChunk->getAddresses(i).get4().getInt());
+                        ipv4addr->address = htonl(initAckChunk->getAddresses(i).toIPv4().getInt());
                         parPtr += 8;
                     }
                     uint32 uLen = initAckChunk->getUnrecognizedParametersArraySize();
@@ -288,12 +288,12 @@ int32 SCTPSerializer::serialize(const SCTPMessage *msg, unsigned char *buf, uint
 
                     // deliver info:
                     struct heartbeat_info *hbi = (struct heartbeat_info*) (((unsigned char*)hbc) + size_heartbeat_chunk);
-                    IPvXAddress addr = heartbeatChunk->getRemoteAddr();
+                    Address addr = heartbeatChunk->getRemoteAddr();
                     simtime_t time = heartbeatChunk->getTimeField();
-                    int32 infolen = sizeof(addr.get4().getInt()) + sizeof(uint32);
+                    int32 infolen = sizeof(addr.toIPv4().getInt()) + sizeof(uint32);
                     hbi->type = htons(1);   // mandatory
                     hbi->length = htons(infolen+4);
-                    HBI_ADDR(hbi) = htonl(addr.get4().getInt());
+                    HBI_ADDR(hbi) = htonl(addr.toIPv4().getInt());
                     HBI_TIME(hbi) = htonl((uint32)time.dbl());
                     break;
                 }
@@ -325,13 +325,13 @@ int32 SCTPSerializer::serialize(const SCTPMessage *msg, unsigned char *buf, uint
                     }
                     else
                     {
-                        IPvXAddress addr = heartbeatAckChunk->getRemoteAddr();
-                        infolen = sizeof(addr.get4().getInt()) + sizeof(uint32);
+                        Address addr = heartbeatAckChunk->getRemoteAddr();
+                        infolen = sizeof(addr.toIPv4().getInt()) + sizeof(uint32);
                         hbi->type = htons(1);   // mandatory
                         hbi->length = htons(infolen+4);
 
                         simtime_t time = heartbeatAckChunk->getTimeField();
-                        HBI_ADDR(hbi) = htonl(addr.get4().getInt());
+                        HBI_ADDR(hbi) = htonl(addr.toIPv4().getInt());
                         HBI_TIME(hbi) = htonl((uint32)time.dbl());
                     }
                     break;
@@ -642,7 +642,7 @@ sctpEV3<<"chunk->length="<<ntohs(chunk->length)<<"\n";
                                 const struct init_ipv4_address_parameter *v4addr;
                                 v4addr = (struct init_ipv4_address_parameter*) (((unsigned char*)init_chunk) + size_init_chunk + parptr);
                                 chunk->setAddressesArraySize(++addrcounter);
-                                IPvXAddress localv4Addr(IPv4Address(ntohl(v4addr->address)));
+                                Address localv4Addr(IPv4Address(ntohl(v4addr->address)));
                                 chunk->setAddresses(addrcounter-1, localv4Addr);
                                 chunklen += 8;
                                 break;
@@ -654,7 +654,7 @@ sctpEV3<<"chunk->length="<<ntohs(chunk->length)<<"\n";
                                 ipv6addr = (struct init_ipv6_address_parameter*) (((unsigned char*)init_chunk) + size_init_chunk + parptr);
                                 IPv6Address ipv6Addr = IPv6Address(ipv6addr->address[0], ipv6addr->address[1],
                                                                     ipv6addr->address[2], ipv6addr->address[3]);
-                                IPvXAddress localv6Addr(ipv6Addr);
+                                Address localv6Addr(ipv6Addr);
                                 sctpEV3<<"address"<<ipv6Addr<<"\n";
                                 chunk->setAddressesArraySize(++addrcounter);
                                 chunk->setAddresses(addrcounter-1, localv6Addr);
@@ -729,7 +729,7 @@ sctpEV3<<"chunk->length="<<ntohs(chunk->length)<<"\n";
                                 const struct init_ipv4_address_parameter *v4addr;
                                 v4addr = (struct init_ipv4_address_parameter*) (((unsigned char*)iac) + size_init_ack_chunk + parptr);
                                 chunk->setAddressesArraySize(++addrcounter);
-                                IPvXAddress localv4Addr(IPv4Address(ntohl(v4addr->address)));
+                                Address localv4Addr(IPv4Address(ntohl(v4addr->address)));
                                 chunk->setAddresses(addrcounter-1, localv4Addr);
                                 chunklen += 8;
                                 break;
@@ -742,7 +742,7 @@ sctpEV3<<"chunk->length="<<ntohs(chunk->length)<<"\n";
                                 IPv6Address ipv6Addr = IPv6Address(ipv6addr->address[0], ipv6addr->address[1],
                                                                     ipv6addr->address[2], ipv6addr->address[3]);
                                 sctpEV3<<"address"<<ipv6Addr<<"\n";
-                                IPvXAddress localv6Addr(ipv6Addr);
+                                Address localv6Addr(ipv6Addr);
 
                                 chunk->setAddressesArraySize(++addrcounter);
                                 chunk->setAddresses(addrcounter-1, localv6Addr);
@@ -882,7 +882,7 @@ sctpEV3<<"chunk->length="<<ntohs(chunk->length)<<"\n";
                         {
                             parptr += sizeof(struct heartbeat_info);
                             parcounter++;
-                            chunk->setRemoteAddr(IPvXAddress(IPv4Address(ntohl(HBI_ADDR(hbi)))));
+                            chunk->setRemoteAddr(Address(IPv4Address(ntohl(HBI_ADDR(hbi)))));
                             chunk->setTimeField(ntohl((uint32)HBI_TIME(hbi)));
                         }
                         else

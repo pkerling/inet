@@ -22,7 +22,7 @@
 #include "INETDefs.h"
 
 #include "TCPCommand_m.h"
-#include "IPvXAddress.h"
+#include "Address.h"
 
 class TCPStatusInfo;
 
@@ -150,9 +150,9 @@ class INET_API TCPSocket
     int connId;
     int sockstate;
 
-    IPvXAddress localAddr;
+    Address localAddr;
     int localPrt;
-    IPvXAddress remoteAddr;
+    Address remoteAddr;
     int remotePrt;
 
     CallbackInterface *cb;
@@ -209,9 +209,9 @@ class INET_API TCPSocket
 
     /** @name Getter functions */
     //@{
-    IPvXAddress getLocalAddress() {return localAddr;}
+    Address getLocalAddress() {return localAddr;}
     int getLocalPort() {return localPrt;}
-    IPvXAddress getRemoteAddress() {return remoteAddr;}
+    Address getRemoteAddress() {return remoteAddr;}
     int getRemotePort() {return remotePrt;}
     //@}
 
@@ -233,7 +233,7 @@ class INET_API TCPSocket
      * Bind the socket to a local port number and IP address (useful with
      * multi-homing).
      */
-    void bind(IPvXAddress localAddr, int localPort);
+    void bind(Address localAddr, int localPort);
 
     /**
      * Returns the current dataTransferMode parameter.
@@ -297,7 +297,7 @@ class INET_API TCPSocket
     /**
      * Active OPEN to the given remote socket.
      */
-    void connect(IPvXAddress remoteAddr, int remotePort);
+    void connect(Address remoteAddr, int remotePort);
 
     /**
      * Sends data packet.

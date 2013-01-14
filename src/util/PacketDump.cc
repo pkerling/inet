@@ -188,7 +188,7 @@ void PacketDump::sctpDump(const char *label, SCTPMessage *sctpmsg,
                             if (i > 0)
                                 out << ",";
 
-                            if (initChunk->getAddresses(i).isIPv6())
+                            if (initChunk->getAddresses(i).getType() == Address::IPv6)
                                 out << initChunk->getAddresses(i).str();
                             else
                                 out << initChunk->getAddresses(i);

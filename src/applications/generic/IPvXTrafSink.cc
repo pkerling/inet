@@ -50,7 +50,7 @@ void IPvXTrafSink::handleMessage(cMessage *msg)
 
 void IPvXTrafSink::printPacket(cPacket *msg)
 {
-    IPvXAddress src, dest;
+    Address src, dest;
     int protocol = -1;
 
     if (dynamic_cast<IPv4ControlInfo *>(msg->getControlInfo()) != NULL)

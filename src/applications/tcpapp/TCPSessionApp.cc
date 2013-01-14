@@ -187,7 +187,7 @@ void TCPSessionApp::activity()
     waitUntil(tOpen);
 
     socket.readDataTransferModePar(*this);
-    socket.bind(*localAddress ? IPvXAddress(localAddress) : IPvXAddress(), localPort);
+    socket.bind(*localAddress ? Address(localAddress) : Address(), localPort);
 
     EV << "issuing OPEN command\n";
 

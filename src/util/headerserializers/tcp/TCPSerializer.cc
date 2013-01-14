@@ -141,7 +141,7 @@ int TCPSerializer::serialize(const TCPSegment *tcpseg,
 
 int TCPSerializer::serialize(const TCPSegment *tcpseg,
         unsigned char *buf, unsigned int bufsize,
-        const IPvXAddress &srcIp, const IPvXAddress &destIp)
+        const Address &srcIp, const Address &destIp)
 {
     int writtenbytes = serialize(tcpseg, buf, bufsize);
     struct tcphdr *tcp = (struct tcphdr*) (buf);
@@ -235,17 +235,33 @@ void TCPSerializer::parse(const unsigned char *buf, unsigned int bufsize, TCPSeg
 }
 
 uint16_t TCPSerializer::checksum(const void *addr, unsigned int count,
-        const IPvXAddress &srcIp, const IPvXAddress &destIp)
+        const Address &srcIp, const Address &destIp)
 {
     uint32_t sum = TCPIPchecksum::_checksum(addr, count);
 
-    ASSERT(srcIp.wordCount() == destIp.wordCount());
+    if (srcIp.getType() == Address::IPv4) {
+        ASSERT(destIp.getType() == Address::IPv4);
 
-    //sum += srcip;
-    sum += htons(TCPIPchecksum::_checksum(srcIp.words(), sizeof(uint32)*srcIp.wordCount()));
+        //sum += srcip;
+        int address = srcIp.toIPv4().getInt();
+        sum += htons(TCPIPchecksum::_checksum(&address, sizeof(uint32)));
 
-    //sum += destip;
-    sum += htons(TCPIPchecksum::_checksum(destIp.words(), sizeof(uint32)*destIp.wordCount()));
+        //sum += destip;
+        address = destIp.toIPv4().getInt();
+        sum += htons(TCPIPchecksum::_checksum(&address, sizeof(uint32)));
+
+    }
+    else if (srcIp.getType() == Address::IPv6) {
+        ASSERT(destIp.getType() == Address::IPv6);
+
+        //sum += srcip;
+        sum += htons(TCPIPchecksum::_checksum(srcIp.toIPv6().words(), sizeof(uint32) * 4));
+
+        //sum += destip;
+        sum += htons(TCPIPchecksum::_checksum(destIp.toIPv6().words(), sizeof(uint32) * 4));
+    }
+    else
+        throw cRuntimeError("Unknown address type");
 
     sum += htons(count); // TCP length
 

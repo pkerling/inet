@@ -33,7 +33,7 @@ class INET_API UDPBasicApp : public cSimpleModule
   protected:
     UDPSocket socket;
     int localPort, destPort;
-    std::vector<IPvXAddress> destAddresses;
+    std::vector<Address> destAddresses;
     simtime_t stopTime;
 
     static int counter; // counter for generating a global number for each packet
@@ -46,7 +46,7 @@ class INET_API UDPBasicApp : public cSimpleModule
     static simsignal_t rcvdPkSignal;
 
     // chooses random destination address
-    virtual IPvXAddress chooseDestAddr();
+    virtual Address chooseDestAddr();
     virtual cPacket *createPacket();
     virtual void sendPacket();
     virtual void processPacket(cPacket *msg);

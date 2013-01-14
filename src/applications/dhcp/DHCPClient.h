@@ -82,7 +82,7 @@ class INET_API DHCPClient : public cSimpleModule, public INotifiable
         virtual void handleDHCPMessage(DHCPMessage* msg);
         virtual void receiveChangeNotification(int category, const cPolymorphic *details);
         virtual cModule* getContainingNode();
-        virtual void sendToUDP(cPacket *msg, int srcPort, const IPvXAddress& destAddr, int destPort);
+        virtual void sendToUDP(cPacket *msg, int srcPort, const Address& destAddr, int destPort);
 
         // internal client methods
         virtual void changeFSMState(CLIENT_STATE new_state);

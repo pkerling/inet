@@ -22,7 +22,7 @@
 
 #include "lwip/memp.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "LwipTcpStackIf.h"
 
 

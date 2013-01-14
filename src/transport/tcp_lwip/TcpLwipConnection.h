@@ -22,7 +22,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "lwip/tcp.h"
 #include "TCPSegment.h"
 #include "TCPCommand_m.h"

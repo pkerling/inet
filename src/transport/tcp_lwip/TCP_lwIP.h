@@ -25,7 +25,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "TCPCommand_m.h"
 #include "lwip/tcp.h"
 #include "LwipTcpStackIf.h"

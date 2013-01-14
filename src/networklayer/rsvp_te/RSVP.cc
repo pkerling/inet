@@ -166,12 +166,12 @@ EroVector RSVP::readTrafficRouteFromXML(const cXMLElement *route)
         if (!strcmp(hop->getTagName(), "node"))
         {
             h.L = false;
-            h.node = IPvXAddressResolver().resolve(hop->getNodeValue()).get4();
+            h.node = IPvXAddressResolver().resolve(hop->getNodeValue()).toIPv4();
         }
         else if (!strcmp(hop->getTagName(), "lnode"))
         {
             h.L = true;
-            h.node = IPvXAddressResolver().resolve(hop->getNodeValue()).get4();
+            h.node = IPvXAddressResolver().resolve(hop->getNodeValue()).toIPv4();
         }
         else
         {

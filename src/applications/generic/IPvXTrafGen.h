@@ -24,7 +24,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "IPvXTrafSink.h"
 
 
@@ -37,7 +37,7 @@ class INET_API IPvXTrafGen : public IPvXTrafSink
     int protocol;
     int numPackets;
     simtime_t stopTime;
-    std::vector<IPvXAddress> destAddresses;
+    std::vector<Address> destAddresses;
     cPar *packetLengthPar;  // volatile packetLength parameter
 
     static int counter; // counter for generating a global number for each packet
@@ -47,7 +47,7 @@ class INET_API IPvXTrafGen : public IPvXTrafSink
 
   protected:
     // chooses random destination address
-    virtual IPvXAddress chooseDestAddr();
+    virtual Address chooseDestAddr();
     virtual void sendPacket();
 
     virtual int numInitStages() const {return 4;}

@@ -77,7 +77,7 @@ class INET_API DHCPServer : public cSimpleModule
         void processPacket(DHCPMessage *packet);
         void sendOffer(DHCPLease* lease);
         void sendACK(DHCPLease* lease);
-        virtual void sendToUDP(cPacket *msg, int srcPort, const IPvXAddress& destAddr, int destPort);
+        virtual void sendToUDP(cPacket *msg, int srcPort, const Address& destAddr, int destPort);
 };
 
 #endif

@@ -103,14 +103,14 @@ void UDPBasicBurst::initialize(int stage)
     cStringTokenizer tokenizer(destAddrs);
     const char *token;
 
-    IPvXAddress myAddr = IPvXAddressResolver().resolve(this->getParentModule()->getFullPath().c_str());
+    Address myAddr = IPvXAddressResolver().resolve(this->getParentModule()->getFullPath().c_str());
     while ((token = tokenizer.nextToken()) != NULL)
     {
         if (strstr(token, "Broadcast") != NULL)
             destAddresses.push_back(IPv4Address::ALLONES_ADDRESS);
         else
         {
-            IPvXAddress addr = IPvXAddressResolver().resolve(token);
+            Address addr = IPvXAddressResolver().resolve(token);
             if (addr != myAddr)
                 destAddresses.push_back(addr);
         }
@@ -135,7 +135,7 @@ void UDPBasicBurst::initialize(int stage)
     dropPkSignal = registerSignal("dropPk");
 }
 
-IPvXAddress UDPBasicBurst::chooseDestAddr()
+Address UDPBasicBurst::chooseDestAddr()
 {
     if (destAddresses.size() == 1)
         return destAddresses[0];

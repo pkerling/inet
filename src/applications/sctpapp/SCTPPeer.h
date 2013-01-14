@@ -89,7 +89,7 @@ class INET_API SCTPPeer : public cSimpleModule, public SCTPSocket::CallbackInter
             bool primaryPath;
             IPv4Address  pid;
         };
-        typedef std::map<IPvXAddress,pathStatus> SCTPPathStatus;
+        typedef std::map<Address,pathStatus> SCTPPathStatus;
         SCTPPathStatus sctpPathStatus;
 
     public:
@@ -133,7 +133,7 @@ class INET_API SCTPPeer : public cSimpleModule, public SCTPSocket::CallbackInter
         void sendqueueFullArrived(int32 connId);
 
         void setStatusString(const char *s);
-        void addressAddedArrived(int32 assocId, IPvXAddress remoteAddr);
+        void addressAddedArrived(int32 assocId, Address remoteAddr);
 };
 
 #endif

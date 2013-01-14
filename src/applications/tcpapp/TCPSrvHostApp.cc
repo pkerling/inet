@@ -27,7 +27,7 @@ void TCPSrvHostApp::initialize()
 
     serverSocket.setOutputGate(gate("tcpOut"));
     serverSocket.readDataTransferModePar(*this);
-    serverSocket.bind(localAddress[0] ? IPvXAddress(localAddress) : IPvXAddress(), localPort);
+    serverSocket.bind(localAddress[0] ? Address(localAddress) : Address(), localPort);
     serverSocket.listen();
 }
 

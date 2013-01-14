@@ -43,23 +43,23 @@ Address IPvXAddressResolver::resolveXXX(const char *s, int addrType)
     return addr;
 }
 
-IPvXAddress IPvXAddressResolver::resolve(const char *s, int addrType)
+Address IPvXAddressResolver::resolve(const char *s, int addrType)
 {
     Address addr;
     if (!tryResolve(s, addr, addrType))
         throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
 
     if (addr.getType() == Address::IPv4)
-        return IPvXAddress(addr.toIPv4());
+        return Address(addr.toIPv4());
     else if (addr.getType() == Address::IPv6)
-        return IPvXAddress(addr.toIPv6());
+        return Address(addr.toIPv6());
     else
         throw cRuntimeError("IPvXAddressResolver: address `%s' not configured (yet?)", s);
 }
 
-std::vector<IPvXAddress> IPvXAddressResolver::resolve(std::vector<std::string> strs, int addrType)
+std::vector<Address> IPvXAddressResolver::resolve(std::vector<std::string> strs, int addrType)
 {
-    std::vector<IPvXAddress> result;
+    std::vector<Address> result;
     int n = strs.size();
     result.reserve(n);
     for (int i=0; i<n; i++)

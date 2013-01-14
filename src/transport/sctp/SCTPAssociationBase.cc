@@ -31,7 +31,7 @@
 
 
 
-SCTPPathVariables::SCTPPathVariables(const IPvXAddress& addr, SCTPAssociation* assoc)
+SCTPPathVariables::SCTPPathVariables(const Address& addr, SCTPAssociation* assoc)
 {
     InterfaceTableAccess interfaceTableAccess;
 
@@ -64,10 +64,10 @@ SCTPPathVariables::SCTPPathVariables(const IPvXAddress& addr, SCTPAssociation* a
     outstandingBytes = 0;
 
     RoutingTableAccess routingTableAccess;
-    const InterfaceEntry* rtie = routingTableAccess.get()->getInterfaceForDestAddr(remoteAddress.get4());
+    const InterfaceEntry* rtie = routingTableAccess.get()->getInterfaceForDestAddr(remoteAddress.toIPv4());
 
     if (rtie == NULL) {
-        throw cRuntimeError("No interface for remote address %s found!", remoteAddress.get4().str().c_str());
+        throw cRuntimeError("No interface for remote address %s found!", remoteAddress.toIPv4().str().c_str());
     }
 
     pmtu = rtie->getMTU();
@@ -157,7 +157,7 @@ SCTPPathVariables::~SCTPPathVariables()
 }
 
 
-const IPvXAddress SCTPDataVariables::zeroAddress = IPvXAddress("0.0.0.0");
+const Address SCTPDataVariables::zeroAddress = Address("0.0.0.0");
 
 SCTPDataVariables::SCTPDataVariables()
 {
@@ -220,7 +220,7 @@ SCTPStateVariables::SCTPStateVariables()
     appSendAllowed = true;
     noMoreOutstanding = false;
     primaryPath = NULL;
-    lastDataSourceAddress = IPvXAddress("0.0.0.0");
+    lastDataSourceAddress = Address("0.0.0.0");
     shutdownChunk = NULL;
     initChunk = NULL;
     cookieChunk = NULL;
@@ -332,7 +332,7 @@ SCTPAssociation::SCTPAssociation(SCTP* _module, int32 _appGateIndex, int32 _asso
 
     // ====== Path Info ======================================================
     SCTPPathInfo* pinfo = new SCTPPathInfo("pathInfo");
-    pinfo->setRemoteAddress(IPvXAddress("0.0.0.0"));
+    pinfo->setRemoteAddress(Address("0.0.0.0"));
 
     // ====== Timers =========================================================
     char timerName[128];
@@ -407,9 +407,9 @@ bool SCTPAssociation::processTimer(cMessage *msg)
     sctpEV3 << msg->getName() << " timer expired at "<<simulation.getSimTime()<<"\n";
 
     SCTPPathInfo* pinfo = check_and_cast<SCTPPathInfo*>(msg->getControlInfo());
-    IPvXAddress addr = pinfo->getRemoteAddress();
+    Address addr = pinfo->getRemoteAddress();
 
-    if (addr != IPvXAddress("0.0.0.0"))
+    if (addr != Address("0.0.0.0"))
         path = getPath(addr);
 
     // first do actions
@@ -472,8 +472,8 @@ bool SCTPAssociation::processTimer(cMessage *msg)
 }
 
 bool SCTPAssociation::processSCTPMessage(SCTPMessage* sctpmsg,
-                                         const IPvXAddress& msgSrcAddr,
-                                         const IPvXAddress& msgDestAddr)
+                                         const Address& msgSrcAddr,
+                                         const Address& msgDestAddr)
 {
     printConnBrief();
 

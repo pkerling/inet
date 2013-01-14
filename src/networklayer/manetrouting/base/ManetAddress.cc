@@ -30,12 +30,12 @@ void ManetAddress::set(const IPv6Address& addr)
     lo = ((uint64_t)w[2] << 32) + w[3];
 }
 
-void ManetAddress::set(const IPvXAddress& addr)
+void ManetAddress::set(const Address& addr)
 {
-    if (addr.isIPv6())
-        set(addr.get6());
+    if (addr.getType() == Address::IPv6)
+        set(addr.toIPv6());
     else
-        set(addr.get4());
+        set(addr.toIPv4());
 }
 
 void ManetAddress::setPrefix(short unsigned int masklen)
@@ -67,14 +67,14 @@ IPv6Address ManetAddress::getIPv6() const
     throw cRuntimeError("ManetAddress is not an IPv6Address");
 }
 
-IPvXAddress ManetAddress::getIPvX() const
+Address ManetAddress::getIPvX() const
 {
     if (addrType == IPv4_ADDRESS)
-        return IPvXAddress(_getIPv4());
+        return Address(_getIPv4());
     if (addrType == IPv6_ADDRESS)
-        return IPvXAddress(_getIPv6());
+        return Address(_getIPv6());
     if (addrType == UNDEFINED)
-        return IPvXAddress(IPv4Address::UNSPECIFIED_ADDRESS);
+        return Address(IPv4Address::UNSPECIFIED_ADDRESS);
     throw cRuntimeError("ManetAddress is not an IPvXAddress");
 }
 
@@ -170,20 +170,20 @@ void ManetNetworkAddress::set(const IPv6Address& addr, short unsigned int maskle
     prefixLength = masklen;
 }
 
-void ManetNetworkAddress::set(const IPvXAddress& addr)
+void ManetNetworkAddress::set(const Address& addr)
 {
-    if (addr.isIPv6())
-        set(addr.get6());
+    if (addr.getType() == Address::IPv6)
+        set(addr.toIPv6());
     else
-        set(addr.get4());
+        set(addr.toIPv4());
 }
 
-void ManetNetworkAddress::set(const IPvXAddress& addr, short unsigned int masklen)
+void ManetNetworkAddress::set(const Address& addr, short unsigned int masklen)
 {
-    if (addr.isIPv6())
-        set(addr.get6(), masklen);
+    if (addr.getType() == Address::IPv6)
+        set(addr.toIPv6(), masklen);
     else
-        set(addr.get4(), masklen);
+        set(addr.toIPv4(), masklen);
 }
 
 void ManetNetworkAddress::set(MACAddress addr, short unsigned int masklen)

@@ -46,7 +46,7 @@ void TCPGenericCliAppBase::initialize(int stage)
     const char *localAddress = par("localAddress");
     int localPort = par("localPort");
     socket.readDataTransferModePar(*this);
-    socket.bind(*localAddress ? IPvXAddressResolver().resolve(localAddress) : IPvXAddress(), localPort);
+    socket.bind(*localAddress ? IPvXAddressResolver().resolve(localAddress) : Address(), localPort);
 
     socket.setCallbackObject(this);
     socket.setOutputGate(gate("tcpOut"));

@@ -42,7 +42,7 @@ void TCPEchoApp::initialize()
     TCPSocket socket;
     socket.setOutputGate(gate("tcpOut"));
     socket.readDataTransferModePar(*this);
-    socket.bind(localAddress[0] ? IPvXAddress(localAddress) : IPvXAddress(), localPort);
+    socket.bind(localAddress[0] ? Address(localAddress) : Address(), localPort);
     socket.listen();
 }
 

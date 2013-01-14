@@ -174,7 +174,7 @@ uint32_t TCP_NSC::mapRemote2Nsc(IPvXAddress const& addrP)
     }
 
     // get first free remote NSC IP
-    uint32_t ret = remoteFirstInnerIpS.get4().getInt();
+    uint32_t ret = remoteFirstInnerIpS.toIPv4().getInt();
     Nsc2RemoteMap::iterator j;
     for ( j = nsc2RemoteMapM.begin(); j != nsc2RemoteMapM.end(); j++)
     {
@@ -372,7 +372,7 @@ void TCP_NSC::handleIpInputMessage(TCPSegment* tcpsegP)
     ih->protocol = 6;       // TCP
     ih->check = 0;
     ih->saddr = htonl(nscSrcAddr);
-    ih->daddr = htonl(localInnerIpS.get4().getInt());
+    ih->daddr = htonl(localInnerIpS.toIPv4().getInt());
 
     tcpEV << this << ": modified to: IP " << ih->version << " len " << ih->ihl
           << " protocol " << (unsigned int)(ih->protocol)
@@ -887,8 +887,8 @@ void TCP_NSC::sendToIP(const void *dataP, int lenP)
         // send over IPv4
         IPv4ControlInfo *controlInfo = new IPv4ControlInfo();
         controlInfo->setProtocol(IP_PROT_TCP);
-        controlInfo->setSrcAddr(src.get4());
-        controlInfo->setDestAddr(dest.get4());
+        controlInfo->setSrcAddr(src.toIPv4());
+        controlInfo->setDestAddr(dest.toIPv4());
         tcpseg->setControlInfo(controlInfo);
 
         output = "ipOut";
@@ -898,8 +898,8 @@ void TCP_NSC::sendToIP(const void *dataP, int lenP)
         // send over IPv6
         IPv6ControlInfo *controlInfo = new IPv6ControlInfo();
         controlInfo->setProtocol(IP_PROT_TCP);
-        controlInfo->setSrcAddr(src.get6());
-        controlInfo->setDestAddr(dest.get6());
+        controlInfo->setSrcAddr(src.toIPv6());
+        controlInfo->setDestAddr(dest.toIPv6());
         tcpseg->setControlInfo(controlInfo);
 
         output = "ipv6Out";

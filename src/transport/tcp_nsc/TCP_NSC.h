@@ -32,7 +32,7 @@
 
 #include <sim_interface.h> // NSC. We need this here to derive from classes
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "TCPCommand_m.h"
 #include "TCP_NSC_Connection.h"
 

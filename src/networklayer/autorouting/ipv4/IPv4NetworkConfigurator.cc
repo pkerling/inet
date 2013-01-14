@@ -1230,7 +1230,7 @@ void IPv4NetworkConfigurator::addManualRoutes(cXMLElement *root, IPv4Topology& t
             // parse and check the attributes
             IPv4Address destination;
             if (!isEmpty(destinationAttr) && strcmp(destinationAttr, "*"))
-                destination = IPvXAddressResolver().resolve(destinationAttr, IPvXAddressResolver::ADDR_IPv4).get4();
+                destination = IPvXAddressResolver().resolve(destinationAttr, IPvXAddressResolver::ADDR_IPv4).toIPv4();
             IPv4Address netmask;
             if (!isEmpty(netmaskAttr) && strcmp(netmaskAttr, "*"))
             {
@@ -1300,7 +1300,7 @@ void IPv4NetworkConfigurator::addManualMulticastRoutes(cXMLElement *root, IPv4To
             // parse and check the attributes
             IPv4Address source;
             if (!isEmpty(sourceAttr) && strcmp(sourceAttr, "*"))
-                source = IPvXAddressResolver().resolve(sourceAttr, IPvXAddressResolver::ADDR_IPv4).get4();
+                source = IPvXAddressResolver().resolve(sourceAttr, IPvXAddressResolver::ADDR_IPv4).toIPv4();
             IPv4Address netmask;
             if (!isEmpty(netmaskAttr) && strcmp(netmaskAttr, "*"))
             {
@@ -1412,7 +1412,7 @@ void IPv4NetworkConfigurator::resolveInterfaceAndGateway(Node *node, const char 
     ASSERT(isNotEmpty(gatewayAttr)); // see "if" above
 
     // check syntax of gatewayAttr, and obtain an initial value
-    outGateway = IPvXAddressResolver().resolve(gatewayAttr, IPvXAddressResolver::ADDR_IPv4).get4();
+    outGateway = IPvXAddressResolver().resolve(gatewayAttr, IPvXAddressResolver::ADDR_IPv4).toIPv4();
 
     IPv4Address gatewayAddressOnCommonLink;
 

@@ -21,7 +21,7 @@
 
 #include "INETDefs.h"
 
-#include "IPvXAddress.h"
+#include "Address.h"
 #include "SCTP.h"
 
 

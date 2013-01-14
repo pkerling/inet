@@ -52,6 +52,7 @@ class INET_API Address
         ModulePathAddress modulePath;
     public:
         Address() : type(IPv4) {}
+        Address(const char *str) { tryParse(str); }
         Address(const IPv4Address& addr) {set(addr);}
         Address(const IPv6Address& addr) {set(addr);}
         Address(const MACAddress& addr) {set(addr);}
@@ -86,7 +87,7 @@ class INET_API Address
 
         bool matches(const Address& other, int prefixLength) const;
 
-        std::string str() { return ipv4.str(); }
+        std::string str() const { return ipv4.str(); }
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Address& address)
