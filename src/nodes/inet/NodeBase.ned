@@ -17,14 +17,14 @@
 
 package inet.nodes.inet;
 
-import inet.util.PcapRecorder;
-import inet.networklayer.ipv4.RoutingTable;
-import inet.networklayer.common.InterfaceTable;
-import inet.mobility.IMobility;
-import inet.linklayer.IWirelessNic;
-import inet.linklayer.IWiredNic;
-import inet.linklayer.IExternalNic;
 import inet.base.NotificationBoard;
+import inet.linklayer.IExternalNic;
+import inet.linklayer.IWiredNic;
+import inet.linklayer.IWirelessNic;
+import inet.mobility.IMobility;
+import inet.networklayer.common.InterfaceTable;
+import inet.networklayer.generic.GenericRoutingTable;
+import inet.util.PcapRecorder;
 
 
 //
@@ -66,17 +66,15 @@ module NodeBase
         }
 
         // network layer
-        networkLayer: NetworkLayer {
+        networkLayer: <networkLayerType> like INetworkLayer {
             parameters:
                 @display("p=329,287;q=queue");
         }
 
-        routingTable: RoutingTable {
+		// TODO: move into network layer along with all routing protocols
+        routingTable: GenericRoutingTable {
             parameters:
                 @display("p=53,225;is=s");
-                IPForward = IPForward;
-                forwardMulticast = forwardMulticast;
-                routingFile = routingFile;
         }
 
         // linklayer

@@ -19,13 +19,12 @@
 //
 package inet.nodes.ipv6;
 
-import inet.networklayer.ipv6.IPv6ErrorHandling;
-import inet.networklayer.ipv6.IPv6;
-import inet.networklayer.icmpv6.IPv6NeighbourDiscovery;
-import inet.networklayer.icmpv6.ICMPv6;
-import inet.networklayer.IxMIPv6Support;
 import inet.networklayer.IIPv6Tunneling;
-import inet.base.IHook;
+import inet.networklayer.IxMIPv6Support;
+import inet.networklayer.icmpv6.ICMPv6;
+import inet.networklayer.icmpv6.IPv6NeighbourDiscovery;
+import inet.networklayer.ipv6.IPv6;
+import inet.networklayer.ipv6.IPv6ErrorHandling;
 
 
 //
@@ -34,7 +33,7 @@ import inet.base.IHook;
 // The module has ports to connect to a higher layer (TCP, UDP) and
 // several network interfaces.
 //
-module NetworkLayer6
+module IPv6NetworkLayer
 {
     parameters:
         bool xMIPv6Support = default(false);

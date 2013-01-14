@@ -1,6 +1,5 @@
 //
 // Copyright (C) 2004 Andras Varga
-// Copyright (C) 2000 Institut fuer Telematik, Universitaet Karlsruhe
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public License
@@ -24,38 +23,34 @@ import inet.networklayer.generic.EchoProtocol;
 
 
 //
-// Network layer of an IPv4 node.
+// TODO
 //
-// Interfaces to transport layer: TCP, UDP, echo/ping, RSVP
-//
-module GenericNetworkLayer
+module GenericNetworkLayer like INetworkLayer
 {
     parameters:
         @display("i=block/fork");
-        bool proxyARP = default(true);
-        string igmpType = default("IGMPv2");
     gates:
-        input ifIn[] @labels(IPv4Datagram);
-        input tcpIn @labels(TCPSegment,IPv4ControlInfo/down);
-        input udpIn @labels(UDPPacket,IPv4ControlInfo/down);
-        input sctpIn @labels(IPv4ControlInfo/down,SCTPPacket);
-        input rsvpIn @labels(IPv4ControlInfo/down);
-        input ospfIn @labels(IPv4ControlInfo/down);
+        input ifIn[] @labels(INetworkDatagram);
+        input tcpIn @labels(TCPSegment,INetworkControlInfo/down);
+        input udpIn @labels(UDPPacket,INetworkControlInfo/down);
+        input sctpIn @labels(INetworkControlInfo/down,SCTPPacket);
+        input rsvpIn @labels(INetworkControlInfo/down);
+        input ospfIn @labels(INetworkControlInfo/down);
         input pingIn[];
         input manetIn;
         input igmpIn;
-        output ifOut[] @labels(IPv4Datagram);
-        output tcpOut @labels(TCPSegment,IPv4ControlInfo/up);
-        output udpOut @labels(UDPPacket,IPv4ControlInfo/up);
-        output sctpOut @labels(IPv4ControlInfo/up,SCTPPacket);
-        output rsvpOut @labels(IPv4ControlInfo/up);
-        output ospfOut @labels(IPv4ControlInfo/up);
+        output ifOut[] @labels(INetworkDatagram);
+        output tcpOut @labels(TCPSegment,INetworkControlInfo/up);
+        output udpOut @labels(UDPPacket,INetworkControlInfo/up);
+        output sctpOut @labels(INetworkControlInfo/up,SCTPPacket);
+        output rsvpOut @labels(INetworkControlInfo/up);
+        output ospfOut @labels(INetworkControlInfo/up);
         output pingOut[];
         output manetOut;
         output igmpOut;
 
     submodules:
-        ip: GenericNetworkProtocol {
+        np: GenericNetworkProtocol {
             parameters:
                 protocolMapping = "6:0,17:1,1:2,2:3,46:4,89:5,132:6,48:7,138:7"; // see: http://www.iana.org/assignments/protocol-numbers
                 @display("p=85,95;q=queue");
@@ -76,26 +71,26 @@ module GenericNetworkLayer
         }
     connections allowunconnected:
         // transport Layer
-        ip.transportOut[0] --> { @display("m=n"); } --> tcpOut;
-        ip.transportIn[0] <-- { @display("m=n"); } <-- tcpIn;
+        np.transportOut[0] --> { @display("m=n"); } --> tcpOut;
+        np.transportIn[0] <-- { @display("m=n"); } <-- tcpIn;
 
-        ip.transportOut[1] --> { @display("m=n"); } --> udpOut;
-        ip.transportIn[1] <-- { @display("m=n"); } <-- udpIn;
+        np.transportOut[1] --> { @display("m=n"); } --> udpOut;
+        np.transportIn[1] <-- { @display("m=n"); } <-- udpIn;
 
-        ip.transportOut[2] --> echo.localIn;
-        ip.transportIn[2] <-- echo.sendOut;
+        np.transportOut[2] --> echo.localIn;
+        np.transportIn[2] <-- echo.sendOut;
 
-        ip.transportOut[4] --> { @display("m=n"); } --> rsvpOut;
-        ip.transportIn[4] <-- { @display("m=n"); } <-- rsvpIn;
+        np.transportOut[4] --> { @display("m=n"); } --> rsvpOut;
+        np.transportIn[4] <-- { @display("m=n"); } <-- rsvpIn;
 
-        ip.transportOut[5] --> { @display("m=n"); } --> ospfOut;
-        ip.transportIn[5] <-- { @display("m=n"); } <-- ospfIn;
+        np.transportOut[5] --> { @display("m=n"); } --> ospfOut;
+        np.transportIn[5] <-- { @display("m=n"); } <-- ospfIn;
 
-        ip.transportOut[6] --> { @display("m=n"); } --> sctpOut;
-        ip.transportIn[6] <-- { @display("m=n"); } <-- sctpIn;
+        np.transportOut[6] --> { @display("m=n"); } --> sctpOut;
+        np.transportIn[6] <-- { @display("m=n"); } <-- sctpIn;
 
-        ip.transportOut[7] --> { @display("m=n"); } --> manetOut;
-        ip.transportIn[7] <-- { @display("m=n"); } <-- manetIn;
+        np.transportOut[7] --> { @display("m=n"); } --> manetOut;
+        np.transportIn[7] <-- { @display("m=n"); } <-- manetIn;
 
         for i=0..sizeof(pingOut)-1 {
             echo.pingOut++ --> { @display("m=n"); } --> pingOut[i];
@@ -104,13 +99,12 @@ module GenericNetworkLayer
             echo.pingIn++ <-- { @display("m=n"); } <-- pingIn[i];
         }
 
-        ip.queueOut --> arp.ipIn;
+        np.queueOut --> arp.ipIn;
 
         for i=0..sizeof(ifIn)-1 {
-            ifIn[i] --> { @display("m=s"); } --> ip.queueIn[i];
+            ifIn[i] --> { @display("m=s"); } --> np.queueIn[i];
         }
         for i=0..sizeof(ifOut)-1 {
             arp.nicOut[i] --> { @display("m=s"); } --> ifOut[i];
         }
 }
-

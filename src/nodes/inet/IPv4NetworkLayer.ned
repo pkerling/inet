@@ -30,7 +30,7 @@ import inet.networklayer.arp.ARP;
 //
 // Interfaces to transport layer: TCP, UDP, echo/ping, RSVP
 //
-module NetworkLayer
+module IPv4NetworkLayer like INetworkLayer
 {
     parameters:
         @display("i=block/fork");
@@ -133,4 +133,3 @@ module NetworkLayer
             arp.nicOut[i] --> { @display("m=s"); } --> ifOut[i];
         }
 }
-
