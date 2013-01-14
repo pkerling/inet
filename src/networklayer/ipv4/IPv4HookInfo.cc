@@ -46,17 +46,17 @@ class INET_API IPv4HookInfo : public cSimpleModule, public IPv4::Hook
     /**
     * called before a packet arriving from the network is delivered via the network
     */
-    virtual IPv4::Hook::Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr);
+    virtual IPv4::Hook::Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
 
     /**
     * called before a packet is delivered via the network
     */
-    virtual IPv4::Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr);
+    virtual IPv4::Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
 
     /**
     * called before a packet arriving locally is delivered
     */
-    virtual IPv4::Hook::Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE);
+    virtual IPv4::Hook::Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE);
 };
 
 
@@ -91,7 +91,7 @@ IPv4::Hook::Result IPv4HookInfo::datagramLocalInHook(IPv4Datagram* datagram, Int
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4HookInfo::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry* outIE)
+IPv4::Hook::Result IPv4HookInfo::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE)
 {
     EV << "HOOK " << getFullPath() << ": LOCAL OUT: packet=" << datagram->getName()
        << " outIE=" << (outIE ? outIE->getName() : "NULL")
@@ -99,7 +99,7 @@ IPv4::Hook::Result IPv4HookInfo::datagramLocalOutHook(IPv4Datagram* datagram, In
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4HookInfo::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
+IPv4::Hook::Result IPv4HookInfo::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
     EV << "HOOK " << getFullPath() << ": FORWARD: packet=" << datagram->getName()
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
@@ -109,7 +109,7 @@ IPv4::Hook::Result IPv4HookInfo::datagramForwardHook(IPv4Datagram* datagram, Int
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result IPv4HookInfo::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, IPv4Address& nextHopAddr)
+IPv4::Hook::Result IPv4HookInfo::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
     EV << "HOOK " << getFullPath() << ": POSTROUTING packet=" << datagram->getName()
        << " inIE=" << (inIE ? inIE->getName() : "NULL")
