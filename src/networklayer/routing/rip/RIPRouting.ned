@@ -25,7 +25,7 @@ package inet.networklayer.routing.rip;
 // limitations:
 //   the metric diameter of the network must be smaller than 16
 //
-simple RIP
+simple RIPRouting
 {
     parameters:
         string routingTableName;

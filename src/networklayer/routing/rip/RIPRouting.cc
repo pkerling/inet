@@ -18,25 +18,13 @@
 #include <algorithm>
 
 #include "InterfaceTableAccess.h"
-#include "IPvXAddress.h" // XXX temporarily
+#include "IPv4RoutingTable.h" // XXX temporarily
 #include "UDP.h"
 
 #include "RIPPacket_m.h"
 #include "RIPRouting.h"
 
 Define_Module(RIPRouting);
-
-// XXX temporarily
-inline Address address(const IPvXAddress &addr)
-{
-    return addr.isIPv6() ? Address(addr.get6()) : Address(addr.get4());
-}
-
-// XXX temporarily
-inline IPvXAddress ipvxAddress(const Address &addr)
-{
-    return !addr.toIPv6().isUnspecified() ? IPvXAddress(addr.toIPv6()) : IPvXAddress(addr.toIPv4());
-}
 
 // XXX temporarily
 inline Address netmask(const Address &addrType, int prefixLength)
@@ -81,7 +69,8 @@ void RIPRouting::initialize(int stage)
         usePoisonedSplitHorizon = par("usePoisonedSplitHorizon");
         const char *routingTableName = par("routingTableName");
         ift = InterfaceTableAccess().get();
-        rt = ModuleAccess<IGenericRoutingTable>(routingTableName).get();
+        //rt = ModuleAccess<IRoutingTable>(routingTableName).get();
+        rt = ModuleAccess<IPv4RoutingTable>(routingTableName).get()->asGeneric(); // XXX
         updateTimer = new cMessage("RIP-timer");
         triggeredUpdateTimer = new cMessage("RIP-trigger");
         socket.setOutputGate(gate("udpOut"));
@@ -101,6 +90,7 @@ void RIPRouting::initialize(int stage)
 
         allRipRoutersGroup = Address(IPv4Address(RIP_IPV4_MULTICAST_ADDRESS)); // XXX set according to the type of the routing table
 
+        socket.setMulticastLoop(false);
         socket.bind(RIP_UDP_PORT);
         //socket.joinMulticastGroup(allRipRoutersGroup); // XXX
 
@@ -210,7 +200,7 @@ void RIPRouting::processRequest(RIPPacket *packet)
                 if (numEntries == 0 && entry.metric == RIP_INFINITE_METRIC)
                 {
                     InterfaceEntry *ie = ift->getInterfaceById(ctrlInfo->getInterfaceId());
-                    sendRoutes(address(ctrlInfo->getSrcAddr()), ctrlInfo->getSrcPort(), ie, false);
+                    sendRoutes(ctrlInfo->getSrcAddr(), ctrlInfo->getSrcPort(), ie, false);
                     delete ctrlInfo;
                     delete packet;
                     return;
@@ -220,7 +210,7 @@ void RIPRouting::processRequest(RIPPacket *packet)
                 // TODO ?
                 break;
             case RIP_AF_INET:
-                IGenericRoute *route = rt->findBestMatchingRoute(entry.address);
+                IRoute *route = rt->findBestMatchingRoute(entry.address);
                 // TODO should we check route source here? if it is not a RIP route, what ensures that metric < 16?
                 if (route)
                 {
@@ -258,7 +248,7 @@ void RIPRouting::sendRoutes(const Address &address, int port, InterfaceEntry *ie
 
     for (int i = 0; i < numRoutes; ++i)
     {
-        IGenericRoute *route = rt->getRoute(i);
+        IRoute *route = rt->getRoute(i);
         RIPRouteData *ripData = dynamic_cast<RIPRouteData *>(route->getProtocolData());
 
         if (changedOnly && (ripData == NULL || !ripData->routeChanged))
@@ -338,9 +328,9 @@ void RIPRouting::processResponse(RIPPacket *packet)
     for (int i = 0; i < numEntries; ++i) {
         RIPEntry &entry = packet->getEntry(i);
         int metric = std::min((int)entry.metric + incomingIe->metric, RIP_INFINITE_METRIC);
-        Address nextHop = entry.nextHop.isUnspecified() ? address(ctrlInfo->getSrcAddr()) : entry.nextHop;
+        Address nextHop = entry.nextHop.isUnspecified() ? ctrlInfo->getSrcAddr() : entry.nextHop;
 
-        IGenericRoute *route = findRoute(entry.address, entry.subnetMask);
+        IRoute *route = findRoute(entry.address, entry.subnetMask);
         if (route)
         {
             if (route->getNextHop() == nextHop)
@@ -374,14 +364,14 @@ bool RIPRouting::isValidResponse(RIPPacket *packet)
     }
 
     // check that source is on a directly connected network
-    if (!isNeighbour(address(ctrlInfo->getSrcAddr())))
+    if (!isNeighbour(ctrlInfo->getSrcAddr()))
     {
         EV << "RIP: source is not directly connected " << ctrlInfo->getSrcAddr() << "\n";
         return false;
     }
 
     // check that it is not our response (received own multicast message)
-    if (isOwnAddress(address(ctrlInfo->getSrcAddr())))
+    if (isOwnAddress(ctrlInfo->getSrcAddr()))
     {
         EV << "RIP: received own response\n";
         return false;
@@ -413,13 +403,13 @@ bool RIPRouting::isValidResponse(RIPPacket *packet)
 }
 
 // XXX should we return only RIP routes here? the result will be updated ...
-IGenericRoute *RIPRouting::findRoute(const Address &destination, const Address &subnetMask)
+IRoute *RIPRouting::findRoute(const Address &destination, const Address &subnetMask)
 {
     int numRoutes = rt->getNumRoutes();
     int prefixLength = subnetMask.getPrefixLength();
     for (int i = 0; i < numRoutes; ++i)
     {
-        IGenericRoute *route = rt->getRoute(i);
+        IRoute *route = rt->getRoute(i);
         if (route->getDestination() == destination && route->getPrefixLength() == prefixLength)
             return route;
     }
@@ -442,7 +432,7 @@ IGenericRoute *RIPRouting::findRoute(const Address &destination, const Address &
  */
 void RIPRouting::addRoute(const Address &dest, const Address &subnetMask, const Address &nextHop, int metric)
 {
-    IGenericRoute *route = rt->createRoute();
+    IRoute *route = rt->createRoute();
     route->setSource(this);
     route->setDestination(dest);
     route->setPrefixLength(subnetMask.getPrefixLength());
@@ -469,7 +459,7 @@ void RIPRouting::addRoute(const Address &dest, const Address &subnetMask, const 
  *  - If the new metric is infinity, start the deletion process
  *    (described above); otherwise, re-initialize the timeout
  */
-void RIPRouting::updateRoute(IGenericRoute *route, const Address &nextHop, int metric)
+void RIPRouting::updateRoute(IRoute *route, const Address &nextHop, int metric)
 {
     route->setNextHop(nextHop);
     route->setMetric(metric);
@@ -497,7 +487,7 @@ void RIPRouting::triggerUpdate()
     }
 }
 
-IGenericRoute *RIPRouting::checkRoute(IGenericRoute *route)
+IRoute *RIPRouting::checkRoute(IRoute *route)
 {
     simtime_t now = simTime();
     RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(route->getProtocolData());
@@ -525,7 +515,7 @@ IGenericRoute *RIPRouting::checkRoute(IGenericRoute *route)
  * - set routeChangeFlag
  * - signal the output process to trigger a response
  */
-void RIPRouting::invalidateRoute(IGenericRoute *route)
+void RIPRouting::invalidateRoute(IRoute *route)
 {
     RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(route->getProtocolData());
     if (ripData)
@@ -538,7 +528,7 @@ void RIPRouting::invalidateRoute(IGenericRoute *route)
     }
 }
 
-void RIPRouting::purgeRoute(IGenericRoute *route)
+void RIPRouting::purgeRoute(IRoute *route)
 {
     // XXX should set isExpired() to true, and let rt->purge() to do the work
     rt->deleteRoute(route);
@@ -548,5 +538,5 @@ void RIPRouting::sendPacket(RIPPacket *packet, const Address &address, int port,
 {
     if (address.isMulticast())
         socket.setMulticastOutputInterface(ie->getInterfaceId());
-    socket.sendTo(packet, ipvxAddress(address), port);
+    socket.sendTo(packet, address, port);
 }
