@@ -144,7 +144,6 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		((EthernetIIFrame *)msg)->setDest(MACAddress(getParameterStrValue(mens,"DestMAC")));
         if (((EthernetIIFrame *)msg)->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
             ((EthernetIIFrame *)msg)->setByteLength(MIN_ETHERNET_FRAME_BYTES);
-		((EthernetIIFrame *)msg)->setDisplayString(ETHER_II_DISPLAY_STRING);
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;
@@ -163,7 +162,6 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		((Ethernet1QTag *)tag)->setVID(getParameterIntValue(mens,"VID"));
 		((Ethernet1QTag *) tag)->encapsulate(datapacket);
 		((EthernetIIFrame *)msg)->encapsulate((Ethernet1QTag *) tag);    //  [msg [tag [datapacket] ] ]
-		((EthernetIIFrame *)msg)->setDisplayString(ETHER_1Q_DISPLAY_STRING);
 		if (((EthernetIIFrame *)msg)->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
 		    ((EthernetIIFrame *)msg)->setByteLength(MIN_ETHERNET_FRAME_BYTES);
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
@@ -189,7 +187,6 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		((EthernetIIFrame *)msg)->encapsulate((Ethernet1QTag *)tag2);   // [msg [tag2 [tag [datapacket] ] ] ]
 		((EthernetIIFrame *)msg)->setSrc(MACAddress(getParameterStrValue(mens,"SrcMAC")));
 		((EthernetIIFrame *)msg)->setDest(MACAddress(getParameterStrValue(mens,"DestMAC")));
-		((EthernetIIFrame *)msg)->setDisplayString(ETHER_1AD_DISPLAY_STRING);
 		if (((EthernetIIFrame *)msg)->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
 		    ((EthernetIIFrame *)msg)->setByteLength(MIN_ETHERNET_FRAME_BYTES);
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
@@ -214,7 +211,6 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		((EthernetIIFrame *)msg)->setSrc(MACAddress(getParameterStrValue(mens,"SrcMAC")));
 		((EthernetIIFrame *)msg)->setDest(MACAddress(getParameterStrValue(mens,"DestMAC")));
 		((EthernetIIFrame *)msg)->encapsulate((Ethernet1QTag *)tag2);   // [msg [tag2 [tag [datapacket] ] ] ]
-		((EthernetIIFrame *)msg)->setDisplayString(ETHER_1AD_DISPLAY_STRING);
 		itag=new Ethernet1ahITag();
 		itag->setByteLength(ETHER_1AH_ITAG_LENGTH);
 		itag->setISid(getParameterIntValue(mens,"ISID"));
@@ -230,7 +226,6 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		msg2->encapsulate(tag3);   								//  [msg2 [tag3 [itag [msg [tag2 [tag [datapacket] ] ] ] ] ] ]
 		if (((EthernetIIFrame *)msg2)->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
 		     ((EthernetIIFrame *)msg2)->setByteLength(MIN_ETHERNET_FRAME_BYTES);
-		((EthernetIIFrame *)msg2)->setDisplayString(ETHER_1AH_DISPLAY_STRING);
 		sendDelayed(msg2,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;

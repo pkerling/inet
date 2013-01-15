@@ -217,7 +217,6 @@ void IComponent::handle1QFrame(EthernetIIFrame *frame)
 			STag->setByteLength(ETHER_1Q_TAG_LENGTH);
 			STag->encapsulate(CTag);
 			frame->encapsulate(STag);
-			frame->setDisplayString(ETHER_1AD_DISPLAY_STRING);
 			handle1adFrame(frame);
 			}
 			else
@@ -248,7 +247,6 @@ void IComponent::handle1adFrame(EthernetIIFrame *frame)
 
 	//Handling 1ad frame from client network
 	frameAH=new EthernetIIFrame(frame->getName());
-	frameAH->setDisplayString(ETHER_1AH_DISPLAY_STRING);
 	frameAH->setByteLength(ETHER_MAC_2ND_FRAME_BYTES);
 	STag=check_and_cast<Ethernet1QTag *>(frame->getEncapsulatedPacket());
 	CTag=check_and_cast<Ethernet1QTag *>(STag->getEncapsulatedPacket());
@@ -341,7 +339,6 @@ void IComponent::handleEtherIIFrame(EthernetIIFrame *frame)
 		cPacket * Data=check_and_cast<cPacket *>(frame->decapsulate());
 		CTag->encapsulate(Data);
 		frame->encapsulate(CTag);
-		frame->setDisplayString(ETHER_1Q_DISPLAY_STRING);
 		handle1QFrame(frame);
 	}
 	else
@@ -452,7 +449,6 @@ void IComponent::handle1AHFrame(EthernetIIFrame *frame)
 						Ethernet1QTag * CTag=check_and_cast<Ethernet1QTag *>(STag->decapsulate());
 						delete STag;
 						message->encapsulate(CTag);
-						message->setDisplayString(ETHER_1Q_DISPLAY_STRING);
 					}
 					else
 					{

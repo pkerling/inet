@@ -147,7 +147,6 @@ void EthernetLink::processPacketFromHigherLayer(cPacket *msg)
     Ethernet1QTag * CTag=NULL;
     Ethernet1QTag * STag=NULL;
     EthernetIIFrame * EthIIF = new EthernetIIFrame(msg->getName());
-    EthIIF->setDisplayString(ETHER_II_DISPLAY_STRING);
     EthIIF->setSrc(address);
     EthIIF->setDest(etherctrl->getDest());
     EthIIF->setEtherType(etherctrl->getEtherType());
@@ -159,7 +158,6 @@ void EthernetLink::processPacketFromHigherLayer(cPacket *msg)
 	    CTag->setByteLength(ETHER_1Q_TAG_LENGTH);
 	    CTag->encapsulate(frame);
 	    frame=CTag;
-	    EthIIF->setDisplayString(ETHER_1Q_DISPLAY_STRING);
 	}
 	if(outputFrame>1) // 802.1ad
 	{
@@ -168,7 +166,6 @@ void EthernetLink::processPacketFromHigherLayer(cPacket *msg)
 	    STag->setByteLength(ETHER_1Q_TAG_LENGTH);
 	    STag->encapsulate(frame);
 	    frame=STag;
-	    EthIIF->setDisplayString(ETHER_1AD_DISPLAY_STRING);
     }
 
     EthIIF->encapsulate(frame);

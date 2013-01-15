@@ -173,9 +173,6 @@ void PortFilt::TagFrame (EthernetIIFrame *frame)
 	frame->encapsulate(Tag);
     if (frame->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
         frame->setByteLength(MIN_ETHERNET_FRAME_BYTES);
-
-	if (!cSimulation::getActiveEnvir()->isDisabled())
-	    frame->setDisplayString(ETHER_1Q_DISPLAY_STRING);
 }
 
 void PortFilt::UntagFrame (EthernetIIFrame *frame)
@@ -186,8 +183,6 @@ void PortFilt::UntagFrame (EthernetIIFrame *frame)
     if (frame->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
         frame->setByteLength(MIN_ETHERNET_FRAME_BYTES);
 	delete Tag;
-	if (!cSimulation::getActiveEnvir()->isDisabled())
-	    frame->setDisplayString(ETHER_II_DISPLAY_STRING);
 }
 
 int PortFilt::getCost()

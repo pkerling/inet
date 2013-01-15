@@ -88,7 +88,6 @@ packet EtherFrame extends EtherTraffic
 //
 packet EthernetIIFrame extends EtherFrame
 {
-    string displayString = "b=,,,#00ff00";		// Mod1. Enables display string modification.
     int etherType enum (EtherType);
 }
 
@@ -139,7 +138,6 @@ packet EtherPauseFrame extends EtherFrame
 //
 packet Ethernet1QTag
 {
-    string displayString = "b=,,,#a5ffa5";
     int VID=0; // VID Outter VID tag.
 }
 
@@ -150,6 +148,5 @@ packet Ethernet1QTag
 //
 packet Ethernet1ahITag
 {
-    string displayString = "b=,,,#3ea53e";
     int ISid=0; // ISID
 }

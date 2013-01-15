@@ -145,7 +145,6 @@ void PortFilt1ad::handleMessage(cMessage *msg)
 					if (frame->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
 					    frame->setByteLength(MIN_ETHERNET_FRAME_BYTES);  // "padding"
 
-					((EthernetIIFrame *)msg)->setDisplayString(ETHER_1Q_DISPLAY_STRING);
 					bool registered=false;
 					vid CVid=CTag->getVID();
 
@@ -225,7 +224,6 @@ void PortFilt1ad::processUntaggedFrame (EthernetIIFrame *frame)
 		frame->encapsulate(STag);
 	    if (frame->getByteLength() < MIN_ETHERNET_FRAME_BYTES)
 	        frame->setByteLength(MIN_ETHERNET_FRAME_BYTES);
-		frame->setDisplayString(ETHER_1AD_DISPLAY_STRING);
 		processTaggedFrame(frame);
 	}
 	else
