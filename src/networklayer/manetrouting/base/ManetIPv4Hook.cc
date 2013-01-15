@@ -47,7 +47,7 @@ void ManetIPv4Hook::finishHook()
 }
 
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
+INetfilter::IHook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
 {
     if (isReactive)
     {
@@ -58,28 +58,28 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram,
         {
             delete datagram->removeControlInfo();
             sendNoRouteMessageToManet(datagram);
-            return IPv4::Hook::STOLEN;
+            return INetfilter::IHook::STOLEN;
         }
     }
 
-    return IPv4::Hook::ACCEPT;
+    return INetfilter::IHook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
+INetfilter::IHook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
 {
     if (isReactive)
     {
         if (datagram->getTransportProtocol() == IP_PROT_DSR)
         {
             sendToManet(datagram);
-            return IPv4::Hook::STOLEN;
+            return INetfilter::IHook::STOLEN;
         }
     }
 
-    return IPv4::Hook::ACCEPT;
+    return INetfilter::IHook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry*& outIE)
+INetfilter::IHook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry*& outIE)
 {
     if (isReactive)
     {
@@ -102,7 +102,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, c
         {
             delete datagram->removeControlInfo();
             sendNoRouteMessageToManet(datagram);
-            return IPv4::Hook::STOLEN;
+            return INetfilter::IHook::STOLEN;
         }
         if (isDsr && outIE != NULL && !nextHopAddr.isUnspecified())
         {
@@ -112,21 +112,21 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, c
                 delete datagram->removeControlInfo();
                 ipLayer->insertDatagramToHookQueue(datagram, NULL, outIE, nextHopAddr, IPv4::QueuedDatagramForHook::POSTROUTING);
                 ipLayer->reinjectDatagram(datagram);
-                return IPv4::Hook::STOLEN;
+                return INetfilter::IHook::STOLEN;
             }
         }
     }
-    return IPv4::Hook::ACCEPT;
+    return INetfilter::IHook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
+INetfilter::IHook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
-    return IPv4::Hook::ACCEPT;
+    return INetfilter::IHook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
+INetfilter::IHook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
-    return IPv4::Hook::ACCEPT;
+    return INetfilter::IHook::ACCEPT;
 }
 
 // Helper functions:
