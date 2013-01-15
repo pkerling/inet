@@ -7,7 +7,7 @@
 #include "UDPPacket.h"
 #include "IPProtocolId_m.h"
 #include "Ieee80211Frame_m.h"
-#include "AddressResolver.h" // TODO: rename
+#include "AddressResolver.h"
 #include "INetworkProtocolControlInfo.h"
 #include "UDPControlInfo.h"
 #include "xDYMO.h"
@@ -23,6 +23,9 @@ Define_Module(DYMO::xDYMO);
 //
 
 xDYMO::xDYMO() {
+    notificationBoard = NULL;
+    addressPolicy = NULL;
+    interfaceTable = NULL;
     routingTable = NULL;
     networkProtocol = NULL;
     expungeTimer = NULL;

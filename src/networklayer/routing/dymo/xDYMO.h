@@ -83,6 +83,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     xDYMO();
     virtual ~xDYMO();
 
+  protected:
     // module interface
     int numInitStages() const { return 5; }
     void initialize(int stage);
@@ -177,7 +178,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     simtime_t getNextExpungeTime();
     DYMORouteState getRouteState(DYMORouteData * routeData);
 
-    // client address
+    // handling addresses
     std::string getHostName();
     Address getSelfAddress();
     bool isClientAddress(const Address & address);
