@@ -814,7 +814,7 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
     for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
             IPv4Datagram* datagram = iter->datagram;
-            switch (iter->hook) {
+            switch (iter->hookType) {
                 case QueuedDatagramForHook::LOCALOUT:
                     datagramLocalOut(datagram, iter->outIE);
                     break;
@@ -831,7 +831,7 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
                     throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
                     break;
                 default:
-                    throw cRuntimeError("Unknown hook ID: %d", (int)(iter->hook));
+                    throw cRuntimeError("Unknown hook ID: %d", (int)(iter->hookType));
                     break;
             }
             queuedDatagramsForHooks.erase(iter);
@@ -840,7 +840,7 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
     }
 }
 
-void IPv4::insertDatagramToHookQueue(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::Hook hook)
+void IPv4::insertDatagramToHookQueue(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::HookType hook)
 {
     queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, hook));
 }

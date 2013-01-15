@@ -110,7 +110,7 @@ class INET_API IPv4 : public QueueBase, public INetfilter
      */
     class QueuedDatagramForHook {
       public:
-        enum Hook {
+        enum HookType {
           PREROUTING,
           LOCALIN,
           FORWARD,
@@ -118,15 +118,15 @@ class INET_API IPv4 : public QueueBase, public INetfilter
           LOCALOUT
         };
 
-        QueuedDatagramForHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, Hook hook) :
-                datagram(datagram), inIE(inIE), outIE(outIE), nextHopAddr(nextHopAddr), hook(hook) {}
+        QueuedDatagramForHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, HookType hookType) :
+                datagram(datagram), inIE(inIE), outIE(outIE), nextHopAddr(nextHopAddr), hookType(hookType) {}
         virtual ~QueuedDatagramForHook() {}
 
         IPv4Datagram* datagram;
         const InterfaceEntry* inIE;
         const InterfaceEntry* outIE;
         IPv4Address nextHopAddr;
-        const Hook hook;
+        const HookType hookType;
     };
 
   protected:
@@ -329,7 +329,7 @@ class INET_API IPv4 : public QueueBase, public INetfilter
     /**
      * TODO
      */
-    void insertDatagramToHookQueue(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::Hook hook);
+    void insertDatagramToHookQueue(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::HookType hook);
 
     /**
      * drop a previously queued datagram
