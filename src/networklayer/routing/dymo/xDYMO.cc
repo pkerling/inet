@@ -187,12 +187,12 @@ void xDYMO::delayDatagram(INetworkDatagram * datagram) {
 
 void xDYMO::reinjectDelayedDatagram(INetworkDatagram * datagram) {
     DYMO_EV << "Sending queued datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
-    networkProtocol->reinjectDatagram(const_cast<const INetworkDatagram *>(datagram), IHook::ACCEPT);
+    networkProtocol->reinjectQueuedDatagram(const_cast<const INetworkDatagram *>(datagram));
 }
 
 void xDYMO::dropDelayedDatagram(INetworkDatagram * datagram) {
     DYMO_EV << "Dropping queued datagram: source = " << datagram->getSourceAddress() << ", destination = " << datagram->getDestinationAddress() << endl;
-    networkProtocol->reinjectDatagram(const_cast<const INetworkDatagram *>(datagram), IHook::DROP);
+    networkProtocol->dropQueuedDatagram(const_cast<const INetworkDatagram *>(datagram));
 }
 
 void xDYMO::eraseDelayedDatagrams(const Address & target) {
@@ -334,7 +334,7 @@ void xDYMO::processUDPPacket(UDPPacket * packet) {
 // handling DYMO packets
 //
 
-void xDYMO::sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const Address & nextHop, double delay) {
+void xDYMO::sendDYMOPacket(DYMOPacket * packet, const InterfaceEntry * interfaceEntry, const Address & nextHop, double delay) {
     // TODO: generalize networkProtocol->createControlInfo()
     INetworkProtocolControlInfo * networkProtocolControlInfo = addressPolicy->createNetworkProtocolControlInfo();
     // 5.4. AODVv2 Packet Header Fields and Information Elements
@@ -778,7 +778,7 @@ void xDYMO::sendRERRForUndeliverablePacket(const Address & destination) {
     sendRERR(createRERR(unreachableAddresses));
 }
 
-void xDYMO::sendRERRForBrokenLink(InterfaceEntry * interfaceEntry, const Address & nextHop) {
+void xDYMO::sendRERRForBrokenLink(const InterfaceEntry * interfaceEntry, const Address & nextHop) {
     DYMO_EV << "Sending RERR for broken link: nextHop = " << nextHop << endl;
     // 8.3.2. Case 2: Broken Link
     // The second case happens when the link breaks to an active downstream
@@ -1054,7 +1054,7 @@ void xDYMO::updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IRoute * r
 }
 
 // TODO: use
-int xDYMO::getLinkCost(InterfaceEntry * interfaceEntry, DYMOMetricType metricType) {
+int xDYMO::getLinkCost(const InterfaceEntry * interfaceEntry, DYMOMetricType metricType) {
     switch (metricType) {
         case HOP_COUNT:
             return 1;

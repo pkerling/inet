@@ -47,7 +47,7 @@ void ManetIPv4Hook::finishHook()
 }
 
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
 {
     if (isReactive)
     {
@@ -65,7 +65,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramPreRoutingHook(IPv4Datagram* datagram,
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE)
 {
     if (isReactive)
     {
@@ -79,7 +79,7 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalInHook(IPv4Datagram* datagram, In
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE)
+IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry*& outIE)
 {
     if (isReactive)
     {
@@ -119,12 +119,12 @@ IPv4::Hook::Result ManetIPv4Hook::datagramLocalOutHook(IPv4Datagram* datagram, I
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
+IPv4::Hook::Result ManetIPv4Hook::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
     return IPv4::Hook::ACCEPT;
 }
 
-IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
+IPv4::Hook::Result ManetIPv4Hook::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr)
 {
     return IPv4::Hook::ACCEPT;
 }
@@ -165,7 +165,7 @@ void ManetIPv4Hook::sendToManet(cPacket *packet)
     ipLayer->send(packet, "transportOut", gateIndex);
 }
 
-bool ManetIPv4Hook::checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry* outIE)
+bool ManetIPv4Hook::checkPacketUnroutable(IPv4Datagram* datagram, const InterfaceEntry* outIE)
 {
     if (outIE != NULL)
         return false;
@@ -175,7 +175,7 @@ bool ManetIPv4Hook::checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry
     if (destAddr.isMulticast() || destAddr.isLimitedBroadcastAddress())
         return false;
 
-    IRoutingTable* rt = ipLayer->getRoutingTable();
+    IIPv4RoutingTable* rt = ipLayer->getRoutingTable();
     if (rt->isLocalAddress(destAddr) || rt->isLocalBroadcastAddress(destAddr))
         return false;
 

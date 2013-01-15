@@ -133,7 +133,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     void processUDPPacket(UDPPacket * packet);
 
     // handling DYMO packets
-    void sendDYMOPacket(DYMOPacket * packet, InterfaceEntry * interfaceEntry, const Address & nextHop, double delay);
+    void sendDYMOPacket(DYMOPacket * packet, const InterfaceEntry * interfaceEntry, const Address & nextHop, double delay);
     void processDYMOPacket(DYMOPacket * packet);
 
     // handling RteMsg packets
@@ -159,7 +159,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     RERR * createRERR(std::vector<Address> & addresses);
     void sendRERR(RERR * rerr);
     void sendRERRForUndeliverablePacket(const Address & destination);
-    void sendRERRForBrokenLink(InterfaceEntry * interfaceEntry, const Address & nextHop);
+    void sendRERRForBrokenLink(const InterfaceEntry * interfaceEntry, const Address & nextHop);
     void processRERR(RERR * rerr);
     int computeRERRBitLength(RERR * rerr);
 
@@ -167,7 +167,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     IRoute * createRoute(RteMsg * rteMsg, AddressBlock & addressBlock);
     void updateRoutes(RteMsg * rteMsg, AddressBlock & addressBlock);
     void updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IRoute * route);
-    int getLinkCost(InterfaceEntry * interfaceEntry, DYMOMetricType metricType);
+    int getLinkCost(const InterfaceEntry * interfaceEntry, DYMOMetricType metricType);
     bool isLoopFree(RteMsg * rteMsg, IRoute * route);
 
     // handling expunge timer
@@ -192,9 +192,9 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     // generic network protocol
     virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
     virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { return ACCEPT; }
-    virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
-    virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) { return ACCEPT; }
-    virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { Enter_Method("datagramLocalOutHook"); return ensureRouteForDatagram(datagram); }
+    virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) { return ACCEPT; }
+    virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) { return ACCEPT; }
+    virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry) { Enter_Method("datagramLocalOutHook"); return ensureRouteForDatagram(datagram); }
     bool isDYMODatagram(INetworkDatagram * datagram);
     Result ensureRouteForDatagram(INetworkDatagram * datagram);
 

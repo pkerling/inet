@@ -73,7 +73,7 @@ void GenericNetworkProtocol::endService(cPacket *pk)
         updateDisplayString();
 }
 
-InterfaceEntry *GenericNetworkProtocol::getSourceInterfaceFrom(cPacket *msg)
+const InterfaceEntry *GenericNetworkProtocol::getSourceInterfaceFrom(cPacket *msg)
 {
     cGate *g = msg->getArrivalGate();
     return g ? ift->getInterfaceByNetworkLayerGateIndex(g->getIndex()) : NULL;
@@ -114,7 +114,7 @@ void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
     }
 
     // encapsulate and send
-    InterfaceEntry *destIE; // will be filled in by encapsulate()
+    const InterfaceEntry *destIE; // will be filled in by encapsulate()
     GenericDatagram *datagram = encapsulate(msg, destIE);
 
     if (datagramLocalOutHook(datagram, destIE) != IHook::ACCEPT)
@@ -123,7 +123,7 @@ void GenericNetworkProtocol::handleMessageFromHL(cPacket *msg)
     datagramLocalOut(datagram, destIE);
 }
 
-void GenericNetworkProtocol::routePacket(GenericDatagram *datagram, InterfaceEntry *destIE, bool fromHL)
+void GenericNetworkProtocol::routePacket(GenericDatagram *datagram, const InterfaceEntry *destIE, bool fromHL)
 {
     // TBD add option handling code here
 
@@ -194,7 +194,7 @@ void GenericNetworkProtocol::routePacket(GenericDatagram *datagram, InterfaceEnt
     fragmentAndSend(datagram, destIE, nextHopAddr);
 }
 
-void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, InterfaceEntry *destIE, InterfaceEntry *fromIE)
+void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, const InterfaceEntry *destIE, const InterfaceEntry *fromIE)
 {
     Address destAddr = datagram->getDestinationAddress();
     // if received from the network...
@@ -228,7 +228,7 @@ void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, Int
     else {
         //TODO
         for (int i=0; i<ift->getNumInterfaces(); ++i) {
-            InterfaceEntry * destIE = ift->getInterface(i);
+            const InterfaceEntry * destIE = ift->getInterface(i);
             if (!destIE->isLoopback())
                 fragmentAndSend(datagram, destIE, datagram->getDestinationAddress());
         }
@@ -242,7 +242,7 @@ void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, Int
 //    // DVMRP: process datagram only if sent locally or arrived on the shortest
 //    // route (provided routing table already contains srcAddr); otherwise
 //    // discard and continue.
-//    InterfaceEntry *shortestPathIE = rt->getInterfaceForDestinationAddr(datagram->getSourceAddress());
+//    const InterfaceEntry *shortestPathIE = rt->getInterfaceForDestinationAddr(datagram->getSourceAddress());
 //    if (fromIE!=NULL && shortestPathIE!=NULL && fromIE!=shortestPathIE)
 //    {
 //        // FIXME count dropped
@@ -310,7 +310,7 @@ void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, Int
 //        // copy original datagram for multiple destinations
 //        for (unsigned int i=0; i<routes.size(); i++)
 //        {
-//            InterfaceEntry *destIE = routes[i].interf;
+//            const InterfaceEntry *destIE = routes[i].interf;
 //
 //            // don't forward to input port
 //            if (destIE && destIE!=fromIE)
@@ -345,7 +345,7 @@ void GenericNetworkProtocol::reassembleAndDeliver(GenericDatagram *datagram)
 cPacket *GenericNetworkProtocol::decapsulateGeneric(GenericDatagram *datagram)
 {
     // decapsulate transport packet
-    InterfaceEntry *fromIE = getSourceInterfaceFrom(datagram);
+    const InterfaceEntry *fromIE = getSourceInterfaceFrom(datagram);
     cPacket *packet = datagram->decapsulate();
 
     // create and fill in control info
@@ -363,7 +363,7 @@ cPacket *GenericNetworkProtocol::decapsulateGeneric(GenericDatagram *datagram)
 }
 
 
-void GenericNetworkProtocol::fragmentAndSend(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
+void GenericNetworkProtocol::fragmentAndSend(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHopAddr)
 {
     if (datagram->getByteLength() > ie->getMTU())
         error("datagram too large"); //TODO refine
@@ -372,7 +372,7 @@ void GenericNetworkProtocol::fragmentAndSend(GenericDatagram *datagram, Interfac
 }
 
 
-GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE)
+GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, const InterfaceEntry *&destIE)
 {
     GenericNetworkProtocolControlInfo *controlInfo = check_and_cast<GenericNetworkProtocolControlInfo*>(transportPacket->removeControlInfo());
     GenericDatagram *datagram = encapsulate(transportPacket, destIE, controlInfo);
@@ -380,7 +380,7 @@ GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, I
     return datagram;
 }
 
-GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE, GenericNetworkProtocolControlInfo *controlInfo)
+GenericDatagram *GenericNetworkProtocol::encapsulate(cPacket *transportPacket, const InterfaceEntry *&destIE, GenericNetworkProtocolControlInfo *controlInfo)
 {
     GenericDatagram *datagram = createGenericDatagram(transportPacket->getName());
 //    datagram->setByteLength(HEADER_BYTES); //TODO parameter
@@ -428,7 +428,7 @@ GenericDatagram *GenericNetworkProtocol::createGenericDatagram(const char *name)
     return new GenericDatagram(name);
 }
 
-void GenericNetworkProtocol::sendDatagramToOutput(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr)
+void GenericNetworkProtocol::sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHopAddr)
 {
     // hop counter check
     if (datagram->getHopLimit() <= 0)
@@ -448,7 +448,7 @@ void GenericNetworkProtocol::sendDatagramToOutput(GenericDatagram *datagram, Int
     send(datagram, queueOutGate);
 }
 
-void GenericNetworkProtocol::datagramLocalOut(GenericDatagram* datagram, InterfaceEntry* destIE)
+void GenericNetworkProtocol::datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE)
 {
     // route packet
     if (!datagram->getDestinationAddress().isMulticast())
@@ -473,23 +473,28 @@ void GenericNetworkProtocol::unregisterHook(int priority, IHook* hook) {
     }
 }
 
-void GenericNetworkProtocol::reinjectDatagram(const INetworkDatagram* datagram, IHook::Result verdict) {
+void GenericNetworkProtocol::dropQueuedDatagram(const INetworkDatagram * datagram) {
+    Enter_Method("dropDatagram()");
+    for (std::list<QueuedDatagramForHook>::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
+        if (iter->datagram == datagram) {
+            delete datagram;
+            queuedDatagramsForHooks.erase(iter);
+            return;
+        }
+    }
+}
+void GenericNetworkProtocol::reinjectQueuedDatagram(const INetworkDatagram* datagram) {
 
     Enter_Method("reinjectDatagram()");
     for (std::list<QueuedDatagramForHook>::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
             GenericDatagram* datagram = iter->datagram;
-            InterfaceEntry* outIE = iter->outIE;
+            const InterfaceEntry * outIE = iter->outIE;
             QueuedDatagramForHook::HookType hookType = iter->hookType;
             queuedDatagramsForHooks.erase(iter);
             switch (hookType) {
                 case QueuedDatagramForHook::LOCALOUT:
-                    if (verdict == IHook::DROP) {
-                        delete datagram;
-                        return;
-                    }
-                    else
-                        datagramLocalOut(datagram, outIE);
+                    datagramLocalOut(datagram, outIE);
                     break;
                 default:
                     error("Re-injection of datagram queued for this hook not implemented");
@@ -500,7 +505,7 @@ void GenericNetworkProtocol::reinjectDatagram(const INetworkDatagram* datagram, 
     }
 }
 
-INetfilter::IHook::Result GenericNetworkProtocol::datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE) {
+INetfilter::IHook::Result GenericNetworkProtocol::datagramPreRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE) {
     for (std::multimap<int, IHook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IHook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE);
         switch(r)
@@ -515,7 +520,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramPreRoutingHook(Generic
     return IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE) {
+INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalInHook(GenericDatagram* datagram, const InterfaceEntry * inIE) {
     for (std::multimap<int, IHook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IHook::Result r = iter->second->datagramLocalInHook(datagram, inIE);
         switch(r)
@@ -530,7 +535,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalInHook(GenericDat
     return IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result GenericNetworkProtocol::datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) {
+INetfilter::IHook::Result GenericNetworkProtocol::datagramForwardHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHopAddr) {
     for (std::multimap<int, IHook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IHook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
@@ -545,7 +550,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramForwardHook(GenericDat
     return IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result GenericNetworkProtocol::datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr) {
+INetfilter::IHook::Result GenericNetworkProtocol::datagramPostRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHopAddr) {
     for (std::multimap<int, IHook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IHook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
@@ -560,7 +565,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramPostRoutingHook(Generi
     return IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE) {
+INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalOutHook(GenericDatagram* datagram, const InterfaceEntry *& outIE) {
     for (std::multimap<int, IHook*>::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         IHook::Result r = iter->second->datagramLocalOutHook(datagram, outIE);
         switch(r)

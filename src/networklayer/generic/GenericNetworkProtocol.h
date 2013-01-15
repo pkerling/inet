@@ -49,12 +49,12 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
           LOCALOUT
         };
 
-        QueuedDatagramForHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, HookType hookType) : datagram(datagram), inIE(inIE), outIE(outIE), hookType(hookType) {}
+        QueuedDatagramForHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * outIE, HookType hookType) : datagram(datagram), inIE(inIE), outIE(outIE), hookType(hookType) {}
         virtual ~QueuedDatagramForHook() {}
 
         GenericDatagram* datagram;
-        InterfaceEntry* inIE;
-        InterfaceEntry* outIE;
+        const InterfaceEntry * inIE;
+        const InterfaceEntry * outIE;
         const HookType hookType;
     };
 
@@ -80,7 +80,7 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
 
   protected:
     // utility: look up interface from getArrivalGate()
-    virtual InterfaceEntry *getSourceInterfaceFrom(cPacket *msg);
+    virtual const InterfaceEntry *getSourceInterfaceFrom(cPacket *msg);
 
     // utility: show current statistics above the icon
     virtual void updateDisplayString();
@@ -89,14 +89,14 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      * Encapsulate packet coming from higher layers into GenericDatagram, using
      * the control info attached to the packet.
      */
-    virtual GenericDatagram *encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE);
+    virtual GenericDatagram *encapsulate(cPacket *transportPacket, const InterfaceEntry *&destIE);
 
     /**
      * Encapsulate packet coming from higher layers into GenericDatagram, using
      * the given control info. Override if you subclassed controlInfo and/or
      * want to add options etc to the datagram.
      */
-    virtual GenericDatagram *encapsulate(cPacket *transportPacket, InterfaceEntry *&destIE, GenericNetworkProtocolControlInfo *controlInfo);
+    virtual GenericDatagram *encapsulate(cPacket *transportPacket, const InterfaceEntry *&destIE, GenericNetworkProtocolControlInfo *controlInfo);
 
     /**
      * Creates a blank Generic datagram. Override when subclassing GenericDatagram is needed
@@ -121,12 +121,12 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      * to handleMulticastPacket() for multicast packets, or drops the packet if
      * it's unroutable or forwarding is off.
      */
-    virtual void routePacket(GenericDatagram *datagram, InterfaceEntry *destIE, bool fromHL);
+    virtual void routePacket(GenericDatagram *datagram, const InterfaceEntry *destIE, bool fromHL);
 
     /**
      * Forwards packets to all multicast destinations, using fragmentAndSend().
      */
-    virtual void routeMulticastPacket(GenericDatagram *datagram, InterfaceEntry *destIE, InterfaceEntry *fromIE);
+    virtual void routeMulticastPacket(GenericDatagram *datagram, const InterfaceEntry *destIE, const InterfaceEntry *fromIE);
 
     /**
      * Perform reassembly of fragmented datagrams, then send them up to the
@@ -143,27 +143,28 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      * Fragment packet if needed, then send it to the selected interface using
      * sendDatagramToOutput().
      */
-    virtual void fragmentAndSend(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr);
+    virtual void fragmentAndSend(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHopAddr);
 
     /**
      * Last TTL check, then send datagram on the given interface.
      */
-    virtual void sendDatagramToOutput(GenericDatagram *datagram, InterfaceEntry *ie, Address nextHopAddr);
+    virtual void sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHopAddr);
 
-    virtual void datagramLocalOut(GenericDatagram* datagram, InterfaceEntry* destIE);
+    virtual void datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE);
 
-    virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE);
-    virtual IHook::Result datagramLocalInHook(GenericDatagram* datagram, InterfaceEntry* inIE);
-    virtual IHook::Result datagramForwardHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr);
-    virtual IHook::Result datagramPostRoutingHook(GenericDatagram* datagram, InterfaceEntry* inIE, InterfaceEntry* outIE, Address& nextHopAddr);
-    virtual IHook::Result datagramLocalOutHook(GenericDatagram* datagram, InterfaceEntry* outIE);
+    virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE);
+    virtual IHook::Result datagramLocalInHook(GenericDatagram* datagram, const InterfaceEntry * inIE);
+    virtual IHook::Result datagramForwardHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramPostRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramLocalOutHook(GenericDatagram* datagram, const InterfaceEntry *& outIE);
 
   public:
     GenericNetworkProtocol() {}
 
     virtual void registerHook(int priority, IHook * hook);
     virtual void unregisterHook(int priority, IHook * hook);
-    virtual void reinjectDatagram(const INetworkDatagram * datagram, IHook::Result verdict);
+    virtual void dropQueuedDatagram(const INetworkDatagram * datagram);
+    virtual void reinjectQueuedDatagram(const INetworkDatagram * datagram);
 
   protected:
     /**

@@ -36,15 +36,16 @@ class INetfilter {
         virtual ~IHook() {};
         virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) = 0;
         virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) = 0;
-        virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) = 0;
-        virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry * outputInterfaceEntry, const Address & nextHopAddress) = 0;
-        virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry * outputInterfaceEntry) = 0;
+        virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
+        virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
+        virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry) = 0;
     };
 
     virtual ~INetfilter() { }
     virtual void registerHook(int priority, IHook * hook) = 0;
     virtual void unregisterHook(int priority, IHook * hook) = 0;
-    virtual void reinjectDatagram(const INetworkDatagram * datagram, IHook::Result verdict) = 0;
+    virtual void dropQueuedDatagram(const INetworkDatagram * daragram) = 0;
+    virtual void reinjectQueuedDatagram(const INetworkDatagram * datagram) = 0;
 };
 
 #endif

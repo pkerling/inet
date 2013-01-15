@@ -67,14 +67,14 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
     /**
      *
      */
-    virtual bool checkPacketUnroutable(IPv4Datagram* datagram, InterfaceEntry* outIE);
+    virtual bool checkPacketUnroutable(IPv4Datagram* datagram, const InterfaceEntry* outIE);
 
   public:
-    virtual IPv4::Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
-    virtual IPv4::Hook::Result datagramLocalInHook(IPv4Datagram* datagram, InterfaceEntry* inIE);
-    virtual IPv4::Hook::Result datagramForwardHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
-    virtual IPv4::Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, InterfaceEntry* inIE, InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
-    virtual IPv4::Hook::Result datagramLocalOutHook(IPv4Datagram* datagram, InterfaceEntry*& outIE);
+    virtual IPv4::Hook::Result datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
+    virtual IPv4::Hook::Result datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
+    virtual IPv4::Hook::Result datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
+    virtual IPv4::Hook::Result datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
+    virtual IPv4::Hook::Result datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry*& outIE);
 };
 
 #endif  // __INET_MANETIPV4HOOK_H
