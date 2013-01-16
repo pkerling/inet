@@ -143,20 +143,20 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      * Fragment packet if needed, then send it to the selected interface using
      * sendDatagramToOutput().
      */
-    virtual void fragmentAndSend(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHopAddr);
+    virtual void fragmentAndSend(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHop);
 
     /**
      * Last TTL check, then send datagram on the given interface.
      */
-    virtual void sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHopAddr);
+    virtual void sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHop);
 
     virtual void datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE);
 
-    virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE);
+    virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHop);
+    virtual IHook::Result datagramForwardHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHop);
+    virtual IHook::Result datagramPostRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHop);
     virtual IHook::Result datagramLocalInHook(GenericDatagram* datagram, const InterfaceEntry * inIE);
-    virtual IHook::Result datagramForwardHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHopAddr);
-    virtual IHook::Result datagramPostRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHopAddr);
-    virtual IHook::Result datagramLocalOutHook(GenericDatagram* datagram, const InterfaceEntry *& outIE);
+    virtual IHook::Result datagramLocalOutHook(GenericDatagram* datagram, const InterfaceEntry *& outIE, Address & nextHop);
 
   public:
     GenericNetworkProtocol() {}

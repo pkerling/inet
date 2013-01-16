@@ -33,7 +33,7 @@
 #include "IInterfaceTable.h"
 #include "Address.h"
 #include "ManetAddress.h"
-#include "ManetIPv4Hook.h"
+#include "ManetNetfilterHook.h"
 #include "NotifierConsts.h"
 #include "ICMP.h"
 #include "IPv4.h"
@@ -52,7 +52,7 @@ typedef std::set<ManetAddress> AddressGroup;
 /**
  * Base class for Manet Routing
  */
-class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, protected cListener, public ManetIPv4Hook
+class INET_API ManetRoutingBase : public cSimpleModule, public INotifiable, protected cListener, public ManetNetfilterHook
 {
   private:
     static simsignal_t mobilityStateChangedSignal;

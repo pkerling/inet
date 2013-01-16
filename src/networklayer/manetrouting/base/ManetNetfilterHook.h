@@ -16,26 +16,29 @@
 //
 // @author: Zoltan Bojthe
 
-#ifndef __INET_MANETIPV4HOOK_H
-#define __INET_MANETIPV4HOOK_H
+#ifndef __INET_MANETNETFILTERHOOK_H
+#define __INET_MANETNETFILTERHOOK_H
 
 #include "IPv4.h"
+#include "INetworkDatagram.h"
 
 #include "ARP.h"
 
 #include <vector>
 #include <set>
 
-class INET_API ManetIPv4Hook : public IPv4::Hook
+class INET_API ManetNetfilterHook : public INetfilter::IHook
 {
   protected:
     cModule* module;    // Manet module
     IPv4 *ipLayer;      // IPv4 module
-    int gateIndex;      // gateindex for manet protocol on transportOut gate in IPv4 module
+    IInterfaceTable *ift;
+    IRoutingTable *rt;
+    int gateIndex;      // gateindex for manet protocol on transportOut gate in network module
     bool isReactive;    // true if it's a reactive routing
 
   public:
-    ManetIPv4Hook() : module(NULL), ipLayer(NULL), gateIndex(-1), isReactive(false) {}
+    ManetNetfilterHook() : module(NULL), ipLayer(NULL), gateIndex(-1), isReactive(false) {}
 
   protected:
     void initHook(cModule* module);
@@ -48,7 +51,7 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
      * not transmitted, only its source and destination address is used.
      * About DSR datagrams no update message is sent.
      */
-    virtual void sendRouteUpdateMessageToManet(IPv4Datagram *datagram);
+    virtual void sendRouteUpdateMessageToManet(INetworkDatagram *datagram);
 
     /**
      * Sends a MANET_ROUTE_NOROUTE packet to Manet. The packet
@@ -57,7 +60,7 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
      * DSR datagrams are transmitted as they are, i.e. without
      * encapsulation. (?)
      */
-    virtual void sendNoRouteMessageToManet(IPv4Datagram *datagram);
+    virtual void sendNoRouteMessageToManet(INetworkDatagram *datagram);
 
     /**
      * Sends a packet to the Manet module.
@@ -67,14 +70,14 @@ class INET_API ManetIPv4Hook : public IPv4::Hook
     /**
      *
      */
-    virtual bool checkPacketUnroutable(IPv4Datagram* datagram, const InterfaceEntry* outIE);
+    virtual bool checkPacketUnroutable(INetworkDatagram* datagram, const InterfaceEntry* outIE);
 
   public:
-    virtual INetfilter::IHook::Result datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
-    virtual INetfilter::IHook::Result datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE);
-    virtual INetfilter::IHook::Result datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
-    virtual INetfilter::IHook::Result datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr);
-    virtual INetfilter::IHook::Result datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry*& outIE);
+    virtual IHook::Result datagramPreRoutingHook(INetworkDatagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramForwardHook(INetworkDatagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramPostRoutingHook(INetworkDatagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, Address& nextHopAddr);
+    virtual IHook::Result datagramLocalInHook(INetworkDatagram* datagram, const InterfaceEntry* inIE);
+    virtual IHook::Result datagramLocalOutHook(INetworkDatagram* datagram, const InterfaceEntry*& outIE, Address& nextHopAddr);
 };
 
-#endif  // __INET_MANETIPV4HOOK_H
+#endif

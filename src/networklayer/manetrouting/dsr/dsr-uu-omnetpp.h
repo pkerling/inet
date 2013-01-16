@@ -32,7 +32,7 @@
 #include "ProtocolMap.h"
 #include "ControlManetRouting_m.h"
 #include "IPv4ControlInfo.h"
-#include "ManetIPv4Hook.h"
+#include "ManetNetfilterHook.h"
 #else
 #include "Blackboard.h"
 #include "LinkBreak.h"
@@ -184,7 +184,7 @@ static inline char *print_pkt(char *p, int len)
 class DSRUU:public cSimpleModule, public ImNotifiable
 {
 #else
-class DSRUU:public cSimpleModule, public INotifiable, public ManetIPv4Hook
+class DSRUU:public cSimpleModule, public INotifiable, public ManetNetfilterHook
 {
 #endif
   public:

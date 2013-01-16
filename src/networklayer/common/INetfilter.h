@@ -22,29 +22,79 @@
 #include "InterfaceEntry.h"
 #include "INetworkDatagram.h"
 
-class INetfilter {
+/**
+ * TODO
+ */
+class INET_API INetfilter {
   public:
-    class IHook {
-      public:
-        enum Result {
-            ACCEPT, /**< allow datagram to pass to next hook */
-            DROP, /**< do not allow datagram to pass to next hook, delete it */
-            QUEUE, /**< queue datagram for later re-injection */
-            STOLEN /**< do not allow datagram to pass to next hook, but do not delete it */
-        };
+    /**
+     * TODO
+     */
+    class INET_API IHook {
+        public:
+            enum Type {
+                PREROUTING,
+                LOCALIN,
+                FORWARD,
+                POSTROUTING,
+                LOCALOUT
+            };
 
-        virtual ~IHook() {};
-        virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) = 0;
-        virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) = 0;
-        virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
-        virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
-        virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry) = 0;
+            enum Result {
+                ACCEPT, /**< allow datagram to pass to next hook */
+                DROP,   /**< do not allow datagram to pass to next hook, delete it */
+                QUEUE,  /**< queue datagram for later re-injection */
+                STOLEN  /**< do not allow datagram to pass to next hook, but do not delete it */
+            };
+
+            virtual ~IHook() {};
+
+            /**
+             * TODO
+             */
+            virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
+
+            /**
+             * TODO
+             */
+            virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
+
+            /**
+             * TODO
+             */
+            virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
+
+            /**
+             * TODO
+             */
+            virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) = 0;
+
+            /**
+             * TODO
+             */
+            virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
     };
 
     virtual ~INetfilter() { }
+
+    /**
+     * TODO
+     */
     virtual void registerHook(int priority, IHook * hook) = 0;
+
+    /**
+     * TODO
+     */
     virtual void unregisterHook(int priority, IHook * hook) = 0;
+
+    /**
+     * TODO
+     */
     virtual void dropQueuedDatagram(const INetworkDatagram * daragram) = 0;
+
+    /**
+     * TODO
+     */
     virtual void reinjectQueuedDatagram(const INetworkDatagram * datagram) = 0;
 };
 

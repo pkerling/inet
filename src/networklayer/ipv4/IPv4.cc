@@ -131,10 +131,11 @@ void IPv4::handlePacketFromNetwork(IPv4Datagram *datagram, const InterfaceEntry 
 
     EV << "Received datagram `" << datagram->getName() << "' with dest=" << datagram->getDestAddress() << "\n";
 
-    if (datagramPreRoutingHook(datagram, fromIE) != INetfilter::IHook::ACCEPT) {
-        return;
-    }
-    preroutingFinish(datagram, fromIE);
+    // TODO:
+    const InterfaceEntry *outIE = NULL;
+    Address nextHopAddr;
+    if (datagramPreRoutingHook(datagram, fromIE, outIE, nextHopAddr) == INetfilter::IHook::ACCEPT)
+        preroutingFinish(datagram, fromIE);
 }
 
 void IPv4::preroutingFinish(IPv4Datagram *datagram, const InterfaceEntry *fromIE)
@@ -270,10 +271,10 @@ void IPv4::handleMessageFromHL(cPacket *msg)
     if (controlInfo)
         datagram->setControlInfo(controlInfo);    //FIXME ne rakjuk bele a cntrInfot!!!!!
 
-    if (datagramLocalOutHook(datagram, destIE) != INetfilter::IHook::ACCEPT)
-        return;
-
-    datagramLocalOut(datagram, destIE);
+    // TODO:
+    Address nextHopAddr;
+    if (datagramLocalOutHook(datagram, destIE, nextHopAddr) == INetfilter::IHook::ACCEPT)
+        datagramLocalOut(datagram, destIE);
 }
 
 void IPv4::datagramLocalOut(IPv4Datagram* datagram, const InterfaceEntry* destIE)
@@ -412,7 +413,10 @@ void IPv4::routeUnicastPacket(IPv4Datagram *datagram, const InterfaceEntry *from
     }
     else // fragment and send
     {
-        if (fromIE != NULL) if (datagramForwardHook(datagram, fromIE, destIE, nextHopAddr) != INetfilter::IHook::ACCEPT) {
+        // TODO: naming
+        Address nextHop(nextHopAddr);
+        // TODO: how does this if look like???
+        if (fromIE != NULL) if (datagramForwardHook(datagram, fromIE, destIE, nextHop) != INetfilter::IHook::ACCEPT) {
             return;
         }
 
@@ -608,11 +612,10 @@ cPacket *IPv4::decapsulate(IPv4Datagram *datagram)
 
 void IPv4::fragmentPostRouting(IPv4Datagram *datagram, const InterfaceEntry *ie, IPv4Address nextHopAddr)
 {
-    if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHopAddr) != INetfilter::IHook::ACCEPT) {
-        return;
-    }
-
-    fragmentAndSend(datagram, ie, nextHopAddr);
+    // TODO:
+    Address nextHop(nextHopAddr);
+    if (datagramPostRoutingHook(datagram, getSourceInterfaceFrom(datagram), ie, nextHop) == INetfilter::IHook::ACCEPT)
+        fragmentAndSend(datagram, ie, nextHopAddr);
 }
 
 void IPv4::fragmentAndSend(IPv4Datagram *datagram, const InterfaceEntry *ie, IPv4Address nextHopAddr)
@@ -774,12 +777,12 @@ void IPv4::sendDatagramToOutput(IPv4Datagram *datagram, const InterfaceEntry *ie
 
 // NetFilter:
 
-void IPv4::registerHook(int priority, IPv4::Hook* hook) {
+void IPv4::registerHook(int priority, INetfilter::IHook* hook) {
     Enter_Method("registerHook()");
-    hooks.insert(std::pair<int, IPv4::Hook*>(priority, hook));
+    hooks.insert(std::pair<int, INetfilter::IHook*>(priority, hook));
 }
 
-void IPv4::unregisterHook(int priority, IPv4::Hook* hook) {
+void IPv4::unregisterHook(int priority, INetfilter::IHook* hook) {
     Enter_Method("unregisterHook()");
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
         if ((iter->first == priority) && (iter->second == hook)) {
@@ -789,7 +792,7 @@ void IPv4::unregisterHook(int priority, IPv4::Hook* hook) {
     }
 }
 
-void IPv4::dropQueuedDatagram(const IPv4Datagram* datagram) {
+void IPv4::dropQueuedDatagram(const INetworkDatagram* datagram) {
     Enter_Method("dropQueuedDatagram()");
     for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
@@ -800,34 +803,25 @@ void IPv4::dropQueuedDatagram(const IPv4Datagram* datagram) {
     }
 }
 
-IPv4::QueuedDatagramForHook& IPv4::getQueuedDatagramForHook(const IPv4Datagram* datagram) {
-    Enter_Method("getQueuedDatagramForHook()");
-    for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
-        if (iter->datagram == datagram)
-            return *iter;
-    }
-    throw cRuntimeError("datagram not found in hook queue");
-}
-
-void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
+void IPv4::reinjectQueuedDatagram(const INetworkDatagram* datagram) {
     Enter_Method("reinjectDatagram()");
     for (DatagramQueueForHooks::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
             IPv4Datagram* datagram = iter->datagram;
             switch (iter->hookType) {
-                case QueuedDatagramForHook::LOCALOUT:
+                case INetfilter::IHook::LOCALOUT:
                     datagramLocalOut(datagram, iter->outIE);
                     break;
-                case QueuedDatagramForHook::PREROUTING:
+                case INetfilter::IHook::PREROUTING:
                     preroutingFinish(datagram, iter->inIE);
                     break;
-                case QueuedDatagramForHook::POSTROUTING:
+                case INetfilter::IHook::POSTROUTING:
                     fragmentAndSend(datagram, iter->outIE, iter->nextHopAddr);
                     break;
-                case QueuedDatagramForHook::LOCALIN:
+                case INetfilter::IHook::LOCALIN:
                     reassembleAndDeliverFinish(datagram);
                     break;
-                case QueuedDatagramForHook::FORWARD:
+                case INetfilter::IHook::FORWARD:
                     throw cRuntimeError("Re-injection of datagram queued for this hook not implemented");
                     break;
                 default:
@@ -840,19 +834,14 @@ void IPv4::reinjectDatagram(const IPv4Datagram* datagram) {
     }
 }
 
-void IPv4::insertDatagramToHookQueue(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry* outIE, const IPv4Address& nextHopAddr, QueuedDatagramForHook::HookType hook)
-{
-    queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, hook));
-}
-
-INetfilter::IHook::Result IPv4::datagramPreRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE) {
+INetfilter::IHook::Result IPv4::datagramPreRoutingHook(INetworkDatagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        INetfilter::IHook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE);
+        IHook::Result r = iter->second->datagramPreRoutingHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
         {
             case INetfilter::IHook::ACCEPT: break;   // continue iteration
             case INetfilter::IHook::DROP:   delete datagram; return r;
-            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::PREROUTING)); return r;
+            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(dynamic_cast<IPv4Datagram *>(datagram), inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, INetfilter::IHook::PREROUTING)); return r;
             case INetfilter::IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -860,14 +849,14 @@ INetfilter::IHook::Result IPv4::datagramPreRoutingHook(IPv4Datagram* datagram, c
     return INetfilter::IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result IPv4::datagramLocalInHook(IPv4Datagram* datagram, const InterfaceEntry* inIE) {
+INetfilter::IHook::Result IPv4::datagramForwardHook(INetworkDatagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        INetfilter::IHook::Result r = iter->second->datagramLocalInHook(datagram, inIE);
+        IHook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
         {
             case INetfilter::IHook::ACCEPT: break;   // continue iteration
             case INetfilter::IHook::DROP:   delete datagram; return r;
-            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALIN)); return r;
+            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(dynamic_cast<IPv4Datagram *>(datagram), inIE, outIE, nextHopAddr.toIPv4(), INetfilter::IHook::FORWARD)); return r;
             case INetfilter::IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -875,14 +864,14 @@ INetfilter::IHook::Result IPv4::datagramLocalInHook(IPv4Datagram* datagram, cons
     return INetfilter::IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr) {
+INetfilter::IHook::Result IPv4::datagramPostRoutingHook(INetworkDatagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        INetfilter::IHook::Result r = iter->second->datagramForwardHook(datagram, inIE, outIE, nextHopAddr);
+        IHook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
         switch(r)
         {
             case INetfilter::IHook::ACCEPT: break;   // continue iteration
             case INetfilter::IHook::DROP:   delete datagram; return r;
-            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, QueuedDatagramForHook::FORWARD)); return r;
+            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(dynamic_cast<IPv4Datagram *>(datagram), inIE, outIE, nextHopAddr.toIPv4(), INetfilter::IHook::POSTROUTING)); return r;
             case INetfilter::IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -890,14 +879,14 @@ INetfilter::IHook::Result IPv4::datagramForwardHook(IPv4Datagram* datagram, cons
     return INetfilter::IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, const InterfaceEntry* inIE, const InterfaceEntry*& outIE, IPv4Address& nextHopAddr) {
+INetfilter::IHook::Result IPv4::datagramLocalInHook(INetworkDatagram* datagram, const InterfaceEntry* inIE) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        INetfilter::IHook::Result r = iter->second->datagramPostRoutingHook(datagram, inIE, outIE, nextHopAddr);
+        IHook::Result r = iter->second->datagramLocalInHook(datagram, inIE);
         switch(r)
         {
             case INetfilter::IHook::ACCEPT: break;   // continue iteration
             case INetfilter::IHook::DROP:   delete datagram; return r;
-            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHopAddr, QueuedDatagramForHook::POSTROUTING)); return r;
+            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(dynamic_cast<IPv4Datagram *>(datagram), inIE, NULL, IPv4Address::UNSPECIFIED_ADDRESS, INetfilter::IHook::LOCALIN)); return r;
             case INetfilter::IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -905,18 +894,17 @@ INetfilter::IHook::Result IPv4::datagramPostRoutingHook(IPv4Datagram* datagram, 
     return INetfilter::IHook::ACCEPT;
 }
 
-INetfilter::IHook::Result IPv4::datagramLocalOutHook(IPv4Datagram* datagram, const InterfaceEntry*& outIE) {
+INetfilter::IHook::Result IPv4::datagramLocalOutHook(INetworkDatagram* datagram, const InterfaceEntry*& outIE, Address& nextHopAddr) {
     for (HookList::iterator iter = hooks.begin(); iter != hooks.end(); iter++) {
-        INetfilter::IHook::Result r = iter->second->datagramLocalOutHook(datagram, outIE);
+        IHook::Result r = iter->second->datagramLocalOutHook(datagram, outIE, nextHopAddr);
         switch(r)
         {
             case INetfilter::IHook::ACCEPT: break;   // continue iteration
             case INetfilter::IHook::DROP:   delete datagram; return r;
-            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, IPv4Address::UNSPECIFIED_ADDRESS, QueuedDatagramForHook::LOCALOUT)); return r;
+            case INetfilter::IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(dynamic_cast<IPv4Datagram *>(datagram), NULL, outIE, IPv4Address::UNSPECIFIED_ADDRESS, INetfilter::IHook::LOCALOUT)); return r;
             case INetfilter::IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
     }
     return INetfilter::IHook::ACCEPT;
 }
-

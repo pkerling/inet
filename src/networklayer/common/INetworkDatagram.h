@@ -27,6 +27,8 @@ class INetworkDatagram {
     virtual void setSourceAddress(const Address & address) = 0;
     virtual Address getDestinationAddress() const = 0;
     virtual void setDestinationAddress(const Address & address) = 0;
+    virtual int getTransportProtocol() const = 0;
+    virtual void setTransportProtocol(int protocol) = 0;
 };
 
 #endif

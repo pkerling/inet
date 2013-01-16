@@ -40,8 +40,8 @@ class INET_API GenericDatagram : public GenericDatagram_Base, public INetworkDat
     virtual void setSourceAddress(const Address& addr)  {GenericDatagram_Base::setSourceAddress(addr);}
     virtual Address getDestinationAddress() const  {return GenericDatagram_Base::_getDestAddr();}
     virtual void setDestinationAddress(const Address& addr)  {GenericDatagram_Base::setDestinationAddress(addr);}
+    virtual int getTransportProtocol() const {return GenericDatagram_Base::getTransportProtocol();}
+    virtual void setTransportProtocol(int protocol) {GenericDatagram_Base::setTransportProtocol(protocol);}
 };
 
 #endif
-
-

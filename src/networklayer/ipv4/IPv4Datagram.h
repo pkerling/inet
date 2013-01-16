@@ -60,8 +60,8 @@ class INET_API IPv4Datagram : public IPv4Datagram_Base, public INetworkDatagram
     virtual void setSourceAddress(const Address & address) { setSrcAddress(address.toIPv4()); }
     virtual Address getDestinationAddress() const { return Address(getDestAddress()); }
     virtual void setDestinationAddress(const Address & address) { setDestAddress(address.toIPv4()); }
+    virtual int getTransportProtocol() const {return IPv4Datagram_Base::getTransportProtocol();}
+    virtual void setTransportProtocol(int protocol) {IPv4Datagram_Base::setTransportProtocol(protocol);}
 };
 
 #endif
-
-
