@@ -19,6 +19,8 @@
 
 #include "InterfaceTableAccess.h"
 #include "IPv4RoutingTable.h" // XXX temporarily
+#include "NotificationBoard.h"
+#include "NotifierConsts.h"
 #include "UDP.h"
 
 #include "RIPPacket_m.h"
@@ -32,6 +34,11 @@ inline Address netmask(const Address &addrType, int prefixLength)
     return IPv4Address::makeNetmask(prefixLength); // XXX IPv4 only
 }
 
+inline int prefixLength(const Address &netmask)
+{
+    return netmask.getType() == Address::IPv4 ? netmask.toIPv4().getNetmaskLength() : 32; // XXX IPv4 only
+}
+
 bool RIPRouting::isNeighbour(const Address &address)
 {
     return true; // TODO
@@ -42,15 +49,39 @@ bool RIPRouting::isOwnAddress(const Address &address)
     return false; // TODO
 }
 
-/**
- * Protocol specific data of RIP routes.
- */
-struct RIPRouteData : public cObject
+std::ostream& operator<<(std::ostream& os, const RIPRoute& e)
 {
-    bool routeChanged;
-    simtime_t expiryTime;
-    simtime_t purgeTime;
-};
+    os << e.info();
+    return os;
+}
+
+std::string RIPRoute::info() const
+{
+    std::stringstream out;
+
+    if (route)
+    {
+        const Address &dest = route->getDestination();
+        int prefixLength = route->getPrefixLength();
+        const Address &gateway = route->getNextHop();
+        InterfaceEntry *interfacePtr = route->getInterface();
+        out << "dest:"; if (dest.isUnspecified()) out << "*  "; else out << dest << "  ";
+        out << "prefix:" << prefixLength << "  ";
+        out << "gw:"; if (gateway.isUnspecified()) out << "*  "; else out << gateway << "  ";
+        out << "metric:" << metric << " ";
+//        out << "if:"; if (!interfacePtr) out << "*  "; else out << interfacePtr->getName() << "(" << interfacePtr->ipv4Data()->getIPAddress() << ")  ";
+        switch (type)
+        {
+            case RIP_ROUTE_INTERFACE: out << "INTERFACE"; break;
+            case RIP_ROUTE_STATIC: out << "STATIC"; break;
+            case RIP_ROUTE_DEFAULT: out << "DEFAULT"; break;
+            case RIP_ROUTE_RTE: out << "RTE"; break;
+            case RIP_ROUTE_REDISTRIBUTE: out << "REDISTRIBUTE"; break;
+        }
+    }
+
+    return out.str();
+}
 
 RIPRouting::RIPRouting()
     : ift(NULL), rt(NULL), updateTimer(NULL), triggeredUpdateTimer(NULL)
@@ -59,6 +90,8 @@ RIPRouting::RIPRouting()
 
 RIPRouting::~RIPRouting()
 {
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
+        delete *it;
     delete updateTimer;
     delete triggeredUpdateTimer;
 }
@@ -71,9 +104,13 @@ void RIPRouting::initialize(int stage)
         ift = InterfaceTableAccess().get();
         //rt = ModuleAccess<IRoutingTable>(routingTableName).get();
         rt = ModuleAccess<IPv4RoutingTable>(routingTableName).get()->asGeneric(); // XXX
+        allRipRoutersGroup = Address(IPv4Address(RIP_IPV4_MULTICAST_ADDRESS)); // XXX set according to the type of the routing table
         updateTimer = new cMessage("RIP-timer");
         triggeredUpdateTimer = new cMessage("RIP-trigger");
         socket.setOutputGate(gate("udpOut"));
+
+        //WATCH(ripInterfaces);
+        WATCH_PTRVECTOR(ripRoutes);
     }
     else if (stage == 3) {
         // initialize RIP interfaces
@@ -88,17 +125,71 @@ void RIPRouting::initialize(int stage)
     }
     else if (stage == 4) { // interfaces and static routes are already initialized
 
-        allRipRoutersGroup = Address(IPv4Address(RIP_IPV4_MULTICAST_ADDRESS)); // XXX set according to the type of the routing table
+        // add rip routes from configured interface routes (TODO add static routes too)
+        for (int i = 0; i < rt->getNumRoutes(); ++i)
+        {
+            IRoute *route = rt->getRoute(i);
+            InterfaceEntry *ie = dynamic_cast<InterfaceEntry*>(route->getSource());
+            if (ie && !ie->isLoopback())
+            {
+                RIPInterfaceEntry *ripIe = findInterfaceEntryById(ie->getInterfaceId());
+                RIPRoute *ripRoute = new RIPRoute(route, RIPRoute::RIP_ROUTE_INTERFACE, ripIe ? ripIe->metric : 1);
+                ripRoute->ie = ie;
+                ripRoutes.push_back(ripRoute);
+            }
+        }
 
         socket.setMulticastLoop(false);
         socket.bind(RIP_UDP_PORT);
-        //socket.joinMulticastGroup(allRipRoutersGroup); // XXX
+        for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); ++it)
+            socket.joinMulticastGroup(allRipRoutersGroup, it->ie->getInterfaceId());
+
+        // XXX subscribe according to the address type
+        NotificationBoard *nb = NotificationBoardAccess().get();
+        nb->subscribe(this, NF_IPv4_ROUTE_DELETED);
+        nb->subscribe(this, NF_IPv4_ROUTE_ADDED);
 
         sendInitialRequests();
 
         // set update timer
         scheduleAt(RIP_UPDATE_INTERVAL, updateTimer);
     }
+}
+
+// keep our data structures consistent with other modules
+void RIPRouting::receiveChangeNotification(int category, const cObject *details)
+{
+//    if (simulation.getContextType()==CTX_INITIALIZE)
+//        return;  // ignore notifications during initialize
+
+    if (category == NF_IPv4_ROUTE_DELETED)
+    {
+        IRoute *route = check_and_cast<IPv4Route*>(details)->asGeneric();
+        for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
+            if ((*it)->route == route)
+                (*it)->route = NULL;
+    }
+    else if (category == NF_IPv4_ROUTE_ADDED)
+    {
+        IRoute *route = check_and_cast<IPv4Route*>(details)->asGeneric();
+        InterfaceEntry *ie = dynamic_cast<InterfaceEntry*>(route->getSource());
+        if (ie)
+        {
+            RIPRoute *ripRoute = findInterfaceRoute(ie);
+            if (ripRoute)
+                ripRoute->route = route;
+            else
+                /*???*/;
+        }
+    }
+}
+
+RIPRoute *RIPRouting::findInterfaceRoute(InterfaceEntry *ie)
+{
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
+        if ((*it)->type == RIPRoute::RIP_ROUTE_INTERFACE && (*it)->ie == ie)
+            return *it;
+    return NULL;
 }
 
 RIPRouting::RIPInterfaceEntry *RIPRouting::findInterfaceEntryById(int interfaceId)
@@ -113,7 +204,7 @@ void RIPRouting::sendInitialRequests()
 {
     for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); ++it)
     {
-        RIPPacket *packet = new RIPPacket();
+        RIPPacket *packet = new RIPPacket("RIP request");
         packet->setCommand(RIP_REQUEST);
         packet->setEntryArraySize(1);
         RIPEntry &entry = packet->getEntry(0);
@@ -170,13 +261,10 @@ void RIPRouting::processTriggeredUpdate()
         sendRoutes(allRipRoutersGroup, RIP_UDP_PORT, it->ie, true);
     }
 
-    // clear routeChanged flags
-    int numRoutes = rt->getNumRoutes();
-    for (int i = 0; i < numRoutes; ++i)
+    // clear changed flags
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
     {
-        RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(rt->getRoute(i)->getProtocolData());
-        if (ripData)
-            ripData->routeChanged = false;
+        (*it)->changed = false;
     }
 }
 
@@ -197,7 +285,7 @@ void RIPRouting::processRequest(RIPPacket *packet)
         switch (entry.addressFamilyId)
         {
             case RIP_AF_NONE:
-                if (numEntries == 0 && entry.metric == RIP_INFINITE_METRIC)
+                if (numEntries == 1 && entry.metric == RIP_INFINITE_METRIC)
                 {
                     InterfaceEntry *ie = ift->getInterfaceById(ctrlInfo->getInterfaceId());
                     sendRoutes(ctrlInfo->getSrcAddr(), ctrlInfo->getSrcPort(), ie, false);
@@ -211,7 +299,7 @@ void RIPRouting::processRequest(RIPPacket *packet)
                 break;
             case RIP_AF_INET:
                 IRoute *route = rt->findBestMatchingRoute(entry.address);
-                // TODO should we check route source here? if it is not a RIP route, what ensures that metric < 16?
+                // XXX should we check route source here? if it is not a RIP route, what ensures that metric < 16?
                 if (route)
                 {
                     entry.nextHop = route->getNextHop();
@@ -228,6 +316,7 @@ void RIPRouting::processRequest(RIPPacket *packet)
     }
 
     packet->setCommand(RIP_RESPONSE);
+    packet->setName("RIP response");
     socket.sendTo(packet, ctrlInfo->getSrcAddr(), ctrlInfo->getSrcPort());
 
     delete ctrlInfo;
@@ -240,22 +329,22 @@ void RIPRouting::processRequest(RIPPacket *packet)
 // XXX set packetLength
 void RIPRouting::sendRoutes(const Address &address, int port, InterfaceEntry *ie, bool changedOnly)
 {
-    int numRoutes = rt->getNumRoutes();
-    RIPPacket *packet = new RIPPacket();
+    RIPPacket *packet = new RIPPacket("RIP response");
     packet->setCommand(RIP_RESPONSE);
     packet->setEntryArraySize(MAX_RIP_ENTRIES);
     int k = 0; // index into RIP entries
 
-    for (int i = 0; i < numRoutes; ++i)
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
     {
-        IRoute *route = rt->getRoute(i);
-        RIPRouteData *ripData = dynamic_cast<RIPRouteData *>(route->getProtocolData());
+        RIPRoute *ripRoute = *it;
+        IRoute *route = ripRoute->route;
+        ASSERT(route != NULL);
 
-        if (changedOnly && (ripData == NULL || !ripData->routeChanged))
+        if (changedOnly && !ripRoute->changed)
             continue;
 
         // Split Horizon check
-        int metric = route->getMetric();
+        int metric = ripRoute->metric;
         if (route->getInterface() == ie)
         {
             if (!usePoisonedSplitHorizon)
@@ -270,14 +359,14 @@ void RIPRouting::sendRoutes(const Address &address, int port, InterfaceEntry *ie
         entry.address = route->getDestination();
         entry.subnetMask = netmask(entry.address, route->getPrefixLength());
         entry.nextHop = route->getNextHop();
-        entry.routeTag = 0; // TODO ?
+        entry.routeTag = ripRoute->tag;
         entry.metric = metric;
 
         // if packet is full, then send it and allocate a new one
         if (k >= MAX_RIP_ENTRIES)
         {
             sendPacket(packet, address, port, ie);
-            packet = new RIPPacket();
+            packet = new RIPPacket("RIP response");
             packet->setCommand(RIP_RESPONSE);
             packet->setEntryArraySize(MAX_RIP_ENTRIES);
             k = 0;
@@ -328,24 +417,21 @@ void RIPRouting::processResponse(RIPPacket *packet)
     for (int i = 0; i < numEntries; ++i) {
         RIPEntry &entry = packet->getEntry(i);
         int metric = std::min((int)entry.metric + incomingIe->metric, RIP_INFINITE_METRIC);
-        Address nextHop = entry.nextHop.isUnspecified() ? ctrlInfo->getSrcAddr() : entry.nextHop;
+        Address from = ctrlInfo->getSrcAddr();
+        Address nextHop = entry.nextHop.isUnspecified() ? from : entry.nextHop;
 
-        IRoute *route = findRoute(entry.address, entry.subnetMask);
-        if (route)
+        RIPRoute *ripRoute = findRoute(entry.address, entry.subnetMask);
+        if (ripRoute)
         {
-            if (route->getNextHop() == nextHop)
-            {
-                RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(route->getProtocolData());
-                if (ripData)
-                    ripData->expiryTime = simTime() + RIP_ROUTE_EXPIRY_TIME;
-            }
-            if ((route->getNextHop() == nextHop && route->getMetric() != metric) || metric < route->getMetric())
-                updateRoute(route, nextHop, metric);
+            if (ripRoute->from == from)
+                ripRoute->expiryTime = simTime() + RIP_ROUTE_EXPIRY_TIME;
+            if ((ripRoute->from == from && ripRoute->metric != metric) || metric < ripRoute->metric)
+                updateRoute(ripRoute, nextHop, metric, from);
         }
         else
         {
             if (metric != RIP_INFINITE_METRIC)
-                addRoute(entry.address, entry.subnetMask, nextHop, metric);
+                addRoute(entry.address, entry.subnetMask, incomingIe->ie, nextHop, metric, from);
         }
     }
 
@@ -402,16 +488,14 @@ bool RIPRouting::isValidResponse(RIPPacket *packet)
     return true;
 }
 
-// XXX should we return only RIP routes here? the result will be updated ...
-IRoute *RIPRouting::findRoute(const Address &destination, const Address &subnetMask)
+RIPRoute *RIPRouting::findRoute(const Address &destination, const Address &subnetMask)
 {
-    int numRoutes = rt->getNumRoutes();
-    int prefixLength = subnetMask.getPrefixLength();
-    for (int i = 0; i < numRoutes; ++i)
+    int prefixLen = prefixLength(subnetMask);
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
     {
-        IRoute *route = rt->getRoute(i);
-        if (route->getDestination() == destination && route->getPrefixLength() == prefixLength)
-            return route;
+        IRoute *route = (*it)->route;
+        if (route && route->getDestination() == destination && route->getPrefixLength() == prefixLen)
+            return *it;
     }
     return NULL;
 }
@@ -430,20 +514,23 @@ IRoute *RIPRouting::findRoute(const Address &destination, const Address &subnetM
  * - Set the route change flag
  * - Signal the output process to trigger an update
  */
-void RIPRouting::addRoute(const Address &dest, const Address &subnetMask, const Address &nextHop, int metric)
+void RIPRouting::addRoute(const Address &dest, const Address &subnetMask, InterfaceEntry *ie, const Address &nextHop, int metric, const Address &from)
 {
     IRoute *route = rt->createRoute();
     route->setSource(this);
     route->setDestination(dest);
-    route->setPrefixLength(subnetMask.getPrefixLength());
+    route->setPrefixLength(prefixLength(subnetMask));
+    route->setInterface(ie);
     route->setNextHop(nextHop);
     route->setMetric(metric);
-    RIPRouteData *ripData = new RIPRouteData();
-    ripData->expiryTime = simTime() + RIP_ROUTE_EXPIRY_TIME;
-    ripData->purgeTime = 0;
-    ripData->routeChanged = true;
-    route->setProtocolData(ripData);
+    RIPRoute *ripRoute = new RIPRoute(route, RIPRoute::RIP_ROUTE_RTE/*XXX*/, metric);
+    ripRoute->from = from;
+    ripRoute->expiryTime = simTime() + RIP_ROUTE_EXPIRY_TIME;
+    ripRoute->purgeTime = 0;
+    ripRoute->changed = true;
+    route->setProtocolData(ripRoute);
     rt->addRoute(route);
+    ripRoutes.push_back(ripRoute);
     triggerUpdate();
 }
 
@@ -459,22 +546,30 @@ void RIPRouting::addRoute(const Address &dest, const Address &subnetMask, const 
  *  - If the new metric is infinity, start the deletion process
  *    (described above); otherwise, re-initialize the timeout
  */
-void RIPRouting::updateRoute(IRoute *route, const Address &nextHop, int metric)
+void RIPRouting::updateRoute(RIPRoute *ripRoute, const Address &nextHop, int metric, const Address &from)
 {
-    route->setNextHop(nextHop);
-    route->setMetric(metric);
-    RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(route->getProtocolData());
-    if (!ripData)
-        route->setProtocolData(ripData = new RIPRouteData());
-    ripData->routeChanged = true;
+    if (ripRoute->route)
+    {
+        ripRoute->route->setNextHop(nextHop);
+        ripRoute->route->setMetric(metric);
+    }
+    else
+    {
+        // TODO add new route
+    }
+
+    ripRoute->type = RIPRoute::RIP_ROUTE_RTE; // XXX?
+    ripRoute->from = from;
+    ripRoute->metric = metric;
+    ripRoute->changed = true;
 
     triggerUpdate();
 
     if (metric == RIP_INFINITE_METRIC)
-        invalidateRoute(route);
+        invalidateRoute(ripRoute);
     else {
-        ripData->expiryTime = simTime() + RIP_ROUTE_EXPIRY_TIME;
-        ripData->purgeTime = 0;
+        ripRoute->expiryTime = simTime() + RIP_ROUTE_EXPIRY_TIME;
+        ripRoute->purgeTime = 0;
     }
 }
 
@@ -487,22 +582,18 @@ void RIPRouting::triggerUpdate()
     }
 }
 
-IRoute *RIPRouting::checkRoute(IRoute *route)
+RIPRoute *RIPRouting::checkRoute(RIPRoute *route)
 {
     simtime_t now = simTime();
-    RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(route->getProtocolData());
-    if (ripData)
+    if (route->purgeTime > 0 && now > route->purgeTime)
     {
-        if (ripData->purgeTime > 0 && now > ripData->purgeTime)
-        {
-            purgeRoute(route);
-            return NULL;
-        }
-        if (now > ripData->expiryTime)
-        {
-            invalidateRoute(route);
-            return NULL;
-        }
+        purgeRoute(route);
+        return NULL;
+    }
+    if (now > route->expiryTime)
+    {
+        invalidateRoute(route);
+        return NULL;
     }
     return route;
 }
@@ -515,23 +606,20 @@ IRoute *RIPRouting::checkRoute(IRoute *route)
  * - set routeChangeFlag
  * - signal the output process to trigger a response
  */
-void RIPRouting::invalidateRoute(IRoute *route)
+void RIPRouting::invalidateRoute(RIPRoute *ripRoute)
 {
-    RIPRouteData *ripData = dynamic_cast<RIPRouteData*>(route->getProtocolData());
-    if (ripData)
-    {
-        route->setMetric(RIP_INFINITE_METRIC);
-        route->setEnabled(false);
-        ripData->purgeTime = ripData->expiryTime + RIP_ROUTE_PURGE_TIME;
-        ripData->routeChanged = true;
-        triggerUpdate();
-    }
+    ripRoute->route->setMetric(RIP_INFINITE_METRIC);
+    ripRoute->route->setEnabled(false);
+    ripRoute->metric = RIP_INFINITE_METRIC;
+    ripRoute->purgeTime = ripRoute->expiryTime + RIP_ROUTE_PURGE_TIME;
+    ripRoute->changed = true;
+    triggerUpdate();
 }
 
-void RIPRouting::purgeRoute(IRoute *route)
+void RIPRouting::purgeRoute(RIPRoute *ripRoute)
 {
     // XXX should set isExpired() to true, and let rt->purge() to do the work
-    rt->deleteRoute(route);
+    rt->deleteRoute(ripRoute->route);
 }
 
 void RIPRouting::sendPacket(RIPPacket *packet, const Address &address, int port, InterfaceEntry *ie)

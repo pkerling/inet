@@ -18,7 +18,7 @@
 package inet.nodes.inet;
 
 import inet.util.PcapRecorder;
-import inet.networklayer.ipv4.RoutingTable;
+import inet.networklayer.ipv4.IPv4RoutingTable;
 import inet.networklayer.common.InterfaceTable;
 import inet.mobility.IMobility;
 import inet.linklayer.IWirelessNic;
@@ -71,7 +71,7 @@ module NodeBase
                 @display("p=329,287;q=queue");
         }
 
-        routingTable: RoutingTable {
+        routingTable: IPv4RoutingTable {
             parameters:
                 @display("p=53,225;is=s");
                 IPForward = IPForward;

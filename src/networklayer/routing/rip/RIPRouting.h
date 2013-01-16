@@ -19,6 +19,7 @@
 #define __INET_RIPROUTING_H_
 
 #include "INETDefs.h"
+#include "INotifiable.h"
 #include "IRoute.h"
 #include "IRoutingTable.h"
 #include "IInterfaceTable.h"
@@ -53,10 +54,35 @@
  * Poisoned split horizon: send them, but with metric 16 (infinity).
  */
 
+struct RIPRoute : public cObject
+{
+    enum RouteType {
+      RIP_ROUTE_RTE,
+      RIP_ROUTE_STATIC,
+      RIP_ROUTE_DEFAULT,
+      RIP_ROUTE_REDISTRIBUTE,
+      RIP_ROUTE_INTERFACE
+    };
+
+    IRoute *route;
+    RouteType type;
+    InterfaceEntry *ie; // only for interface routes
+    Address from; // only for rte routes
+    int metric;
+    uint16 tag;
+    bool changed;
+    simtime_t expiryTime;
+    simtime_t purgeTime;
+
+    RIPRoute(IRoute *route, RouteType type, int metric)
+        : route(route), type(type), ie(NULL), metric(metric), tag(0), changed(false), expiryTime(0), purgeTime(0) {}
+    virtual std::string info() const;
+};
+
 /**
  * Implementation of the Routing Information Protocol v2 (RFC 2453).
  */
-class INET_API RIPRouting : public cSimpleModule
+class INET_API RIPRouting : public cSimpleModule, protected INotifiable
 {
     struct RIPInterfaceEntry
     {
@@ -64,11 +90,14 @@ class INET_API RIPRouting : public cSimpleModule
         int metric;
         RIPInterfaceEntry(InterfaceEntry *ie, int metric) : ie(ie), metric(metric) {}
     };
+
     typedef std::vector<RIPInterfaceEntry> InterfaceVector;
+    typedef std::vector<RIPRoute*> RouteVector;
 
     IInterfaceTable *ift;
     IRoutingTable *rt;
     InterfaceVector ripInterfaces;
+    RouteVector ripRoutes;
     UDPSocket socket;               // bound to RIP_UDP_PORT
     cMessage *updateTimer;          // for sending unsolicited Response messages in every ~30 seconds.
     cMessage *triggeredUpdateTimer; // scheduled when there are pending changes
@@ -80,13 +109,15 @@ class INET_API RIPRouting : public cSimpleModule
     ~RIPRouting();
   private:
     RIPInterfaceEntry *findInterfaceEntryById(int interfaceId);
-    IRoute *findRoute(const Address &destAddress, const Address &subnetMask);
+    RIPRoute *findRoute(const Address &destAddress, const Address &subnetMask);
+    RIPRoute *findInterfaceRoute(InterfaceEntry *ie);
     bool isNeighbour(const Address &address);
     bool isOwnAddress(const Address &address);
   protected:
     virtual int numInitStages() const  {return 5;}
     virtual void initialize(int stage);
     virtual void handleMessage(cMessage *msg);
+    virtual void receiveChangeNotification(int category, const cObject *details);
 
     /**
      * Requests the whole routing table from all neighboring RIP routers.
@@ -129,14 +160,14 @@ class INET_API RIPRouting : public cSimpleModule
     /**
      * Add the new entry to the routing table and triggers an update.
      */
-    virtual void addRoute(const Address &dest, const Address &subnetMask, const Address &nextHop, int metric);
+    virtual void addRoute(const Address &dest, const Address &subnetMask, InterfaceEntry *ie, const Address &nextHop, int metric, const Address &from);
 
     /**
      * Updates an existing route with the information learned from a RIP packet.
      * If the metric is infinite (16), then the route is invalidated.
      * It triggers an update, so neighbor routers are notified about the change.
      */
-    virtual void updateRoute(IRoute *route, const Address &nextHop, int metric);
+    virtual void updateRoute(RIPRoute *route, const Address &nextHop, int metric, const Address &from);
 
     /**
      * Sets the update timer to trigger an update in the [1s,5s] interval.
@@ -148,18 +179,18 @@ class INET_API RIPRouting : public cSimpleModule
      * Invalidates the route, i.e. marks it invalid, but keeps it in the routing table for 120s,
      * so the neighbors are notified about the broken route in the next update.
      */
-    virtual void invalidateRoute(IRoute *route);
+    virtual void invalidateRoute(RIPRoute *route);
 
     /**
      * Removes the route from the routing table.
      */
-    virtual void purgeRoute(IRoute *route);
+    virtual void purgeRoute(RIPRoute *route);
 
     /**
      * Should be called regularly to handle expiry and purge of routes.
      * Returns the route if it is valid.
      */
-    virtual IRoute *checkRoute(IRoute *route);
+    virtual RIPRoute *checkRoute(RIPRoute *route);
 
     /**
      * Sends the packet to the specified UDP dest/port.
