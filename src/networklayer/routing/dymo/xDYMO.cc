@@ -1,16 +1,29 @@
 //
-// This program is property of its copyright holder. All rights reserved.
+// Copyright (C) 2004 Andras Varga
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 
+#include "xDYMO.h"
 #include "NotificationBoard.h"
 #include "InterfaceTableAccess.h"
-#include "UDPPacket.h"
 #include "IPProtocolId_m.h"
 #include "Ieee80211Frame_m.h"
 #include "AddressResolver.h"
 #include "INetworkProtocolControlInfo.h"
 #include "UDPControlInfo.h"
-#include "xDYMO.h"
 
 DYMO_NAMESPACE_BEGIN
 
@@ -74,7 +87,6 @@ void xDYMO::initialize(int stage) {
         networkProtocol = check_and_cast<INetfilter *>(findModuleWhereverInNode(networkProtocolModuleName, this));
         // internal
         expungeTimer = new cMessage("ExpungeTimer");
-        notificationBoard->subscribe(this, NF_LINK_BREAK);
         AddressResolver addressResolver;
         cStringTokenizer tokenizer(clientAddresses);
         while (tokenizer.hasMoreTokens()) {
@@ -89,6 +101,7 @@ void xDYMO::initialize(int stage) {
         }
     }
     else if (stage == 4) {
+        notificationBoard->subscribe(this, NF_LINK_BREAK);
         addressPolicy = getSelfAddress().getAddressPolicy();
         // join multicast groups
         cPatternMatcher interfaceMatcher(interfaces, false, true, false);
@@ -100,7 +113,7 @@ void xDYMO::initialize(int stage) {
                 // all AODVv2 routers MUST subscribe to LL-MANET-Routers [RFC5498] to receiving AODVv2 messages.
                 addressPolicy->joinMulticastGroup(interfaceEntry, addressPolicy->getLinkLocalManetRoutersMulticastAddress());
         }
-        // hook to network protocol
+        // hook to netfilter
         networkProtocol->registerHook(0, this);
     }
 }
@@ -338,7 +351,6 @@ void xDYMO::processUDPPacket(UDPPacket * packet) {
 //
 
 void xDYMO::sendDYMOPacket(DYMOPacket * packet, const InterfaceEntry * interfaceEntry, const Address & nextHop, double delay) {
-    // TODO: generalize networkProtocol->createControlInfo()
     INetworkProtocolControlInfo * networkProtocolControlInfo = addressPolicy->createNetworkProtocolControlInfo();
     // 5.4. AODVv2 Packet Header Fields and Information Elements
     // In addition, IP Protocol Number 138 has been reserved for MANET protocols [RFC5498].
@@ -1160,7 +1172,7 @@ DYMORouteState xDYMO::getRouteState(DYMORouteData * routeData) {
 }
 
 //
-// client address
+// address
 //
 
 std::string xDYMO::getHostName() {
@@ -1223,7 +1235,7 @@ void xDYMO::incrementSequenceNumber() {
 }
 
 //
-// generic network protocol
+// netfilter
 //
 
 bool xDYMO::isDYMODatagram(INetworkDatagram * datagram) {
@@ -1266,7 +1278,7 @@ INetfilter::IHook::Result xDYMO::ensureRouteForDatagram(INetworkDatagram * datag
 }
 
 //
-// notifications
+// notification
 //
 
 void xDYMO::receiveChangeNotification(int category, const cObject *details) {

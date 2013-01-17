@@ -1,9 +1,23 @@
 //
-// This program is property of its copyright holder. All rights reserved.
+// Copyright (C) 2004 Andras Varga
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 
-#ifndef DYMO_H_
-#define DYMO_H_
+#ifndef __INET__DYMO_H_
+#define __INET__DYMO_H_
 
 #include <vector>
 #include <map>
@@ -12,6 +26,7 @@
 #include "IAddressPolicy.h"
 #include "INetfilter.h"
 #include "IRoutingTable.h"
+#include "UDPPacket.h"
 #include "DYMOdefs.h"
 #include "DYMORouteData.h"
 #include "DYMO_m.h"
@@ -178,7 +193,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     simtime_t getNextExpungeTime();
     DYMORouteState getRouteState(DYMORouteData * routeData);
 
-    // handling addresses
+    // address
     std::string getHostName();
     Address getSelfAddress();
     bool isClientAddress(const Address & address);
@@ -190,7 +205,7 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     // sequence number
     void incrementSequenceNumber();
 
-    // generic network protocol
+    // netfilter
     virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) { Enter_Method("datagramPreRoutingHook"); return ensureRouteForDatagram(datagram); }
     virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) { return ACCEPT; }
     virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) { return ACCEPT; }
@@ -199,10 +214,10 @@ class INET_API xDYMO : public cSimpleModule, public INotifiable, public INetfilt
     bool isDYMODatagram(INetworkDatagram * datagram);
     Result ensureRouteForDatagram(INetworkDatagram * datagram);
 
-    // notifications
+    // notification
     virtual void receiveChangeNotification(int category, const cObject * details);
 };
 
 DYMO_NAMESPACE_END
 
-#endif /* DYMO_H_ */
+#endif

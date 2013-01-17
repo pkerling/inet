@@ -2,8 +2,8 @@
 // This program is property of its copyright holder. All rights reserved.
 //
 
-#ifndef DYMOROUTE_H_
-#define DYMOROUTE_H_
+#ifndef __INET_DYMOROUTE_H_
+#define __INET_DYMOROUTE_H_
 
 #include <omnetpp.h>
 #include "IRoute.h"
@@ -44,4 +44,4 @@ class INET_API DYMORouteData : public cObject {
 
 DYMO_NAMESPACE_END
 
-#endif /* DYMOROUTE_H_ */
+#endif
