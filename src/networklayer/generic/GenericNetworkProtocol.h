@@ -49,12 +49,13 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
           LOCALOUT
         };
 
-        QueuedDatagramForHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * outIE, HookType hookType) : datagram(datagram), inIE(inIE), outIE(outIE), hookType(hookType) {}
+        QueuedDatagramForHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * outIE, Address & nexthop, HookType hookType) : datagram(datagram), inIE(inIE), outIE(outIE), nextHop(nextHop), hookType(hookType) {}
         virtual ~QueuedDatagramForHook() {}
 
         GenericDatagram* datagram;
         const InterfaceEntry * inIE;
         const InterfaceEntry * outIE;
+        const Address nextHop;
         const HookType hookType;
     };
 
@@ -121,7 +122,7 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      * to handleMulticastPacket() for multicast packets, or drops the packet if
      * it's unroutable or forwarding is off.
      */
-    virtual void routePacket(GenericDatagram *datagram, const InterfaceEntry *destIE, bool fromHL);
+    virtual void routePacket(GenericDatagram *datagram, const InterfaceEntry *destIE, const Address & nextHop, bool fromHL);
 
     /**
      * Forwards packets to all multicast destinations, using fragmentAndSend().
@@ -143,14 +144,15 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      * Fragment packet if needed, then send it to the selected interface using
      * sendDatagramToOutput().
      */
-    virtual void fragmentAndSend(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHop);
+    virtual void fragmentAndSend(GenericDatagram *datagram, const InterfaceEntry *ie, const Address & nextHop);
 
     /**
      * Last TTL check, then send datagram on the given interface.
      */
-    virtual void sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, Address nextHop);
+    virtual void sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, const Address & nextHop);
 
-    virtual void datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE);
+    virtual void datagramPreRouting(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * destIE, const Address & nextHop);
+    virtual void datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE, const Address & nextHop);
 
     virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHop);
     virtual IHook::Result datagramForwardHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHop);
