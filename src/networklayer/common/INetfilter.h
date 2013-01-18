@@ -51,6 +51,7 @@ class INET_API INetfilter {
 
             /**
              * TODO
+             * nextHopAddress ignored when outputInterfaceEntry is NULL
              */
             virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
 
@@ -71,6 +72,7 @@ class INET_API INetfilter {
 
             /**
              * TODO
+             * nextHopAddress ignored when outputInterfaceEntry is NULL
              */
             virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry, Address & nextHopAddress) = 0;
     };
