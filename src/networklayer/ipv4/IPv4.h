@@ -119,7 +119,7 @@ class INET_API IPv4 : public QueueBase, public INetfilter
     virtual void handlePacketFromNetwork(IPv4Datagram *datagram, const InterfaceEntry *fromIE);
 
     // called after PREROUTING Hook (used for reinject, too)
-    virtual void preroutingFinish(IPv4Datagram *datagram, const InterfaceEntry *fromIE);
+    virtual void preroutingFinish(IPv4Datagram *datagram, const InterfaceEntry *fromIE, const InterfaceEntry *destIE, IPv4Address nextHopAddr);
 
     /**
      * Handle messages (typically packets to be send in IPv4) from transport or ICMP.
@@ -131,7 +131,7 @@ class INET_API IPv4 : public QueueBase, public INetfilter
      * Routes and sends datagram received from higher layers.
      * Invokes datagramLocalOutHook(), then routePacket().
      */
-    virtual void datagramLocalOut(IPv4Datagram* datagram, const InterfaceEntry* destIE);
+    virtual void datagramLocalOut(IPv4Datagram* datagram, const InterfaceEntry* destIE, IPv4Address nextHopAddr);
 
     /**
      * Handle incoming ARP packets by sending them over "queueOut" to ARP.
@@ -147,7 +147,7 @@ class INET_API IPv4 : public QueueBase, public INetfilter
      * Performs unicast routing. Based on the routing decision, it sends the
      * datagram through the outgoing interface.
      */
-    virtual void routeUnicastPacket(IPv4Datagram *datagram, const InterfaceEntry *fromIE, const InterfaceEntry *destIE);
+    virtual void routeUnicastPacket(IPv4Datagram *datagram, const InterfaceEntry *fromIE, const InterfaceEntry *destIE, IPv4Address requestedNextHopAddress);
 
     /**
      * Broadcasts the datagram on the specified interface.
