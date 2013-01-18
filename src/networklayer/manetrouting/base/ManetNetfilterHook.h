@@ -19,13 +19,17 @@
 #ifndef __INET_MANETNETFILTERHOOK_H
 #define __INET_MANETNETFILTERHOOK_H
 
-#include "IPv4.h"
-#include "INetworkDatagram.h"
-
-#include "ARP.h"
+#include "INetfilter.h"
 
 #include <vector>
 #include <set>
+
+
+class IPv4;
+class IInterfaceTable;
+class IRoutingTable;
+class INetworkDatagram;
+class InterfaceEntry;
 
 class INET_API ManetNetfilterHook : public INetfilter::IHook
 {
