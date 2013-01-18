@@ -17,14 +17,30 @@
 
 #include "ModulePathAddress.h"
 
+#include "InterfaceTableAccess.h"
+
+
 bool ModulePathAddress::tryParse(const char *addr) {
-    cModule * module = simulation.getSystemModule()->getModuleByRelativePath(addr);
+    cModule * module = NULL;
+    try
+    {
+        module = simulation.getSystemModule()->getModuleByRelativePath(addr);
+    } catch (cRuntimeError e) {
+        return false;
+    }
     if (module) {
+        // accepts network interface modules only:
+        if (isNode(module))
+            return false;
+        IInterfaceTable *ift = InterfaceTableAccess().get(module);
+        if (ift == NULL)
+            return false;
+        if (ift->getInterfaceByInterfaceModule(module)==NULL)
+            return false;
         id = module->getId();
         return true;
     }
-    else
-        return false;
+    return false;
 }
 
 std::string ModulePathAddress::str() const {
