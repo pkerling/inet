@@ -29,7 +29,7 @@ simple RIPRouting
 {
     parameters:
         string routingTableName;
-        bool usePoisonedSplitHorizon;
+        bool usePoisonedSplitHorizon = default(true);
     gates:
         input udpIn @labels(UDPControlInfo/up);
         output udpOut @labels(UDPControlInfo/down);

@@ -45,11 +45,6 @@ bool RIPRouting::isNeighbour(const Address &address)
     return true; // TODO
 }
 
-bool RIPRouting::isOwnAddress(const Address &address)
-{
-    return false; // TODO
-}
-
 std::ostream& operator<<(std::ostream& os, const RIPRoute& e)
 {
     os << e.info();
@@ -179,7 +174,7 @@ void RIPRouting::configureInitialRoutes()
             addLocalInterfaceRoute(route);
         else if (isDefaultRoute(route))
             addDefaultRoute(route);
-        else
+        else if (!route->getDestination().isMulticast())
             addStaticRoute(route);
     }
 }
@@ -524,7 +519,7 @@ bool RIPRouting::isValidResponse(RIPPacket *packet)
     }
 
     // check that it is not our response (received own multicast message)
-    if (isOwnAddress(ctrlInfo->getSrcAddr()))
+    if (rt->isLocalAddress(ctrlInfo->getSrcAddr()))
     {
         EV << "RIP: received own response\n";
         return false;
@@ -689,16 +684,23 @@ void RIPRouting::purgeRoute(RIPRoute *ripRoute)
     // XXX should set isExpired() to true, and let rt->purge() to do the work
     rt->deleteRoute(ripRoute->route);
 
-    std::remove(ripRoutes.begin(), ripRoutes.end(), ripRoute);
+    RouteVector::iterator end = std::remove(ripRoutes.begin(), ripRoutes.end(), ripRoute);
+    if (end != ripRoutes.end())
+        ripRoutes.erase(end, ripRoutes.end());
     delete ripRoute;
 }
 
 void RIPRouting::sendPacket(RIPPacket *packet, const Address &address, int port, InterfaceEntry *ie)
 {
     packet->setByteLength(4 + 20 * packet->getEntryArraySize()); // XXX compute from address lengths
+// XXX it seems that setMulticastOutputInterface() has no effect
+//    if (address.isMulticast())
+//        socket.setMulticastOutputInterface(ie->getInterfaceId());
+//    socket.sendTo(packet, address, port);
     if (address.isMulticast())
-        socket.setMulticastOutputInterface(ie->getInterfaceId());
-    socket.sendTo(packet, address, port);
+        socket.sendTo(packet, address, port, ie->getInterfaceId());
+    else
+        socket.sendTo(packet, address, port);
 }
 
 /*----------------------------------------
