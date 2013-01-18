@@ -106,8 +106,8 @@ class INET_API IPv6ControlInfo : public IPv6ControlInfo_Base, public INetworkPro
     virtual void setDestinationAddress(const Address & address) { destAddr_var = address.toIPv6(); }
     virtual int getInterfaceId() const { return IPv6ControlInfo_Base::getInterfaceId(); }
     virtual void setInterfaceId(int interfaceId) { IPv6ControlInfo_Base::setInterfaceId(interfaceId); }
-    virtual short getHopLimit() const { return getHopLimit(); }
-    virtual void setHopLimit(short hopLimit) { setHopLimit(hopLimit); }
+    virtual short getHopLimit() const { return IPv6ControlInfo_Base::getHopLimit(); }
+    virtual void setHopLimit(short hopLimit) { IPv6ControlInfo_Base::setHopLimit(hopLimit); }
 };
 
 #endif
