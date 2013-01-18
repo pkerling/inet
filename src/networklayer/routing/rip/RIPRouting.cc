@@ -19,6 +19,7 @@
 
 #include "InterfaceTableAccess.h"
 #include "IPv4RoutingTable.h" // XXX temporarily
+#include "IPv6RoutingTable.h" // XXX temporarily
 #include "NotificationBoard.h"
 #include "NotifierConsts.h"
 #include "UDP.h"
@@ -69,7 +70,7 @@ std::string RIPRoute::info() const
         out << "prefix:" << prefixLength << "  ";
         out << "gw:"; if (gateway.isUnspecified()) out << "*  "; else out << gateway << "  ";
         out << "metric:" << metric << " ";
-//        out << "if:"; if (!interfacePtr) out << "*  "; else out << interfacePtr->getName() << "(" << interfacePtr->ipv4Data()->getIPAddress() << ")  ";
+        out << "if:"; if (!interfacePtr) out << "*  "; else out << interfacePtr->getName() << "  ";
         switch (type)
         {
             case RIP_ROUTE_INTERFACE: out << "INTERFACE"; break;
@@ -81,6 +82,13 @@ std::string RIPRoute::info() const
     }
 
     return out.str();
+}
+
+std::ostream& operator<<(std::ostream &os, const RIPInterfaceEntry &e)
+{
+    os << "if:" << e.ie->getName() << "  ";
+    os << "metric:" << e.metric;
+    return os;
 }
 
 RIPRouting::RIPRouting()
@@ -109,45 +117,49 @@ void RIPRouting::initialize(int stage)
         triggeredUpdateTimer = new cMessage("RIP-trigger");
         socket.setOutputGate(gate("udpOut"));
 
-        //WATCH(ripInterfaces);
+        WATCH_VECTOR(ripInterfaces);
         WATCH_PTRVECTOR(ripRoutes);
     }
     else if (stage == 3) {
         // initialize RIP interfaces
         // TODO now each multicast interface is added, with metric 1; use configuration instead
-        // TODO update the list when the interface table changed
         for (int i = 0; i < ift->getNumInterfaces(); ++i)
         {
             InterfaceEntry *ie = ift->getInterface(i);
             if (ie->isMulticast())
-                ripInterfaces.push_back(RIPInterfaceEntry(ie, 1 /*ie->ipv4Data()->getMetric()???*/));
+                addInterface(ie, 1 /*ie->ipv4Data()->getMetric()???*/);
         }
     }
     else if (stage == 4) { // interfaces and static routes are already initialized
 
-        // add rip routes from configured interface routes (TODO add static routes too)
-        for (int i = 0; i < rt->getNumRoutes(); ++i)
-        {
-            IRoute *route = rt->getRoute(i);
-            InterfaceEntry *ie = dynamic_cast<InterfaceEntry*>(route->getSource());
-            if (ie && !ie->isLoopback())
-            {
-                RIPInterfaceEntry *ripIe = findInterfaceEntryById(ie->getInterfaceId());
-                RIPRoute *ripRoute = new RIPRoute(route, RIPRoute::RIP_ROUTE_INTERFACE, ripIe ? ripIe->metric : 1);
-                ripRoute->ie = ie;
-                ripRoutes.push_back(ripRoute);
-            }
-        }
+        configureInitialRoutes();
 
+        // configure socket
         socket.setMulticastLoop(false);
         socket.bind(RIP_UDP_PORT);
         for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); ++it)
             socket.joinMulticastGroup(allRipRoutersGroup, it->ie->getInterfaceId());
 
-        // XXX subscribe according to the address type
+        // subscribe to notifications
         NotificationBoard *nb = NotificationBoardAccess().get();
-        nb->subscribe(this, NF_IPv4_ROUTE_DELETED);
-        nb->subscribe(this, NF_IPv4_ROUTE_ADDED);
+        nb->subscribe(this, NF_INTERFACE_CREATED);
+        nb->subscribe(this, NF_INTERFACE_DELETED);
+        nb->subscribe(this, NF_INTERFACE_STATE_CHANGED);
+        if (rt->getRouterId().getType() == Address::IPv4) // XXX generalize the events
+        {
+            nb->subscribe(this, NF_IPv4_ROUTE_DELETED);
+            nb->subscribe(this, NF_IPv4_ROUTE_ADDED);
+        }
+        else if (rt->getRouterId().getType() == Address::IPv6)
+        {
+            nb->subscribe(this, NF_IPv6_ROUTE_DELETED);
+            nb->subscribe(this, NF_IPv6_ROUTE_ADDED);
+        }
+        else
+        {
+            nb->subscribe(this, NF_GENERIC_ROUTE_DELETED);
+            nb->subscribe(this, NF_GENERIC_ROUTE_ADDED);
+        }
 
         sendInitialRequests();
 
@@ -156,43 +168,100 @@ void RIPRouting::initialize(int stage)
     }
 }
 
-// keep our data structures consistent with other modules
+void RIPRouting::configureInitialRoutes()
+{
+    for (int i = 0; i < rt->getNumRoutes(); ++i)
+    {
+        IRoute *route = rt->getRoute(i);
+        if (isLoopbackInterfaceRoute(route))
+            /*ignore*/;
+        else if (isLocalInterfaceRoute(route))
+            addLocalInterfaceRoute(route);
+        else if (isDefaultRoute(route))
+            addDefaultRoute(route);
+        else
+            addStaticRoute(route);
+    }
+}
+
+// keep our data structures consistent with interface table and routing table
 void RIPRouting::receiveChangeNotification(int category, const cObject *details)
 {
 //    if (simulation.getContextType()==CTX_INITIALIZE)
 //        return;  // ignore notifications during initialize
 
-    if (category == NF_IPv4_ROUTE_DELETED)
+    IRoute *route;
+    InterfaceEntry *ie;
+
+    switch (category)
     {
-        IRoute *route = check_and_cast<IPv4Route*>(details)->asGeneric();
-        for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
-            if ((*it)->route == route)
-                (*it)->route = NULL;
-    }
-    else if (category == NF_IPv4_ROUTE_ADDED)
-    {
-        IRoute *route = check_and_cast<IPv4Route*>(details)->asGeneric();
-        InterfaceEntry *ie = dynamic_cast<InterfaceEntry*>(route->getSource());
-        if (ie)
-        {
-            RIPRoute *ripRoute = findInterfaceRoute(ie);
-            if (ripRoute)
-                ripRoute->route = route;
+        case NF_INTERFACE_CREATED:
+            // use RIP by default on multicast interfaces
+            // TODO configure RIP interfaces and their metrics
+            ie = check_and_cast<InterfaceEntry*>(details);
+            if (ie->isMulticast())
+                addInterface(ie, 1);
+            break;
+        case NF_INTERFACE_DELETED:
+            // delete interfaces and routes referencing the deleted interface
+            ie = check_and_cast<InterfaceEntry*>(details);
+            deleteInterface(ie);
+            break;
+        case NF_INTERFACE_STATE_CHANGED:
+            // if the interface is down, invalidate routes via that interface
+            ie = check_and_cast<InterfaceEntry*>(details);
+            if (ie->isDown())
+                invalidateRoutes(ie);
+            break;
+        case NF_IPv4_ROUTE_DELETED:
+        case NF_IPv6_ROUTE_DELETED:
+        case NF_GENERIC_ROUTE_DELETED:
+            // remove references to the deleted route and invalidate the RIP route
+            route = category == NF_IPv4_ROUTE_DELETED ? check_and_cast<IPv4Route*>(details)->asGeneric() :
+                    category == NF_IPv6_ROUTE_DELETED ? check_and_cast<IPv6Route*>(details)->asGeneric() :
+                    check_and_cast<IRoute*>(details);
+            deleteRoute(route);
+            break;
+        case NF_IPv4_ROUTE_ADDED:
+        case NF_IPv6_ROUTE_ADDED:
+        case NF_GENERIC_ROUTE_ADDED:
+            // add or update the RIP route
+            route = category == NF_IPv4_ROUTE_ADDED ? check_and_cast<IPv4Route*>(details)->asGeneric() :
+                    category == NF_IPv6_ROUTE_ADDED ? check_and_cast<IPv6Route*>(details)->asGeneric() :
+                    check_and_cast<IRoute*>(details);
+            if (isLoopbackInterfaceRoute(route))
+                /*ignore*/;
+            else if (isLocalInterfaceRoute(route))
+            {
+                RIPRoute *ripRoute = findLocalInterfaceRoute(route);
+                if (ripRoute)
+                {
+                    ripRoute->route = route;
+                    ripRoute->metric = 1;
+                    ripRoute->changed = true;
+                    triggerUpdate();
+                }
+                else
+                    addLocalInterfaceRoute(route);
+            }
             else
-                /*???*/;
-        }
+            {
+                // TODO import external routes from other routing daemons
+            }
+            break;
     }
 }
 
-RIPRoute *RIPRouting::findInterfaceRoute(InterfaceEntry *ie)
+RIPRoute *RIPRouting::findLocalInterfaceRoute(IRoute *route)
 {
+    InterfaceEntry *ie = check_and_cast<InterfaceEntry*>(route->getSource());
     for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
         if ((*it)->type == RIPRoute::RIP_ROUTE_INTERFACE && (*it)->ie == ie)
             return *it;
     return NULL;
 }
 
-RIPRouting::RIPInterfaceEntry *RIPRouting::findInterfaceEntryById(int interfaceId)
+RIPInterfaceEntry *RIPRouting::findInterfaceEntryById(int interfaceId)
 {
     for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); ++it)
         if (it->ie->getInterfaceId() == interfaceId)
@@ -248,24 +317,22 @@ void RIPRouting::handleMessage(cMessage *msg)
 
 void RIPRouting::processRegularUpdate()
 {
+    EV << "RIP: sending updates on all interfaces\n";
     for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); ++it)
-    {
         sendRoutes(allRipRoutersGroup, RIP_UDP_PORT, it->ie, false);
-    }
+
+    // XXX clear route changed flags?
 }
 
 void RIPRouting::processTriggeredUpdate()
 {
+    EV << "RIP: sending triggered updates on all interfaces.";
     for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); ++it)
-    {
         sendRoutes(allRipRoutersGroup, RIP_UDP_PORT, it->ie, true);
-    }
 
     // clear changed flags
     for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
-    {
         (*it)->changed = false;
-    }
 }
 
 // RFC 2453 3.9.1
@@ -274,11 +341,14 @@ void RIPRouting::processRequest(RIPPacket *packet)
     int numEntries = packet->getEntryArraySize();
     if (numEntries == 0)
     {
+        EV << "RIP: received empty request, ignoring.\n";
         delete packet;
         return;
     }
 
     UDPDataIndication *ctrlInfo = check_and_cast<UDPDataIndication*>(packet->removeControlInfo());
+    EV << "RIP: received request from " << ctrlInfo->getSrcAddr() << "\n";
+
     for (int i = 0; i < numEntries; ++i)
     {
         RIPEntry &entry = packet->getEntry(i);
@@ -298,19 +368,9 @@ void RIPRouting::processRequest(RIPPacket *packet)
                 // TODO ?
                 break;
             case RIP_AF_INET:
-                IRoute *route = rt->findBestMatchingRoute(entry.address);
-                // XXX should we check route source here? if it is not a RIP route, what ensures that metric < 16?
-                if (route)
-                {
-                    entry.nextHop = route->getNextHop();
-                    entry.subnetMask = netmask(entry.address, route->getPrefixLength());
-                    entry.metric = route->getMetric();
-                    entry.routeTag = 0; // TODO
-                }
-                else
-                {
-                    entry.metric = RIP_INFINITE_METRIC;
-                }
+                RIPRoute *ripRoute = findRoute(entry.address, entry.subnetMask);
+                entry.metric = ripRoute ? ripRoute->metric : RIP_INFINITE_METRIC;
+                // entry.nextHop, entry.routeTag?
                 break;
         }
     }
@@ -323,10 +383,10 @@ void RIPRouting::processRequest(RIPPacket *packet)
 }
 
 /**
- * Called by regular routing updates (every 30 sec) with changedOnly=false,
- * and triggered updates by changedOnly=true.
+ * Send all or changed part of the routing table to address/port on the specified interface.
+ * This method is called by regular updates (every 30s), triggered updates (when some route changed),
+ * and when RIP requests are processed.
  */
-// XXX set packetLength
 void RIPRouting::sendRoutes(const Address &address, int port, InterfaceEntry *ie, bool changedOnly)
 {
     RIPPacket *packet = new RIPPacket("RIP response");
@@ -343,7 +403,12 @@ void RIPRouting::sendRoutes(const Address &address, int port, InterfaceEntry *ie
         if (changedOnly && !ripRoute->changed)
             continue;
 
-        // Split Horizon check
+        // Split Horizon check:
+        //   Omit routes learned from one neighbor in updates sent to that neighbor.
+        //   In the case of a broadcast network, all routes learned from any neighbor on
+        //   that network are omitted from updates sent on that network.
+        // Split Horizon with Poisoned Reverse:
+        //   Do include such routes in updates, but sets their metrics to infinity.
         int metric = ripRoute->metric;
         if (route->getInterface() == ie)
         {
@@ -400,7 +465,7 @@ void RIPRouting::processResponse(RIPPacket *packet)
     bool isValid = isValidResponse(packet);
     if (!isValid)
     {
-        EV << "RIP: dropping invalid response\n";
+        EV << "RIP: dropping invalid response.\n";
         delete packet;
         return;
     }
@@ -409,10 +474,12 @@ void RIPRouting::processResponse(RIPPacket *packet)
     RIPInterfaceEntry *incomingIe = findInterfaceEntryById(ctrlInfo->getInterfaceId());
     if (!incomingIe)
     {
+        EV << "RIP: dropping unexpected RIP response.\n";
         delete packet;
         return;
     }
 
+    EV << "RIP: RIP response received from " << ctrlInfo->getSrcAddr() << "\n";
     int numEntries = packet->getEntryArraySize();
     for (int i = 0; i < numEntries; ++i) {
         RIPEntry &entry = packet->getEntry(i);
@@ -618,13 +685,95 @@ void RIPRouting::invalidateRoute(RIPRoute *ripRoute)
 
 void RIPRouting::purgeRoute(RIPRoute *ripRoute)
 {
+    ripRoute->route->setProtocolData(NULL);
     // XXX should set isExpired() to true, and let rt->purge() to do the work
     rt->deleteRoute(ripRoute->route);
+
+    std::remove(ripRoutes.begin(), ripRoutes.end(), ripRoute);
+    delete ripRoute;
 }
 
 void RIPRouting::sendPacket(RIPPacket *packet, const Address &address, int port, InterfaceEntry *ie)
 {
+    packet->setByteLength(4 + 20 * packet->getEntryArraySize()); // XXX compute from address lengths
     if (address.isMulticast())
         socket.setMulticastOutputInterface(ie->getInterfaceId());
     socket.sendTo(packet, address, port);
+}
+
+/*----------------------------------------
+ *
+ *----------------------------------------*/
+void RIPRouting::addInterface(InterfaceEntry *ie, int metric)
+{
+    ripInterfaces.push_back(RIPInterfaceEntry(ie, metric));
+}
+
+void RIPRouting::deleteInterface(InterfaceEntry *ie)
+{
+    // delete interfaces and routes referencing ie
+    for (InterfaceVector::iterator it = ripInterfaces.begin(); it != ripInterfaces.end(); )
+    {
+        if (it->ie == ie)
+            it = ripInterfaces.erase(it);
+        else
+            it++;
+    }
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); )
+    {
+        if ((*it)->ie == ie)
+            it = ripRoutes.erase(it);
+        else
+            it++;
+    }
+}
+
+void RIPRouting::invalidateRoutes(InterfaceEntry *ie)
+{
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
+        if ((*it)->route && (*it)->route->getInterface() == ie)
+            invalidateRoute(*it);
+}
+
+void RIPRouting::deleteRoute(IRoute *route)
+{
+    for (RouteVector::iterator it = ripRoutes.begin(); it != ripRoutes.end(); ++it)
+        if ((*it)->route == route)
+            (*it)->route = NULL;
+}
+
+bool RIPRouting::isLoopbackInterfaceRoute(IRoute *route)
+{
+    InterfaceEntry *ie = dynamic_cast<InterfaceEntry*>(route->getSource());
+    return ie && ie->isLoopback();
+}
+
+bool RIPRouting::isLocalInterfaceRoute(IRoute *route)
+{
+    InterfaceEntry *ie = dynamic_cast<InterfaceEntry*>(route->getSource());
+    return ie && !ie->isLoopback();
+}
+
+bool RIPRouting::isDefaultRoute(IRoute *route)
+{
+    return route->getPrefixLength() == 0;
+}
+
+void RIPRouting::addLocalInterfaceRoute(IRoute *route)
+{
+    InterfaceEntry *ie = check_and_cast<InterfaceEntry*>(route->getSource());
+    RIPInterfaceEntry *ripIe = findInterfaceEntryById(ie->getInterfaceId());
+    RIPRoute *ripRoute = new RIPRoute(route, RIPRoute::RIP_ROUTE_INTERFACE, ripIe ? ripIe->metric : 1);
+    ripRoute->ie = ie;
+    ripRoutes.push_back(ripRoute);
+}
+
+void RIPRouting::addDefaultRoute(IRoute *route)
+{
+    ripRoutes.push_back(new RIPRoute(route, RIPRoute::RIP_ROUTE_DEFAULT, 1));
+}
+
+void RIPRouting::addStaticRoute(IRoute *route)
+{
+    ripRoutes.push_back(new RIPRoute(route, RIPRoute::RIP_ROUTE_STATIC, 1));
 }

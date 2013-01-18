@@ -79,18 +79,18 @@ struct RIPRoute : public cObject
     virtual std::string info() const;
 };
 
+struct RIPInterfaceEntry
+{
+    InterfaceEntry *ie;
+    int metric;
+    RIPInterfaceEntry(InterfaceEntry *ie, int metric) : ie(ie), metric(metric) {}
+};
+
 /**
  * Implementation of the Routing Information Protocol v2 (RFC 2453).
  */
 class INET_API RIPRouting : public cSimpleModule, protected INotifiable
 {
-    struct RIPInterfaceEntry
-    {
-        InterfaceEntry *ie;
-        int metric;
-        RIPInterfaceEntry(InterfaceEntry *ie, int metric) : ie(ie), metric(metric) {}
-    };
-
     typedef std::vector<RIPInterfaceEntry> InterfaceVector;
     typedef std::vector<RIPRoute*> RouteVector;
 
@@ -110,13 +110,32 @@ class INET_API RIPRouting : public cSimpleModule, protected INotifiable
   private:
     RIPInterfaceEntry *findInterfaceEntryById(int interfaceId);
     RIPRoute *findRoute(const Address &destAddress, const Address &subnetMask);
-    RIPRoute *findInterfaceRoute(InterfaceEntry *ie);
+    RIPRoute *findLocalInterfaceRoute(IRoute *route);
     bool isNeighbour(const Address &address);
     bool isOwnAddress(const Address &address);
+    void addInterface(InterfaceEntry *ie, int metric);
+    void deleteInterface(InterfaceEntry *ie);
+    void invalidateRoutes(InterfaceEntry *ie);
+    void deleteRoute(IRoute *route);
+    bool isLoopbackInterfaceRoute(IRoute *route);
+    bool isLocalInterfaceRoute(IRoute *route);
+    bool isDefaultRoute(IRoute *route);
+    void addLocalInterfaceRoute(IRoute *route);
+    void addDefaultRoute(IRoute *route);
+    void addStaticRoute(IRoute *route);
   protected:
     virtual int numInitStages() const  {return 5;}
     virtual void initialize(int stage);
     virtual void handleMessage(cMessage *msg);
+
+    /**
+     * Import interface/static/default routes from the routing table.
+     */
+    virtual void configureInitialRoutes();
+
+    /**
+     * Listen on interface/route changes and update private data structures.
+     */
     virtual void receiveChangeNotification(int category, const cObject *details);
 
     /**
