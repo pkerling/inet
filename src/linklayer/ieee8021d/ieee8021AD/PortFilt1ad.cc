@@ -183,6 +183,7 @@ void PortFilt1ad::handleMessage(cMessage *msg)
 
 		default:
 			error("Unknown arrival gate");
+			break;
 		}
 	}
 }
