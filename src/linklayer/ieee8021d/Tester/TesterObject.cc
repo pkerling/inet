@@ -72,7 +72,6 @@ void TesterObject::initialize(int stage)
 	{
 		printState();
 	}
-
 }
 
 void TesterObject::scheduleMessage(cXMLElement * mens)
@@ -113,6 +112,7 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;
+
 	case 1: //MVRPDU
 		ev<<"MVRPDU"<<endl;
 		msg=new MVRPDU();
@@ -130,6 +130,7 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;
+
 	case 2: //ETHII
 		ev<<"ETHII"<<endl;
 
@@ -147,6 +148,7 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;
+
 	case 3: //ETH1Q
 		ev<<"ETH1Q"<<endl;
 		datapacket = new EtherAppReq("req-", IEEE802CTRL_DATA);
@@ -167,6 +169,7 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;
+
 	case 4: //ETH1AD
 		ev<<"ETH1AD"<<endl;
 		datapacket = new EtherAppReq("req-", IEEE802CTRL_DATA);
@@ -192,6 +195,7 @@ void TesterObject::scheduleMessage(cXMLElement * mens)
 		sendDelayed(msg,(simtime_t) getParameterDoubleValue(mens,"Time"),"Out");
 		SentMessages++;
 		break;
+
 	case 5:	//ETH1AH
 		ev<<"ETH1AH"<<endl;
 		datapacket = new EtherAppReq("req-", IEEE802CTRL_DATA);
@@ -332,9 +336,6 @@ void TesterObject::finish()
 	}
 }
 
-
-
-
 TesterObject::~TesterObject()
 {
 	if(LastMVRPDU!=NULL)
@@ -347,8 +348,8 @@ TesterObject::~TesterObject()
 		delete LastEth1ad;
 	if(LastEth1ah!=NULL)
 		delete LastEth1ah;
-
 }
+
 void TesterObject::printState()
 {//Printing basic trace
 	ev<<getParentModule()->getName()<<endl;
@@ -379,7 +380,6 @@ void TesterObject::handleMessage(cMessage *msg)
 	}
 }
 
-
 void TesterObject::handleIncomingFrame(BPDUieee8021D * msg)
 {
 	//Counting
@@ -403,6 +403,7 @@ void TesterObject::handleIncomingFrame(BPDUieee8021D * msg)
 	}
 	delete msg;
 }
+
 void TesterObject::handleIncomingFrame(MVRPDU *msg)
 {
 	ReceivedMVRPDUs++; //Counting
@@ -423,6 +424,7 @@ void TesterObject::handleIncomingFrame(MVRPDU *msg)
 	delete LastMVRPDU;  //It will remember the last received MVRPDU.
 	LastMVRPDU=msg;
 }
+
 void TesterObject::handleIncomingFrame(EthernetIIFrame *msg)
 {
 	//Detecting message kind. 0=EthernetII 1=802.1Q 2=802.1ad 3=802.1ah
@@ -522,5 +524,5 @@ void TesterObject::handleIncomingFrame(EthernetIIFrame *msg)
 		LastEthII=msg;  //Remember last received Ethernet II frame.
 		break;
 	}
-
 }
+
