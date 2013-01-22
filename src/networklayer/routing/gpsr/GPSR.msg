@@ -33,6 +33,15 @@ packet GPSRBeacon {
     Coord position;
 }
 
+//
+// http://www.eecs.harvard.edu/~htk/publication/2000-mobi-karp-kung.pdf
+//
 packet GPSRPacket {
-    GPSRForwardingMode mode;
+    GPSRForwardingMode routingMode;
+    Coord destinationPosition;               // D
+    Coord perimeterRoutingStartPosition;     // Lp
+    Coord perimeterRoutingForwardPosition;   // Lf
+    Address currentFaceFirstSenderAddress;   // e0
+    Address currentFaceFirstReceiverAddress; // e0
+    Address senderAddress;
 }

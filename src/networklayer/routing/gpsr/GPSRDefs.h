@@ -22,8 +22,8 @@
 #define GPSR_UDP_PORT 269
 
 enum GPSRForwardingMode {
-    GREEDY = 0,
-    PERIMETER = 1
+    GPSR_GREEDY_ROUTING = 0,
+    GPSR_PERIMETER_ROUTING = 1
 };
 
 #endif

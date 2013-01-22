@@ -31,6 +31,10 @@
 #include "UDPPacket.h"
 #include "GPSR_m.h"
 
+/**
+ * http://www.eecs.harvard.edu/~htk/publication/2000-mobi-karp-kung.pdf
+ */
+// TODO: optimize internal data structures to use less lookups and be more prepared for routing a packet
 class INET_API GPSR : public cSimpleModule, public INotifiable, public INetfilter::IHook {
     private:
         // context parameters
@@ -50,7 +54,7 @@ class INET_API GPSR : public cSimpleModule, public INotifiable, public INetfilte
         IInterfaceTable * interfaceTable;
         IRoutingTable * routingTable; // TODO: delete when necessary functions are moved to interface table
         INetfilter * networkProtocol;
-        static PositionTable globalPositionTable; // KLUDGE: TODO: implement registry protocol
+        static PositionTable globalPositionTable; // KLUDGE: implement position registry protocol
 
         // internal
         cMessage * beaconTimer;
@@ -85,33 +89,45 @@ class INET_API GPSR : public cSimpleModule, public INotifiable, public INetfilte
         void processUDPPacket(UDPPacket * packet);
 
         // handling beacons
-        GPSRBeacon * createBeaconPacket();
-        void sendBeaconPacket(GPSRBeacon * beacon, double delay);
-        void processBeaconPacket(GPSRBeacon * beacon);
+        GPSRBeacon * createBeaconTimer();
+        void sendBeaconTimer(GPSRBeacon * beacon, double delay);
+        void processBeaconTimer(GPSRBeacon * beacon);
 
         // position
+        Coord intersectSections(Coord & begin1, Coord & end1, Coord & begin2, Coord & end2);
         Coord getDestinationPosition(const Address & address);
         Coord getNeighborPosition(const Address & address);
+
+        // angle
+        double getVectorAngle(Coord vector);
+        double getDestinationAngle(const Address & address);
+        double getNeighborAngle(const Address & address);
 
         // address
         std::string getHostName();
         Address getSelfAddress();
+        Address getSenderNeighborAddress(INetworkDatagram * datagram);
 
         // neighbor
         simtime_t getNextNeighborExpiration();
         void purgeNeighbors();
+        std::vector<Address> getPlanarNeighbors();
+        Address getNextPlanarNeighborCounterClockwise(Address & startNeighborAddress, double startNeighborAngle);
 
         // next hop
-        Address findNextHop(const Address & destination);
+        Address findNextHop(INetworkDatagram * datagram, const Address & destination);
+        Address findGreedyRoutingNextHop(INetworkDatagram * datagram, const Address & destination);
+        Address findPerimeterRoutingNextHop(INetworkDatagram * datagram, const Address & destination);
+
+        // routing
+        Result routeDatagram(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop);
 
         // netfilter
-        virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop) { return routeDatagram(datagram, outputInterfaceEntry, nextHop); }
+        virtual Result datagramPreRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop);
         virtual Result datagramForwardHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop) { return ACCEPT; }
         virtual Result datagramPostRoutingHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop) { return ACCEPT; }
-        virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) { return ACCEPT; }
-        virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop) { return routeDatagram(datagram, outputInterfaceEntry, nextHop); }
-        bool isGPSRDatagram(INetworkDatagram * datagram);
-        Result routeDatagram(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop);
+        virtual Result datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry);
+        virtual Result datagramLocalOutHook(INetworkDatagram * datagram, const InterfaceEntry *& outputInterfaceEntry, Address & nextHop);
 
         // notification
         virtual void receiveChangeNotification(int category, const cObject * details);

@@ -27,8 +27,8 @@
 
 class INET_API PositionTable {
     private:
-        typedef std::pair<const simtime_t, const Coord> AddressToPositionMapValue;
-        typedef std::map<const Address, AddressToPositionMapValue> AddressToPositionMap;
+        typedef std::pair<simtime_t, Coord> AddressToPositionMapValue;
+        typedef std::map<Address, AddressToPositionMapValue> AddressToPositionMap;
         AddressToPositionMap addressToPositionMap;
     public:
         PositionTable() { }

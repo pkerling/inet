@@ -30,11 +30,11 @@ simple GPSR
         // context parameters
         string routingTableModuleName = default("routingTable");
         string networkProtocolModuleName = default("ip");
-        
+
         // gpsr parameters
         string interfaces = default("*");
         double beaconInterval @unit("s") = default(10s);
-		double maxJitter @unit("s") = default(10ms);
+		double maxJitter @unit("s") = default(1s);
         double neighborValidityInterval @unit("s") = default(30s);
 
     gates:

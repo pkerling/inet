@@ -146,6 +146,10 @@ void GenericNetworkProtocol::routePacket(GenericDatagram *datagram, const Interf
         if (datagram->getSourceAddress().isUnspecified())
             datagram->setSourceAddress(destAddr); // allows two apps on the same host to communicate
         numLocalDeliver++;
+
+        if (datagramLocalInHook(datagram, getSourceInterfaceFrom(datagram)) != INetfilter::IHook::ACCEPT)
+            return;
+
         reassembleAndDeliver(datagram);
         return;
     }
@@ -455,6 +459,11 @@ void GenericNetworkProtocol::sendDatagramToOutput(GenericDatagram *datagram, con
     send(datagram, queueOutGate);
 }
 
+void GenericNetworkProtocol::datagramLocalIn(GenericDatagram* datagram, const InterfaceEntry * inIE)
+{
+    reassembleAndDeliver(datagram);
+}
+
 void GenericNetworkProtocol::datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE, const Address & nextHop)
 {
     // route packet
@@ -463,7 +472,6 @@ void GenericNetworkProtocol::datagramLocalOut(GenericDatagram* datagram, const I
     else
         routeMulticastPacket(datagram, destIE, NULL);
 }
-
 
 void GenericNetworkProtocol::registerHook(int priority, IHook* hook) {
     Enter_Method("registerHook()");
@@ -496,11 +504,18 @@ void GenericNetworkProtocol::reinjectQueuedDatagram(const INetworkDatagram* data
     for (std::list<QueuedDatagramForHook>::iterator iter = queuedDatagramsForHooks.begin(); iter != queuedDatagramsForHooks.end(); iter++) {
         if (iter->datagram == datagram) {
             GenericDatagram* datagram = iter->datagram;
+            const InterfaceEntry * inIE = iter->inIE;
             const InterfaceEntry * outIE = iter->outIE;
             const Address & nextHop = iter->nextHop;
             QueuedDatagramForHook::HookType hookType = iter->hookType;
             queuedDatagramsForHooks.erase(iter);
             switch (hookType) {
+                case QueuedDatagramForHook::PREROUTING:
+                    datagramPreRouting(datagram, inIE, outIE, nextHop);
+                    break;
+                case QueuedDatagramForHook::LOCALIN:
+                    datagramLocalIn(datagram, inIE);
+                    break;
                 case QueuedDatagramForHook::LOCALOUT:
                     datagramLocalOut(datagram, outIE, nextHop);
                     break;

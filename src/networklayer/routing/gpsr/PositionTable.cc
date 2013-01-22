@@ -34,7 +34,7 @@ Coord PositionTable::getPosition(const Address & address) const {
 }
 
 void PositionTable::setPosition(const Address & address, const Coord & coord) {
-    addressToPositionMap.insert(std::pair<const Address, AddressToPositionMapValue>(address, AddressToPositionMapValue(simTime(), coord)));
+    addressToPositionMap[address] = AddressToPositionMapValue(simTime(), coord);
 }
 
 void PositionTable::removePosition(const Address & address) {

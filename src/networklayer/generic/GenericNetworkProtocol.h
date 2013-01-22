@@ -152,6 +152,7 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
     virtual void sendDatagramToOutput(GenericDatagram *datagram, const InterfaceEntry *ie, const Address & nextHop);
 
     virtual void datagramPreRouting(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * destIE, const Address & nextHop);
+    virtual void datagramLocalIn(GenericDatagram* datagram, const InterfaceEntry * inIE);
     virtual void datagramLocalOut(GenericDatagram* datagram, const InterfaceEntry * destIE, const Address & nextHop);
 
     virtual IHook::Result datagramPreRoutingHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry *& outIE, Address& nextHop);
