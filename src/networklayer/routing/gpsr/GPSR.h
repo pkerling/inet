@@ -34,7 +34,7 @@
 /**
  * http://www.eecs.harvard.edu/~htk/publication/2000-mobi-karp-kung.pdf
  */
-// TODO: optimize internal data structures to use less lookups and be more prepared for routing a packet
+// TODO: optimize internal data structures for performance to use less lookups and be more prepared for routing a packet
 class INET_API GPSR : public cSimpleModule, public INotifiable, public INetfilter::IHook {
     private:
         // context parameters
@@ -93,6 +93,10 @@ class INET_API GPSR : public cSimpleModule, public INotifiable, public INetfilte
         GPSRBeacon * createBeaconTimer();
         void sendBeaconTimer(GPSRBeacon * beacon, double delay);
         void processBeaconTimer(GPSRBeacon * beacon);
+
+        // handling packets
+        GPSRPacket * createPacket(Address destination, cPacket * content);
+        int computePacketBitLength(GPSRPacket * packet);
 
         // position
         Coord intersectSections(Coord & begin1, Coord & end1, Coord & begin2, Coord & end2);

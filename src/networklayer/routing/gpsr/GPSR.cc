@@ -221,6 +221,31 @@ void GPSR::processBeaconTimer(GPSRBeacon * beacon) {
 }
 
 //
+// handling packets
+//
+
+GPSRPacket * GPSR::createPacket(Address destination, cPacket * content) {
+    GPSRPacket * gpsrPacket = new GPSRPacket();
+    gpsrPacket->setRoutingMode(GPSR_GREEDY_ROUTING);
+    // KLUDGE: implement position registry protocol
+    gpsrPacket->setDestinationPosition(getDestinationPosition(destination));
+    gpsrPacket->setBitLength(computePacketBitLength(gpsrPacket));
+    gpsrPacket->encapsulate(content);
+    return gpsrPacket;
+}
+
+int GPSR::computePacketBitLength(GPSRPacket * packet) {
+    // routingMode
+    int routingMode = 1;
+    // destinationPosition, perimeterRoutingStartPosition, perimeterRoutingForwardPosition
+    int positions = 8 * 3 * 2 * 4;
+    // currentFaceFirstSenderAddress, currentFaceFirstReceiverAddress, senderAddress
+    int addresses = 8 * 3 * 4;
+    // TODO: address size
+    return routingMode + positions + addresses;
+}
+
+//
 // position
 //
 
@@ -497,11 +522,12 @@ INetfilter::IHook::Result GPSR::datagramPreRoutingHook(INetworkDatagram * datagr
 }
 
 INetfilter::IHook::Result GPSR::datagramLocalInHook(INetworkDatagram * datagram, const InterfaceEntry * inputInterfaceEntry) {
-    cPacket * packet = dynamic_cast<cPacket *>(datagram);
-    GPSRPacket * gpsrPacket = dynamic_cast<GPSRPacket *>(packet->decapsulate());
+    cPacket * networkPacket = dynamic_cast<cPacket *>(datagram);
+    GPSRPacket * gpsrPacket = dynamic_cast<GPSRPacket *>(networkPacket->getEncapsulatedPacket());
     if (gpsrPacket) {
-        packet->decapsulate();
-        packet->encapsulate(gpsrPacket->decapsulate());
+        networkPacket->decapsulate();
+        networkPacket->encapsulate(gpsrPacket->decapsulate());
+        delete gpsrPacket;
     }
     return ACCEPT;
 }
@@ -511,14 +537,9 @@ INetfilter::IHook::Result GPSR::datagramLocalOutHook(INetworkDatagram * datagram
     if (destination.isMulticast() || destination.isBroadcast() || routingTable->isLocalAddress(destination))
         return ACCEPT;
     else {
-        cPacket * packet = dynamic_cast<cPacket *>(datagram);
-        cPacket * encapsulatedPacket = packet->decapsulate();
-        GPSRPacket * gpsrPacket = new GPSRPacket();
-        gpsrPacket->setRoutingMode(GPSR_GREEDY_ROUTING);
-        // KLUDGE: implement position registry protocol
-        gpsrPacket->setDestinationPosition(getDestinationPosition(datagram->getDestinationAddress()));
-        gpsrPacket->encapsulate(encapsulatedPacket);
-        packet->encapsulate(gpsrPacket);
+        cPacket * networkPacket = dynamic_cast<cPacket *>(datagram);
+        GPSRPacket * gpsrPacket = createPacket(datagram->getDestinationAddress(), networkPacket->decapsulate());
+        networkPacket->encapsulate(gpsrPacket);
         return routeDatagram(datagram, outputInterfaceEntry, nextHop);
     }
 }
