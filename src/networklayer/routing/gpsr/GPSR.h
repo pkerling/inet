@@ -42,6 +42,7 @@ class INET_API GPSR : public cSimpleModule, public INotifiable, public INetfilte
         const char * networkProtocolModuleName;
 
         // gpsr parameters
+        GPSRPlanarizationMode planarizationMode;
         const char * interfaces;
         simtime_t beaconInterval;
         simtime_t maxJitter;

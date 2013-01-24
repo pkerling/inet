@@ -58,6 +58,7 @@ void GPSR::initialize(int stage) {
         routingTableModuleName = par("routingTableModuleName");
         networkProtocolModuleName = par("networkProtocolModuleName");
         // gpsr parameters
+        planarizationMode = (GPSRPlanarizationMode)(int)par("planarizationMode");
         interfaces = par("interfaces");
         beaconInterval = par("beaconInterval");
         maxJitter = par("maxJitter");
@@ -311,17 +312,34 @@ std::vector<Address> GPSR::getPlanarNeighbors() {
     for (std::vector<Address>::iterator it = neighborAddresses.begin(); it != neighborAddresses.end(); it++) {
         const Address & neighborAddress = *it;
         Coord neighborPosition = neighborPositionTable.getPosition(neighborAddress);
-        double neighborDistance = (neighborPosition - selfPosition).length();
-        for (std::vector<Address>::iterator jt = neighborAddresses.begin(); jt != neighborAddresses.end(); jt++) {
-            const Address & witnessAddress = *jt;
-            Coord witnessPosition = neighborPositionTable.getPosition(witnessAddress);
-            double witnessDistance = (witnessPosition - selfPosition).length();;
-            double neighborWitnessDistance = (witnessPosition - neighborPosition).length();
-            if (*it == *jt)
-                continue;
-            else if (neighborDistance > std::max(witnessDistance, neighborWitnessDistance))
-                goto eliminate;
+        if (planarizationMode == GPSR_RNG_PLANARIZATION) {
+            double neighborDistance = (neighborPosition - selfPosition).length();
+            for (std::vector<Address>::iterator jt = neighborAddresses.begin(); jt != neighborAddresses.end(); jt++) {
+                const Address & witnessAddress = *jt;
+                Coord witnessPosition = neighborPositionTable.getPosition(witnessAddress);
+                double witnessDistance = (witnessPosition - selfPosition).length();;
+                double neighborWitnessDistance = (witnessPosition - neighborPosition).length();
+                if (*it == *jt)
+                    continue;
+                else if (neighborDistance > std::max(witnessDistance, neighborWitnessDistance))
+                    goto eliminate;
+            }
         }
+        else if (planarizationMode == GPSR_GG_PLANARIZATION) {
+            Coord middlePosition = (selfPosition + neighborPosition) / 2;
+            double neighborDistance = (neighborPosition - middlePosition).length();
+            for (std::vector<Address>::iterator jt = neighborAddresses.begin(); jt != neighborAddresses.end(); jt++) {
+                const Address & witnessAddress = *jt;
+                Coord witnessPosition = neighborPositionTable.getPosition(witnessAddress);
+                double witnessDistance = (witnessPosition - middlePosition).length();;
+                if (*it == *jt)
+                    continue;
+                else if (witnessDistance < neighborDistance)
+                    goto eliminate;
+            }
+        }
+        else
+            throw cRuntimeError("Unknown planarization mode");
         planarNeighbors.push_back(*it);
         eliminate: ;
     }
