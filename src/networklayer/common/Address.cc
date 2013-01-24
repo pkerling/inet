@@ -17,6 +17,7 @@
 
 #include "Address.h"
 #include "IPv4AddressPolicy.h"
+#include "IPv6AddressPolicy.h"
 #include "MACAddressPolicy.h"
 #include "ModuleIdAddressPolicy.h"
 #include "ModulePathAddressPolicy.h"
@@ -25,6 +26,8 @@ IAddressPolicy * Address::getAddressPolicy() const {
     switch (type) {
         case Address::IPv4:
             return &IPv4AddressPolicy::INSTANCE;
+        case Address::IPv6:
+            return &IPv6AddressPolicy::INSTANCE;
         case Address::MAC:
             return &MACAddressPolicy::INSTANCE;
         case Address::MODULEID:
@@ -68,6 +71,8 @@ bool Address::isUnspecified() const
     switch (type) {
         case Address::IPv4:
             return ipv4.isUnspecified();
+        case Address::IPv6:
+            return ipv6.isUnspecified();
         case Address::MAC:
             return mac.isUnspecified();
         case Address::MODULEID:
@@ -84,6 +89,8 @@ bool Address::isUnicast() const
     switch (type) {
         case Address::IPv4:
             return !ipv4.isMulticast() && !ipv4.isLimitedBroadcastAddress();
+        case Address::IPv6:
+            return ipv6.isUnicast();
         case Address::MAC:
             return !mac.isBroadcast() && !mac.isMulticast();
         case Address::MODULEID:
@@ -100,6 +107,8 @@ bool Address::isMulticast() const
     switch (type) {
         case Address::IPv4:
             return ipv4.isMulticast();
+        case Address::IPv6:
+            return ipv6.isMulticast();
         case Address::MAC:
             return mac.isMulticast();
         case Address::MODULEID:
@@ -116,6 +125,8 @@ bool Address::isBroadcast() const
     switch (type) {
         case Address::IPv4:
             return ipv4.isLimitedBroadcastAddress();
+        case Address::IPv6:
+            return false; // TODO: KLUDGE: ?
         case Address::MAC:
             return mac.isBroadcast();
         case Address::MODULEID:
@@ -135,6 +146,8 @@ bool Address::operator<(const Address& address) const
         switch (type) {
             case Address::IPv4:
                 return ipv4 < address.ipv4;
+            case Address::IPv6:
+                return ipv6 < address.ipv6;
             case Address::MAC:
                 return mac < address.mac;
             case Address::MODULEID:
@@ -155,6 +168,8 @@ bool Address::operator==(const Address& address) const
         switch (type) {
             case Address::IPv4:
                 return ipv4 == address.ipv4;
+            case Address::IPv6:
+                return ipv6 == address.ipv6;
             case Address::MAC:
                 return mac == address.mac;
             case Address::MODULEID:
@@ -177,6 +192,8 @@ bool Address::matches(const Address& other, int prefixLength) const
     switch (type) {
         case Address::IPv4:
             return IPv4Address::maskedAddrAreEqual(ipv4, other.ipv4, IPv4Address::makeNetmask(prefixLength)); //FIXME !!!!!
+        case Address::IPv6:
+            return ipv6.matches(other.ipv6, prefixLength);
         case Address::MAC:
             return mac == other.mac;
         case Address::MODULEID:
