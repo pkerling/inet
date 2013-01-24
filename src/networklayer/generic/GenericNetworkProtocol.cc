@@ -213,14 +213,7 @@ void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, con
     {
         // check for local delivery
         if (rt->isLocalMulticastAddress(destAddr))
-        {
-            GenericDatagram *datagramCopy = (GenericDatagram *) datagram->dup();
-
-            // FIXME code from the MPLS model: set packet dest address to routerId (???)
-            datagramCopy->setDestinationAddress(rt->getRouterId());
-
-            reassembleAndDeliver(datagramCopy);
-        }
+            reassembleAndDeliver(datagram);
 //
 //        // don't forward if GenericNetworkProtocol forwarding is off
 //        if (!rt->isGenericForwardingEnabled())
@@ -241,8 +234,9 @@ void GenericNetworkProtocol::routeMulticastPacket(GenericDatagram *datagram, con
         for (int i=0; i<ift->getNumInterfaces(); ++i) {
             const InterfaceEntry * destIE = ift->getInterface(i);
             if (!destIE->isLoopback())
-                fragmentAndSend(datagram, destIE, datagram->getDestinationAddress());
+                fragmentAndSend(datagram->dup(), destIE, datagram->getDestinationAddress());
         }
+        delete datagram;
     }
 
 //    Address destAddr = datagram->getDestinationAddress();
@@ -351,6 +345,7 @@ void GenericNetworkProtocol::reassembleAndDeliver(GenericDatagram *datagram)
 
     int gateindex = mapping.getOutputGateForProtocol(protocol);
     send(packet, "transportOut", gateindex);
+    delete datagram;
 }
 
 cPacket *GenericNetworkProtocol::decapsulateGeneric(GenericDatagram *datagram)
