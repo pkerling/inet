@@ -357,7 +357,6 @@ void xDYMO::sendDYMOPacket(DYMOPacket * packet, const InterfaceEntry * interface
     // The IPv4 TTL (IPv6 Hop Limit) field for all packets containing AODVv2 messages is set to 255.
     networkProtocolControlInfo->setHopLimit(255);
     networkProtocolControlInfo->setDestinationAddress(nextHop);
-    // TODO: KLUDGE: is this the way we communicate the source address to the other DYMO correct?
     networkProtocolControlInfo->setSourceAddress(getSelfAddress());
     if (interfaceEntry)
         networkProtocolControlInfo->setInterfaceId(interfaceEntry->getInterfaceId());
@@ -1042,7 +1041,7 @@ void xDYMO::updateRoute(RteMsg * rteMsg, AddressBlock & addressBlock, IRoute * r
     routeData->setSequenceNumber(sequenceNumber);
     targetAddressToSequenceNumber[address] = sequenceNumber;
     // Route.NextHopAddress := IP.SourceAddress (i.e., an address of the node from which the RteMsg was received)
-    // KLUDGE: TODO: is source address the previous node address (nextHop)?
+    // note that DYMO packets are not routed on the IP level, so we can use the source address here
     route->setNextHop(networkProtocolControlInfo->getSourceAddress());
     // Route.NextHopInterface is set to the interface on which RteMsg was received
     InterfaceEntry *interfaceEntry = interfaceTable->getInterfaceById(networkProtocolControlInfo->getInterfaceId());
