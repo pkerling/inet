@@ -81,9 +81,6 @@ class INET_API AddressResolver
     AddressResolver() {}
     virtual ~AddressResolver() {}
 
-    // TODO: KLUDGE: rename
-    virtual Address resolveXXX(const char *str, int addrType = ADDR_PREFER_IPv6);
-
     /**
      * Accepts dotted decimal notation ("127.0.0.1"), module name of the host
      * or router ("host[2]"), and empty string (""). For the latter, it returns

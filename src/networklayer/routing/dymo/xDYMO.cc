@@ -94,8 +94,7 @@ void xDYMO::initialize(int stage) {
             char * slash = const_cast<char *>(strchr(clientAddress,'/'));
             if (slash)
                 *slash = 0;
-            // TODO: generalize
-            const Address address = addressResolver.resolveXXX(clientAddress);
+            const Address address = addressResolver.resolve(clientAddress);
             int prefixLength = slash ? atoi(slash + 1) : 32;
             clientAddressAndPrefixLengthPairs.push_back(std::pair<Address, int>(address, prefixLength));
         }

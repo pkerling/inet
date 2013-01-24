@@ -89,8 +89,8 @@ void PingApp::handleMessage(cMessage *msg)
         // on first call we need to initialize
         if (sendSeqNo == 0)
         {
-            srcAddr = AddressResolver().resolveXXX(par("srcAddr"));
-            destAddr = AddressResolver().resolveXXX(par("destAddr"));
+            srcAddr = AddressResolver().resolve(par("srcAddr"));
+            destAddr = AddressResolver().resolve(par("destAddr"));
             ASSERT(!destAddr.isUnspecified());
 
             EV << "Starting up: dest=" << destAddr << "  src=" << srcAddr << "\n";

@@ -35,26 +35,12 @@
 #include "IPv6RoutingTable.h"
 #endif
 
-Address AddressResolver::resolveXXX(const char *s, int addrType)
-{
-    Address addr;
-    if (!tryResolve(s, addr, addrType))
-        throw cRuntimeError("AddressResolver: address `%s' not configured (yet?)", s);
-    return addr;
-}
-
 Address AddressResolver::resolve(const char *s, int addrType)
 {
     Address addr;
     if (!tryResolve(s, addr, addrType))
         throw cRuntimeError("AddressResolver: address `%s' not configured (yet?)", s);
-
-    if (addr.getType() == Address::IPv4)
-        return Address(addr.toIPv4());
-    else if (addr.getType() == Address::IPv6)
-        return Address(addr.toIPv6());
-    else
-        throw cRuntimeError("AddressResolver: address `%s' not configured (yet?)", s);
+    return addr;
 }
 
 std::vector<Address> AddressResolver::resolve(std::vector<std::string> strs, int addrType)
