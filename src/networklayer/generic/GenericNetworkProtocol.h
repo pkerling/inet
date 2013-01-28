@@ -41,22 +41,14 @@ class INET_API GenericNetworkProtocol : public QueueBase, public INetfilter
      */
     struct QueuedDatagramForHook {
       public:
-        enum HookType {
-          PREROUTING,
-          LOCALIN,
-          FORWARD,
-          POSTROUTING,
-          LOCALOUT
-        };
-
-        QueuedDatagramForHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * outIE, Address & nexthop, HookType hookType) : datagram(datagram), inIE(inIE), outIE(outIE), nextHop(nextHop), hookType(hookType) {}
+        QueuedDatagramForHook(GenericDatagram* datagram, const InterfaceEntry * inIE, const InterfaceEntry * outIE, Address & nexthop, INetfilter::IHook::Type hookType) : datagram(datagram), inIE(inIE), outIE(outIE), nextHop(nextHop), hookType(hookType) {}
         virtual ~QueuedDatagramForHook() {}
 
         GenericDatagram* datagram;
         const InterfaceEntry * inIE;
         const InterfaceEntry * outIE;
         const Address nextHop;
-        const HookType hookType;
+        const INetfilter::IHook::Type hookType;
     };
 
     GenericRoutingTable *rt;  //TODO change to IRoutingTable?

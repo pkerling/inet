@@ -25,7 +25,6 @@
 
 Define_Module(GenericNetworkProtocol);
 
-
 void GenericNetworkProtocol::initialize()
 {
     QueueBase::initialize();
@@ -493,6 +492,7 @@ void GenericNetworkProtocol::dropQueuedDatagram(const INetworkDatagram * datagra
         }
     }
 }
+
 void GenericNetworkProtocol::reinjectQueuedDatagram(const INetworkDatagram* datagram) {
 
     Enter_Method("reinjectDatagram()");
@@ -502,16 +502,16 @@ void GenericNetworkProtocol::reinjectQueuedDatagram(const INetworkDatagram* data
             const InterfaceEntry * inIE = iter->inIE;
             const InterfaceEntry * outIE = iter->outIE;
             const Address & nextHop = iter->nextHop;
-            QueuedDatagramForHook::HookType hookType = iter->hookType;
+            INetfilter::IHook::Type hookType = iter->hookType;
             queuedDatagramsForHooks.erase(iter);
             switch (hookType) {
-                case QueuedDatagramForHook::PREROUTING:
+                case INetfilter::IHook::PREROUTING:
                     datagramPreRouting(datagram, inIE, outIE, nextHop);
                     break;
-                case QueuedDatagramForHook::LOCALIN:
+                case INetfilter::IHook::LOCALIN:
                     datagramLocalIn(datagram, inIE);
                     break;
-                case QueuedDatagramForHook::LOCALOUT:
+                case INetfilter::IHook::LOCALOUT:
                     datagramLocalOut(datagram, outIE, nextHop);
                     break;
                 default:
@@ -530,7 +530,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramPreRoutingHook(Generic
         {
             case IHook::ACCEPT: break;   // continue iteration
             case IHook::DROP:   delete datagram; return r;
-            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, nextHop, QueuedDatagramForHook::PREROUTING)); return r;
+            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, nextHop, INetfilter::IHook::PREROUTING)); return r;
             case IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -545,7 +545,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramForwardHook(GenericDat
         {
             case IHook::ACCEPT: break;   // continue iteration
             case IHook::DROP:   delete datagram; return r;
-            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHop, QueuedDatagramForHook::FORWARD)); return r;
+            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHop, INetfilter::IHook::FORWARD)); return r;
             case IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -560,7 +560,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramPostRoutingHook(Generi
         {
             case IHook::ACCEPT: break;   // continue iteration
             case IHook::DROP:   delete datagram; return r;
-            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHop, QueuedDatagramForHook::POSTROUTING)); return r;
+            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, outIE, nextHop, INetfilter::IHook::POSTROUTING)); return r;
             case IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -576,7 +576,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalInHook(GenericDat
         {
             case IHook::ACCEPT: break;   // continue iteration
             case IHook::DROP:   delete datagram; return r;
-            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, address, QueuedDatagramForHook::LOCALIN)); return r;
+            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, inIE, NULL, address, INetfilter::IHook::LOCALIN)); return r;
             case IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
@@ -591,7 +591,7 @@ INetfilter::IHook::Result GenericNetworkProtocol::datagramLocalOutHook(GenericDa
         {
             case IHook::ACCEPT: break;   // continue iteration
             case IHook::DROP:   delete datagram; return r;
-            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, nextHop, QueuedDatagramForHook::LOCALOUT)); return r;
+            case IHook::QUEUE:  queuedDatagramsForHooks.push_back(QueuedDatagramForHook(datagram, NULL, outIE, nextHop, INetfilter::IHook::LOCALOUT)); return r;
             case IHook::STOLEN: return r;
             default: throw cRuntimeError("Unknown Hook::Result value: %d", (int)r);
         }
