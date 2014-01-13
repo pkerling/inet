@@ -16,6 +16,7 @@
 //
 
 #include "ScenarioManager.h"
+#include "util/opp_utils.h"
 
 Define_Module(ScenarioManager);
 
@@ -30,33 +31,254 @@ void ScenarioManager::initialize()
 
     for (cXMLElement *node=script->getFirstChild(); node; node = node->getNextSibling())
     {
-        // check attr t is present
-        const char *tAttr = node->getAttribute("t");
-        if (!tAttr)
-            error("attribute 't' missing at %s", node->getSourceLocation());
+        simtime_t t = STR_SIMTIME(attributeOrError(node, "t"));
 
-        // schedule self-message
-        simtime_t t = STR_SIMTIME(tAttr);
-        cMessage *msg = new cMessage("scenario-event");
-        msg->setContextPointer(node);
-        scheduleAt(t, msg);
+        if (!strcmp(node->getTagName(), "interpolate"))
+        {
+            // Calculate number of changes
+            simtime_t until    = STR_SIMTIME(attributeOrError(node, "until"));
+            simtime_t interval = STR_SIMTIME(attributeOrError(node, "interval"));
+            simtime_t duration = until - t;
 
-        // count it
-        numChanges++;
+            if (until < t)
+                error("interpolation end is before start at %s", node->getSourceLocation());
+
+            numChanges += static_cast<int> (floor(duration.dbl() / interval.dbl()));
+
+            cXMLElement* commandsNode = node->getFirstChildWithTag("commands");
+            if (!commandsNode)
+                error("interpolation has no commands set at %s", node->getSourceLocation());
+
+            Interpolation *interpolation = new Interpolation;
+            interpolation->node = node;
+            interpolation->commandsNode = commandsNode;
+            interpolation->interval = interval;
+            interpolation->currentTargetNode = 0;
+            interpolation->currentValue = 0;
+            interpolation->currentStep = 0.0;
+            interpolation->currentStepsDone = interpolation->currentStepsTotal = 0;
+#if 0
+            int childNo = 0;
+            simtime_t lastT = t;
+            for (cXMLElement *interpolateChild=node->getFirstChild(); interpolateChild; interpolateChild=interpolateChild->getNextSibling())
+            {
+                simtime_t childT = STR_SIMTIME(attributeOrError(interpolateChild, "t"));
+
+                if (childT < t)
+                    error("node t is before interpolation start at %s", interpolateChild->getSourceLocation());
+
+                if (childT < lastT)
+                    error("node t is before previous node t at %s", interpolateChild->getSourceLocation());
+                lastT = childT;
+
+                if (childT > until)
+                    error("node t is after interpolation end at %s", interpolateChild->getSourceLocation());
+
+                if (childNo == 0)
+                {
+                    interpolation->currentValue = attributeOrError(interpolateChild, "value");
+                }
+                else if (childNo == 1)
+                {
+                    interpolation->currentTarget = attributeOrError(interpolateChild, "value");
+                    interpolation->lastScheduledInvocation = childT;
+                }
+
+                if (childT != t)
+                {
+                    // schedule self-message if this does not match the beginning
+                    cMessage *msg = new cMessage("interpolation-change", SCENARIO_MESSAGE_INTERPOLATION_CHANGE);
+                    msg->setContextPointer(interpolateChild);
+                    scheduleAt(childT, msg);
+                }
+
+                childNo++;
+            }
+
+            if (childNo < 2)
+                error("too few interpolation values, need at least two child nodes at %s", node->getSourceLocation());
+#endif
+            // schedule self-message
+            cMessage *msg = new cMessage("interpolation-start", SCENARIO_MESSAGE_INTERPOLATION_CHANGE);
+            msg->setContextPointer(interpolation);
+            scheduleAt(t, msg);
+        }
+        else
+        {
+            // schedule self-message
+            cMessage *msg = new cMessage("scenario-event");
+            msg->setContextPointer(node);
+            scheduleAt(t, msg);
+
+            // count it
+            numChanges++;
+        }
     }
 
     updateDisplayString();
 }
 
+const char *ScenarioManager::attributeOrError(cXMLElement *node, const char *attributeName)
+{
+    const char *attr = node->getAttribute(attributeName);
+    if (!attr)
+        error("attribute '%s' missing at %s", attributeName, node->getSourceLocation());
+
+    return attr;
+}
+
 void ScenarioManager::handleMessage(cMessage *msg)
 {
-    cXMLElement *node = (cXMLElement *) msg->getContextPointer();
-    delete msg;
+    if (msg->getKind() == SCENARIO_MESSAGE_INTERPOLATION_CHANGE)
+    {
+        Interpolation *interpolation = static_cast<Interpolation*> (msg->getContextPointer());
+        processInterpolationChange(interpolation);
+    }
+    else if (msg->getKind() == SCENARIO_MESSAGE_INTERPOLATION_UPDATE)
+    {
+        Interpolation *interpolation = static_cast<Interpolation*> (msg->getContextPointer());
+        processInterpolationUpdate(interpolation);
+    }
+    else
+    {
+        cXMLElement *node = (cXMLElement *) msg->getContextPointer();
+        processCommand(node);
+    }
 
-    processCommand(node);
+    delete msg;
 
     numDone++;
     updateDisplayString();
+}
+
+void ScenarioManager::processInterpolationChange(Interpolation *interpolation)
+{
+    bool isFirst = !interpolation->currentTargetNode;
+    double oldTarget = interpolation->currentTarget;
+
+    // If this is the first iteration, we do not have a target yet and need to set it to the first one
+    if (isFirst)
+    {
+        EV << "Starting interpolation\n";
+        cXMLElement* valuesNode = interpolation->node->getFirstChildWithTag("values");
+        if (!valuesNode)
+            error("interpolation has no values set at %s", interpolation->node->getSourceLocation());
+
+        cXMLElement* firstValueNode = valuesNode->getFirstChild();
+        if (!firstValueNode)
+            error("interpolation has no values set at %s", valuesNode->getSourceLocation());
+        if (strcmp(firstValueNode->getTagName(), "at") != 0)
+            error("interpolation values child node is not an 'at' node at %s", firstValueNode->getSourceLocation());
+
+        interpolation->currentTargetNode = firstValueNode;
+    }
+    else
+    {
+        // Otherwise use the next sibling node
+        interpolation->currentTargetNode = interpolation->currentTargetNode->getNextSibling();
+    }
+
+    // Calculate new target time
+    simtime_t nextT;
+    if (interpolation->currentTargetNode)
+    {
+        if (strcmp(interpolation->currentTargetNode->getTagName(), "at") != 0)
+            error("interpolation values child node is not an 'at' node at %s", interpolation->currentTargetNode->getSourceLocation());
+
+        interpolation->currentTarget = OPP_Global::atod(attributeOrError(interpolation->currentTargetNode, "value"));
+        nextT = STR_SIMTIME(attributeOrError(interpolation->currentTargetNode, "t"));
+
+        if (nextT <= simTime())
+            error("next interpolation value point time is before current value point at %s", interpolation->currentTargetNode->getSourceLocation());
+    }
+    else
+    {
+        nextT = interpolation->until;
+    }
+
+    // Calculate new target value and steps
+    double deltaT = (nextT - simTime()).dbl();
+    interpolation->currentStepsDone = 0;
+    double steps = deltaT / interpolation->interval;
+
+    if (isFirst)
+    {
+        interpolation->currentValue = interpolation->currentTarget;
+        interpolation->currentStep = 0.0;
+    }
+    else
+    {
+        interpolation->currentValue = oldTarget;
+        interpolation->currentStep = (interpolation->currentTarget - oldTarget) / steps;
+    }
+
+    if (!interpolation->currentTargetNode)
+        interpolation->currentStep = 0.0;
+
+    if (steps - floor(steps) == 0.0)
+    {
+        // do not include last update step if it matches a boundary exactly where interpolation change will be called anyway
+        steps -= 1.0;
+    }
+    interpolation->currentStepsTotal = steps > 0.0 ? static_cast<unsigned int> (steps) : 0;
+
+    EV << "New interpolation target: " << interpolation->currentTarget << ", using step " << interpolation->currentStep << " with " << interpolation->currentStepsTotal << " steps" << "\n";
+
+    // send self-msg for next change if there is one
+    if (interpolation->currentTargetNode)
+    {
+        cMessage *msg = new cMessage("interpolation-change-event", SCENARIO_MESSAGE_INTERPOLATION_CHANGE);
+        msg->setContextPointer(interpolation);
+        scheduleAt(nextT, msg);
+    }
+
+    commitInterpolationValue(interpolation);
+    // For linear interpolation, this could be skipped for the first time or when currentStep == 0
+    if (interpolation->currentStepsTotal > 0)
+    {
+        scheduleNextInterpolationUpdate(interpolation);
+    }
+}
+
+void ScenarioManager::commitInterpolationValue(Interpolation *interpolation)
+{
+    cXMLElement *commands = interpolation->commandsNode;
+    for (cXMLElement *node=commands->getFirstChild(); node; node = node->getNextSibling())
+    {
+        node->setAttribute("value", OPP_Global::dtostr(interpolation->currentValue).c_str());
+        processCommand(node);
+    }
+}
+
+void ScenarioManager::processInterpolationUpdate(Interpolation *interpolation)
+{
+    interpolation->currentValue += interpolation->currentStep;
+    commitInterpolationValue(interpolation);
+
+    interpolation->currentStepsDone++;
+    EV << interpolation->currentStepsDone << "/" << interpolation->currentStepsTotal << " interpolation steps done\n";
+    if (interpolation->currentStepsDone < interpolation->currentStepsTotal)
+    {
+        scheduleNextInterpolationUpdate(interpolation);
+    }
+    else
+    {
+        EV << "was last interpolation step of this value point, not scheduling update\n";
+        // this was the last interpolation point and it is now exhausted -> the interpolation has ended
+        if (!interpolation->currentTargetNode)
+        {
+            EV << "Interpolation has ended\n";
+            delete interpolation;
+            return;
+        }
+    }
+}
+
+void ScenarioManager::scheduleNextInterpolationUpdate(Interpolation *interpolation)
+{
+    cMessage *msg = new cMessage("interpolation-update-event", SCENARIO_MESSAGE_INTERPOLATION_UPDATE);
+    msg->setContextPointer(interpolation);
+    scheduleAt(simTime() + interpolation->interval, msg);
 }
 
 void ScenarioManager::processCommand(cXMLElement *node)
@@ -133,6 +355,24 @@ void ScenarioManager::processAtCommand(cXMLElement *node)
 {
     for (cXMLElement *child=node->getFirstChild(); child; child=child->getNextSibling())
         processCommand(child);
+}
+
+void ScenarioManager::processInterpolateCommand(cXMLElement *node)
+{
+    for (cXMLElement *child=node->getFirstChild(); child; child=child->getNextSibling())
+    {
+        // check attr t is present
+        const char *tAttr = node->getAttribute("t");
+        if (!tAttr)
+            error("attribute 't' missing at %s", node->getSourceLocation());
+
+        // schedule self-message
+        simtime_t t = STR_SIMTIME(tAttr);
+
+        cMessage *msg = new cMessage("scenario-event");
+        msg->setContextPointer(node);
+        scheduleAt(t, msg);
+    }
 }
 
 void ScenarioManager::processModuleSpecificCommand(cXMLElement *node)
@@ -328,4 +568,5 @@ void ScenarioManager::updateDisplayString()
     sprintf(buf, "total %d changes, %d left", numChanges, numChanges-numDone);
     getDisplayString().setTagArg("t", 0, buf);
 }
+
 
