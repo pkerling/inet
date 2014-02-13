@@ -96,6 +96,10 @@ void UDPBasicApp::setSocketOptions()
     if (receiveBroadcast)
         socket.setBroadcast(true);
 
+    bool routerAlert = par("routerAlert");
+    if (routerAlert)
+        socket.setRouterAlert(true);
+
     bool joinLocalMulticastGroups = par("joinLocalMulticastGroups");
     if (joinLocalMulticastGroups)
         socket.joinLocalMulticastGroups();
