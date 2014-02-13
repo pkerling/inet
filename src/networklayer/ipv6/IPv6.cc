@@ -156,8 +156,8 @@ void IPv6::endService(cPacket *msg)
         {
             // handle router alert options, if set
             cGate *rout = gate("routerAlertOut");
-            // only check if we have a handler and this datagram wasn't returned from it already
-            if (rout && rout->isConnected() && !(datagram->arrivedOn("routerAlertReturn")))
+            // only check if we have a handler, this datagram wasn't returned from it already and the datagram was not returned from neighbour discovery
+            if (rout && rout->isConnected() && !(datagram->arrivedOn("routerAlertReturn")) && !(datagram->arrivedOn("ndIn")))
             {
                 for (int i = datagram->getExtensionHeaderArraySize() - 1; i >= 0; --i)
                 {
