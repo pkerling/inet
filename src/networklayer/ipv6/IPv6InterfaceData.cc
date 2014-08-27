@@ -436,7 +436,6 @@ void IPv6InterfaceData::choosePreferredAddress()
 void IPv6InterfaceData::addAdvPrefix(const AdvPrefix& advPrefix)
 {
     rtrVars.advPrefixList.push_back(advPrefix);
-    changed1();
 }
 
 const IPv6InterfaceData::AdvPrefix& IPv6InterfaceData::getAdvPrefix(int i) const
@@ -451,14 +450,12 @@ void IPv6InterfaceData::setAdvPrefix(int i, const AdvPrefix& advPrefix)
     ASSERT(rtrVars.advPrefixList[i].prefix == advPrefix.prefix);
     ASSERT(rtrVars.advPrefixList[i].prefixLength == advPrefix.prefixLength);
     rtrVars.advPrefixList[i] = advPrefix;
-    changed1();
 }
 
 void IPv6InterfaceData::removeAdvPrefix(int i)
 {
     ASSERT(i>=0 && i<(int)rtrVars.advPrefixList.size());
     rtrVars.advPrefixList.erase(rtrVars.advPrefixList.begin()+i);
-    changed1();
 }
 
 simtime_t IPv6InterfaceData::generateReachableTime(double MIN_RANDOM_FACTOR,
@@ -650,8 +647,6 @@ void IPv6InterfaceData::updateHomeNetworkInfo(const IPv6Address& hoa, const IPv6
     homeInfo.HoA = hoa;
     homeInfo.homeAgentAddr = ha;
     homeInfo.prefix = prefix;
-
-    changed1();
 
     // check if we already have a HoA on this interface
     // if not, then we create one
