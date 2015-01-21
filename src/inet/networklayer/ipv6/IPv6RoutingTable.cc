@@ -28,7 +28,11 @@
 #include "inet/networklayer/ipv6/IPv6InterfaceData.h"
 #include "inet/common/lifecycle/NodeOperations.h"
 
+#include "inet/common/XMLUtils.h"
+
 namespace inet {
+
+using namespace xmlutils;
 
 Define_Module(IPv6RoutingTable);
 
@@ -296,23 +300,6 @@ void IPv6RoutingTable::assignRequiredNodeAddresses(InterfaceEntry *ie)
     //o  The All-Routers Multicast Addresses defined in section 2.7.1.
 }
 
-static const char *getRequiredAttr(cXMLElement *elem, const char *attrName)
-{
-    const char *s = elem->getAttribute(attrName);
-    if (!s)
-        throw cRuntimeError("Element <%s> misses required attribute %s at %s",
-                elem->getTagName(), attrName, elem->getSourceLocation());
-    return s;
-}
-
-static bool toBool(const char *s, bool defaultValue = false)
-{
-    if (!s)
-        return defaultValue;
-
-    return !strcmp(s, "on") || !strcmp(s, "true") || !strcmp(s, "yes");
-}
-
 void IPv6RoutingTable::configureInterfaceFromXML(InterfaceEntry *ie, cXMLElement *cfg)
 {
     /*XML parsing capabilities tweaked by WEI. For now, we can configure a specific
@@ -322,8 +309,11 @@ void IPv6RoutingTable::configureInterfaceFromXML(InterfaceEntry *ie, cXMLElement
        can be used for future protocols that requires different values. (MIPv6)*/
     IPv6InterfaceData *d = ie->ipv6Data();
 
+    EV << "XML configuration of interface " << ie->getName() << ":" << endl;
+
     // parse basic config (attributes)
-    d->setAdvSendAdvertisements(toBool(getRequiredAttr(cfg, "AdvSendAdvertisements")));
+    if (cfg->getAttribute("sendAdvertisements"))
+        d->setAdvSendAdvertisements(getAttributeBoolValue(cfg, "sendAdvertisements"));
     //TODO: leave this off first!! They overwrite stuff!
 
     /* TODO: Wei commented out the stuff below. To be checked why (Andras).
@@ -343,36 +333,68 @@ void IPv6RoutingTable::configureInterfaceFromXML(InterfaceEntry *ie, cXMLElement
        d->setDupAddrDetectTransmits(utils::atoul(getRequiredAttr(cfg, "HostDupAddrDetectTransmits")));
      */
 
-    // parse prefixes (AdvPrefix elements; they should be inside an AdvPrefixList
-    // element, but we don't check that)
-    cXMLElementList prefixList = cfg->getElementsByTagName("AdvPrefix");
-    for (unsigned int i = 0; i < prefixList.size(); i++) {
-        cXMLElement *node = prefixList[i];
+    // parse prefixes (advPrefix elements)
+    cXMLElement *prefixListElem = cfg->getFirstChildWithTag("advPrefixList");
+    cXMLElementList prefixList;
+    if (prefixListElem)
+        prefixList = prefixListElem->getElementsByTagName("advPrefix");
+
+    if (!prefixList.empty() && !d->getAdvSendAdvertisements())
+        EV << "WARNING: Advertisement prefixes specified even though interface is configured not to send advertisements" << endl;
+
+    for (cXMLElementList::iterator i = prefixList.begin(); i != prefixList.end(); i++)
+    {
+        cXMLElement *node = *i;
         IPv6InterfaceData::AdvPrefix prefix;
 
         // FIXME todo implement: advValidLifetime, advPreferredLifetime can
         // store (absolute) expiry time (if >0) or lifetime (delta) (if <0);
         // 0 should be treated as infinity
         int pfxLen;
-        if (!prefix.prefix.tryParseAddrWithPrefix(node->getNodeValue(), pfxLen))
-            throw cRuntimeError("Element <%s> at %s: wrong IPv6Address/prefix syntax %s",
-                    node->getTagName(), node->getSourceLocation(), node->getNodeValue());
+        prefix.prefix = getElementIPv6AddressValue(node, &pfxLen);
 
         prefix.prefixLength = pfxLen;
-        prefix.advValidLifetime = utils::atoul(getRequiredAttr(node, "AdvValidLifetime"));
-        prefix.advOnLinkFlag = toBool(getRequiredAttr(node, "AdvOnLinkFlag"));
-        prefix.advPreferredLifetime = utils::atoul(getRequiredAttr(node, "AdvPreferredLifetime"));
-        prefix.advAutonomousFlag = toBool(getRequiredAttr(node, "AdvAutonomousFlag"));
+        // default values from FlatNetworkConfigurator6
+        prefix.advValidLifetime = getAttributeIntValue(node, "validLifetime", 2592000);
+        prefix.advPreferredLifetime = getAttributeIntValue(node, "preferredLifetime", 604800);
+        prefix.advOnLinkFlag = getAttributeBoolValue(node, "onLink");
+        prefix.advAutonomousFlag = getAttributeBoolValue(node, "autonomous");
+        EV << "* advertising prefix " << prefix.prefix << "/" << prefix.prefixLength << " (on-link: " << prefix.advOnLinkFlag << ", autonomous: " << prefix.advAutonomousFlag << ")" << endl;
         d->addAdvPrefix(prefix);
     }
 
     // parse addresses
     cXMLElementList addrList = cfg->getChildrenByTagName("inetAddr");
-    for (unsigned int k = 0; k < addrList.size(); k++) {
-        cXMLElement *node = addrList[k];
-        IPv6Address address = IPv6Address(node->getNodeValue());
+    for (cXMLElementList::iterator i = addrList.begin(); i != addrList.end(); i++)
+    {
+        cXMLElement *node = *i;
+        IPv6Address address = getElementIPv6AddressValue(node);
+        bool tentative = getAttributeBoolValue(node, "tentative", false);
+
+        EV << "* assigning address " << address << " (tentative: " << tentative << ")" << endl;
         //We can now decide if the address is tentative or not.
-        d->assignAddress(address, toBool(getRequiredAttr(node, "tentative")), SIMTIME_ZERO, SIMTIME_ZERO);    // set up with infinite lifetimes
+        d->assignAddress(address, tentative, SIMTIME_ZERO, SIMTIME_ZERO);  // set up with infinite lifetimes
+    }
+
+    // Configure static routes
+    cXMLElement *routeListElem = cfg->getFirstChildWithTag("routeList");
+    cXMLElementList routeList;
+    if (routeListElem)
+        routeList = routeListElem->getElementsByTagName("route");
+
+    for (cXMLElementList::iterator i = routeList.begin(); i != routeList.end(); i++)
+    {
+        cXMLElement *node = *i;
+
+        int pfxLen;
+        IPv6Address destPrefix = getElementIPv6AddressValue(node, &pfxLen);
+        // default to unspecified address -> no next hop, direct delivery on this interface
+        IPv6Address nextHop = getAttributeIPv6AddressValue(node, "nextHop", IPv6Address::UNSPECIFIED_ADDRESS);
+        // default to undefined metric
+        int metric = getAttributeIntValue(node, "metric", 0);
+
+        EV << "* adding route to " << destPrefix << "/" << pfxLen << " (" << (nextHop.isUnspecified() ? "direct" : (std::string("via ") + nextHop.str())) << ", metric " << metric << ")" << endl;
+        addStaticRoute(destPrefix, pfxLen, ie->getInterfaceId(), nextHop, metric);
     }
 }
 
@@ -386,8 +408,8 @@ void IPv6RoutingTable::configureTunnelFromXML(cXMLElement *cfg)
         cXMLElement *node = tunnelList[i];
 
         IPv6Address entry, exit, trigger;
-        entry.set(getRequiredAttr(node, "entryPoint"));
-        exit.set(getRequiredAttr(node, "exitPoint"));
+        entry.set(getRequiredAttribute(*node, "entryPoint"));
+        exit.set(getRequiredAttribute(*node, "exitPoint"));
 
         cXMLElementList triggerList = node->getElementsByTagName("triggers");
 
@@ -396,7 +418,7 @@ void IPv6RoutingTable::configureTunnelFromXML(cXMLElement *cfg)
                     node->getTagName(), node->getSourceLocation());
 
         cXMLElement *triggerNode = triggerList[0];
-        trigger.set(getRequiredAttr(triggerNode, "destination"));
+        trigger.set(getRequiredAttribute(*triggerNode, "destination"));
 
         EV_INFO << "New tunnel: " << "entry=" << entry << ",exit=" << exit << ",trigger=" << trigger << endl;
         tunneling->createTunnel(IPv6Tunneling::NORMAL, entry, exit, trigger);
