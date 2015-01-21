@@ -43,6 +43,20 @@ class INET_API ScenarioManager : public cSimpleModule
     int numChanges = 0;
     int numDone = 0;
 
+    struct Interpolation
+    {
+        cXMLElement *node;
+        cXMLElement *commandsNode;
+        cXMLElement *currentTargetNode;
+        simtime_t interval;
+        simtime_t until;
+        double currentValue;
+        double currentStep;
+        double currentTarget;
+        unsigned int currentStepsDone;
+        unsigned int currentStepsTotal;
+    };
+
   protected:
     // utilities
     const char *getRequiredAttribute(cXMLElement *node, const char *attr);
@@ -53,6 +67,8 @@ class INET_API ScenarioManager : public cSimpleModule
 
     // dispatch to command processors
     virtual void processCommand(cXMLElement *node);
+    virtual void processInterpolationChange(Interpolation *interpolation);
+    virtual void processInterpolationUpdate(Interpolation *interpolation);
 
     // command processors
     virtual void processAtCommand(cXMLElement *node);
@@ -71,6 +87,17 @@ class INET_API ScenarioManager : public cSimpleModule
     virtual void initialize();
     virtual void handleMessage(cMessage *msg);
     virtual void updateDisplayString();
+    virtual void commitInterpolationValue(Interpolation *interpolation);
+    virtual void scheduleNextInterpolationUpdate(Interpolation *interpolation);
+    const char *attributeOrError(cXMLElement *node, const char *attributeName);
+
+    enum SelfMessageKind
+    {
+        SCENARIO_MESSAGE_NORMAL = 0,
+        SCENARIO_MESSAGE_INTERPOLATION_CHANGE,
+        SCENARIO_MESSAGE_INTERPOLATION_UPDATE
+    };
+
 };
 
 } // namespace inet
