@@ -39,6 +39,8 @@
 #include "MultiFieldClassifier.h"
 #include "DiffservUtil.h"
 
+#include <algorithm>
+
 using namespace DiffservUtil;
 
 #ifdef WITH_IPv4
@@ -137,8 +139,6 @@ void MultiFieldClassifier::initialize(int stage)
 
     if (stage == 0)
     {
-        numOutGates = gateSize("outs");
-
         numRcvd = 0;
         WATCH(numRcvd);
     }
@@ -201,7 +201,7 @@ int MultiFieldClassifier::classifyPacket(cPacket *packet)
 
 void MultiFieldClassifier::addFilter(const Filter &filter)
 {
-    if (filter.gateIndex < 0 || filter.gateIndex >= numOutGates)
+    if (filter.gateIndex < 0 || filter.gateIndex >= gateSize("outs"))
         throw cRuntimeError("no output gate for gate index %d", filter.gateIndex);
     if (!filter.srcAddr.isUnspecified() && ((filter.srcAddr.isIPv6() && filter.srcPrefixLength > 128) ||
                                             (!filter.srcAddr.isIPv6() && filter.srcPrefixLength > 32)))
@@ -229,6 +229,21 @@ void MultiFieldClassifier::addFilter(const Filter &filter)
         throw cRuntimeError("destPortMin > destPortMax");
 
     filters.push_back(filter);
+}
+
+void MultiFieldClassifier::clearFilters()
+{
+    filters.clear();
+}
+
+void MultiFieldClassifier::removeFilter(const Filter &filter)
+{
+    std::remove(filters.begin(), filters.end(), filter);
+}
+
+const std::vector<MultiFieldClassifier::Filter> & MultiFieldClassifier::getFilters()
+{
+    return filters;
 }
 
 void MultiFieldClassifier::configureFilters(cXMLElement *config)

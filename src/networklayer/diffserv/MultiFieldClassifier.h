@@ -27,7 +27,7 @@
  */
 class INET_API MultiFieldClassifier : public cSimpleModule
 {
-  protected:
+  public:
         struct Filter
         {
             int gateIndex;
@@ -53,10 +53,25 @@ class INET_API MultiFieldClassifier : public cSimpleModule
     #ifdef WITH_IPv6
             bool matches(IPv6Datagram *datagram);
     #endif
+
+            bool operator==(const Filter &other) const {
+                return
+                    (gateIndex == other.gateIndex) &&
+                    (srcAddr == other.srcAddr) &&
+                    (srcPrefixLength == other.srcPrefixLength) &&
+                    (destAddr == other.destAddr) &&
+                    (destPrefixLength == other.destPrefixLength) &&
+                    (protocol == other.protocol) &&
+                    (tos == other.tos) &&
+                    (tosMask == other.tosMask) &&
+                    (srcPortMin == other.srcPortMin) &&
+                    (srcPortMax == other.srcPortMax) &&
+                    (destPortMin == other.destPortMin) &&
+                    (destPortMax == other.destPortMax);
+            }
         };
 
   protected:
-    int numOutGates;
     std::vector<Filter> filters;
 
     int numRcvd;
@@ -64,11 +79,15 @@ class INET_API MultiFieldClassifier : public cSimpleModule
     static simsignal_t pkClassSignal;
 
   protected:
-    void addFilter(const Filter &filter);
     void configureFilters(cXMLElement *config);
 
   public:
     MultiFieldClassifier() {}
+
+    void addFilter(const Filter &filter);
+    void clearFilters();
+    void removeFilter(const Filter & filter);
+    const std::vector<Filter>& getFilters();
 
   protected:
     virtual int numInitStages() const { return 4; }
